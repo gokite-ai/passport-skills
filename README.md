@@ -1,6 +1,9 @@
 [![CI](https://github.com/gokite-ai/passport-skills/actions/workflows/ci.yml/badge.svg)](https://github.com/gokite-ai/passport-skills/actions/workflows/ci.yml)
+[![skills.sh](https://skills.sh/b/gokite-ai/passport-skills)](https://skills.sh/gokite-ai/passport-skills)
 
 # Kite Skills
+
+[Kite Agent Passport](https://agentpassport.ai) gives an AI agent a limited, user-approved budget to move funds and make paid API calls on a user's behalf: users sign up, fund a wallet, and approve spending sessions via passkey, while agents drive the whole flow through the `kpass` and `ksearch` CLIs.
 
 Skills that teach AI agents (Claude Code, Cursor, Cline, and 40+ others) how to discover services with `ksearch` and complete payment flows with `kpass`.
 
@@ -129,49 +132,9 @@ This script:
 - Directs users to the public bundle installer if it is not installed
 - Outputs JSON status: `{"status":"ok",...}` or `{"status":"error","error":"..."}`
 
-## CLI Invocation Patterns
+## Reference
 
-Passport skills invoke:
-
-```bash
-kpass <command> [subcommand] [flags] --output json
-```
-
-Discovery skill invokes:
-
-```bash
-ksearch <command> [subcommand] [flags] --output json
-```
-
-Key conventions:
-- `--output json` is required on every command for machine-readable output.
-- `--no-interactive` should be passed on kpass commands that accept it (signup init, login init) to prevent stdin prompts.
-- All JSON output follows the envelope: `{ ..., "_version": "1", "status": "...", "hint": "...", "next_command": "..." }`
-
-## Session Delegation Model
-
-Sessions use a delegation-based approval model. The agent:
-
-1. Preflights the merchant URL (curl) to discover payment requirements (402 response)
-2. Constructs a delegation object with task summary, payment policy, and optional execution constraints
-3. Creates a session with `--delegation '<JSON>'`
-4. The user reviews and approves the delegation via passkey
-
-The delegation includes:
-- **task** -- human-readable summary of what the agent is authorized to do
-- **payment_policy** -- enforced spend limits (per-tx cap, total budget, allowed assets, TTL)
-- **execution_constraints** -- optional scoped HTTP endpoint restrictions
-
-## Exit Codes
-
-| Code | Meaning |
-|------|---------|
-| 0 | Success, or human action required (not an error) |
-| 1 | Network / general error |
-| 2 | Usage error (missing flag, invalid argument) |
-| 3 | Auth error (invalid OTP, expired session, bad token, delegation violation) |
-| 4 | Not found (user not registered, session not found, service not found) |
-| 5 | Rate limited |
+CLI invocation patterns, the JSON envelope contract, the session delegation model, and exit codes: see [docs/reference.md](docs/reference.md).
 
 ## Repository Structure
 
@@ -181,6 +144,8 @@ passport-skills/
   GETTING_STARTED.md             Quick-start walkthrough for setting up kpass and using Passport skills
   CONTRIBUTING.md                Contribution guide
   SECURITY.md                    Security policy
+  docs/
+    reference.md                 CLI invocation patterns, JSON envelope, session delegation model, exit codes
   Makefile                       `make bump-up` / `make bump-down` wrappers around scripts/bump-version.sh
   package.json                   Project metadata and scripts
   skills.json                    Skills registry manifest
