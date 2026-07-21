@@ -2,14 +2,14 @@
 # Kite Passport CLI Bootstrap Script
 #
 # Ensures the kpass CLI is installed, on PATH, and at least MIN_CLI_VERSION.
-# Tries multiple installation methods in order of preference.
+# Installs via the official bundle installer (https://cli.gokite.ai/install.sh)
+# when missing or stale.
 #
 # Usage: bash setup.sh [--help]
 #
 # Output: JSON to stdout.
 #   {"status":"ok","cli_version":"kpass v1.6.0","installed_via":"existing"}
-#   {"status":"ok","cli_version":"kpass v1.6.0","installed_via":"npm"}
-#   {"status":"ok","cli_version":"kpass v1.6.0","installed_via":"go"}
+#   {"status":"ok","cli_version":"kpass v1.6.0","installed_via":"installer"}
 #   {"status":"error","error":"..."}
 #
 # Exit codes:
@@ -25,7 +25,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 # not ship — scripts/validate.sh checks in CI that they stay in sync with
 # skills.json, because a drifted fallback silently installs a CLI the skills
 # cannot drive.
-DEFAULT_CLI_VERSION="1.9.0"  # install target = skills.json max_cli_version
+DEFAULT_CLI_VERSION="1.9.0"  # informational ceiling = skills.json max_cli_version
 DEFAULT_MIN_CLI_VERSION="1.5.0"  # floor = skills.json min_cli_version (pre-release tag dropped)
 
 SKILLS_JSON=""
@@ -67,15 +67,15 @@ if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
   echo "Kite Passport CLI Bootstrap"
   echo ""
   echo "Ensures kpass >= ${MIN_CLI_VERSION} is installed and available on PATH."
+  echo "This bundle is validated against kpass up to ${CLI_VERSION}."
   echo "If not found (or too old), attempts to install it automatically."
   echo ""
   echo "Usage: bash setup.sh"
   echo ""
   echo "Installation order:"
   echo "  1. Check if kpass >= ${MIN_CLI_VERSION} is already on PATH"
-  echo "  2. Try: npm install -g kpass@${CLI_VERSION}"
-  echo "  3. Try: go install github.com/gokite-ai/passport-cli/cmd/kpass@v${CLI_VERSION}"
-  echo "  4. Fail with installation instructions"
+  echo "  2. Try: curl -fsSL https://cli.gokite.ai/install.sh | bash"
+  echo "  3. Fail with installation instructions"
   echo ""
   echo "Output: JSON to stdout"
   echo "  {\"status\":\"ok\",\"cli_version\":\"...\",\"installed_via\":\"...\"}"
@@ -124,49 +124,27 @@ report_if_suitable() {
 # ---------------------------------------------------------------------------
 report_if_suitable "existing" || true
 if command -v kpass &>/dev/null; then
-  echo "Upgrading to kpass@${CLI_VERSION}..." >&2
+  echo "Existing kpass is below ${MIN_CLI_VERSION}; reinstalling..." >&2
 fi
 
 # ---------------------------------------------------------------------------
-# Step 2: Try npm install -g
+# Step 2: Install via the official bundle installer
 # ---------------------------------------------------------------------------
-if command -v npm &>/dev/null; then
-  echo "Installing via npm..." >&2
-  if npm install -g "kpass@${CLI_VERSION}" >&2; then
-    report_if_suitable "npm" || true
-  fi
-  echo "npm install failed, or the kpass on PATH is still unsuitable." >&2
+echo "Installing kpass via the official installer (https://cli.gokite.ai/install.sh)..." >&2
+if curl -fsSL https://cli.gokite.ai/install.sh | bash >&2; then
+  # The installer typically only updates shell startup files (.bashrc/.zshrc),
+  # which this non-interactive script never sources. Export the standard bundle
+  # locations directly so the recheck below finds a fresh install even before
+  # PATH has been refreshed in any shell.
+  export PATH="${KPASS_INSTALL_DIR:-$HOME/.kpass}/bin:$HOME/.local/bin:$PATH"
+  report_if_suitable "installer" || true
 fi
+echo "Installer did not produce a kpass >= ${MIN_CLI_VERSION} on PATH." >&2
 
 # ---------------------------------------------------------------------------
-# Step 3: Try go install
-# ---------------------------------------------------------------------------
-if command -v go &>/dev/null; then
-  echo "Trying go install..." >&2
-  if go install "github.com/gokite-ai/passport-cli/cmd/kpass@v${CLI_VERSION}" >&2; then
-    report_if_suitable "go" || true
-    # go install honors GOBIN when set, else GOPATH/bin — either may be off PATH.
-    GO_BIN_DIR="$(go env GOBIN)"
-    [[ -z "$GO_BIN_DIR" ]] && GO_BIN_DIR="$(go env GOPATH)/bin"
-    GOBIN_PATH="$GO_BIN_DIR/kpass"
-    if [[ -x "$GOBIN_PATH" ]]; then
-      VERSION_OUTPUT=$("$GOBIN_PATH" --version 2>/dev/null || echo "unknown")
-      INSTALLED_VERSION=$(grep -oE '[0-9]+\.[0-9]+\.[0-9]+[0-9A-Za-z.-]*' <<< "$VERSION_OUTPUT" | head -1 || true)
-      if [[ -n "$INSTALLED_VERSION" ]] && version_at_least "$INSTALLED_VERSION" "$MIN_CLI_VERSION"; then
-        echo "{\"status\":\"ok\",\"cli_version\":\"${VERSION_OUTPUT}\",\"installed_via\":\"go\",\"note\":\"Binary installed at ${GOBIN_PATH} but not on PATH (or an older kpass shadows it). Put ${GO_BIN_DIR} first on your PATH.\"}"
-        exit 0
-      fi
-      echo "{\"status\":\"error\",\"error\":\"go install produced kpass at ${GOBIN_PATH} reporting '${VERSION_OUTPUT}' — below required ${MIN_CLI_VERSION} (or unreadable). Put ${GO_BIN_DIR} first on your PATH if an older kpass on PATH is shadowing it, or reinstall.\"}"
-      exit 1
-    fi
-  fi
-  echo "go install failed." >&2
-fi
-
-# ---------------------------------------------------------------------------
-# Step 4: Nothing worked
+# Step 3: Nothing worked
 # ---------------------------------------------------------------------------
 cat <<EOF
-{"status":"error","error":"Could not install kpass >= ${MIN_CLI_VERSION}. Install manually using one of these methods:\n\n  Option 1 (npm):  npm install -g kpass@${CLI_VERSION}\n  Option 2 (Go):   go install github.com/gokite-ai/passport-cli/cmd/kpass@v${CLI_VERSION}\n  Option 3 (source): git clone https://github.com/gokite-ai/passport-cli && cd passport-cli && make install\n\nThen ensure the binary is on your PATH (before any older kpass)."}
+{"status":"error","error":"Could not install kpass >= ${MIN_CLI_VERSION}. Install manually:\n\n  macOS / Linux:  curl -fsSL https://cli.gokite.ai/install.sh | bash\n  Windows:        irm https://cli.gokite.ai/install.ps1 | iex\n\nThen ensure the binary is on your PATH (before any older kpass)."}
 EOF
 exit 1

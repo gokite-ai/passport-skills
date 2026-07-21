@@ -6,29 +6,16 @@ Agent Passport gives an AI agent a limited, user-approved budget to move funds o
 
 ## Prerequisites
 
-### Go 1.22+
-
-```bash
-go version  # must be go1.22 or higher
-```
-
-Ensure `$GOPATH/bin` is on your PATH:
-
-```bash
-export PATH="$PATH:$(go env GOPATH)/bin"
-```
-
 ### Install the CLI
 
 ```bash
-git clone https://github.com/gokite-ai/passport-cli
-cd passport-cli
-make install   # installs kpass to $GOPATH/bin
-cd ..
+curl -fsSL https://cli.gokite.ai/install.sh | bash
 ```
 
+> Windows (PowerShell): `irm https://cli.gokite.ai/install.ps1 | iex`
+
 ```bash
-kpass --version  # should print kpass v1.5.0-rc.1 or higher
+kpass --version  # should print kpass v1.5.0 or higher
 ```
 
 ### Clone the skills

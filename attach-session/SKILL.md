@@ -162,12 +162,15 @@ An agent wants to attach to your session:
 | `{expires_at}` | JSON field `expires_at` |
 
 Then open the approval URL in the user's default browser automatically —
-this saves the user a copy-paste; if it fails, the URL is still in the card:
+this saves the user a copy-paste; if it fails, the URL is still in the card.
+
+**Shell-safe substitution — MANDATORY:** even though `approval_url` is backend-generated, do not splice it into the command as bare text or inside double quotes (double quotes still expand `$(...)`, backticks, and `$VAR`). Assign it to a shell variable as a **single-quoted literal** first (escaping any embedded `'` as `'\''` — close quote, escaped literal quote, reopen quote), then reference the variable in double quotes:
 
 ```bash
-open "{approval_url}"                  # macOS
-xdg-open "{approval_url}"              # Linux
-cmd.exe /c start "" "{approval_url}"   # Windows (via Bash, e.g. WSL/git-bash)
+APPROVAL_URL='<value of the approval_url field, single-quoted, unmodified>'
+open "$APPROVAL_URL"                  # macOS
+xdg-open "$APPROVAL_URL"              # Linux
+cmd.exe /c start "" "$APPROVAL_URL"   # Windows (via Bash, e.g. WSL/git-bash)
 ```
 
 ### Step 4: Poll for Approval

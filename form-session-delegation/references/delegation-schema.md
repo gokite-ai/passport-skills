@@ -8,7 +8,16 @@ The delegation draft passed to `agent:session create --delegation '<JSON>'` must
 
 **IMPORTANT: Do NOT wrap the delegation in an outer `{"delegation": ...}` object. The CLI does that automatically. Pass only the inner object directly.**
 
-**Safe construction:** `task.summary` is derived from the user's own words (Construction Rule 1) and may contain quotes, apostrophes, or other shell metacharacters (e.g. `Buy John's book`). Never build the `--delegation '<JSON>'` argument by hand-splicing such text into a shell single-quoted string — an embedded `'` breaks out of the quoting and can inject arbitrary shell content. Serialize the delegation object with a proper JSON encoder (e.g. your language's `json.dumps`/`JSON.stringify`, or a `jq -n` invocation) and pass the result as a single, distinctly-quoted argument (or via a variable), not by concatenating raw field values into a literal command string.
+**Safe construction:** `task.summary` is derived from the user's own words (Construction Rule 1) and may contain quotes, apostrophes, `$()`, backticks, or other shell metacharacters (e.g. `Buy John's book` or a maliciously-crafted `Buy $(rm -rf ~)`). Never hand-splice such text into a shell command string, and note that **double-quoting does not make this safe** — `"$(...)"`, backticks, and `$VAR` are all still expanded inside double quotes.
+
+Serialize the delegation object with a proper JSON encoder (e.g. your language's `json.dumps`/`JSON.stringify`, or a `jq -n` invocation) — the encoder handles internal escaping of the JSON string itself (a literal apostrophe like `John's` is valid, unescaped inside a JSON string). Then, when passing the *result* on the command line, assign it to a shell variable using a **single-quoted literal** (which stores the bytes inertly with no expansion, even on later reference), escaping any embedded `'` as `'\''` (close quote, escaped literal quote, reopen quote). For example, if the encoder produced `{"task":{"summary":"Buy John's book"},...}`:
+
+```bash
+DELEGATION_JSON='{"task":{"summary":"Buy John'\''s book"},...}'
+kpass agent:session create --delegation "$DELEGATION_JSON" --output json
+```
+
+Do not concatenate raw field values into a literal command string, and do not skip the escaping step because the source "seems trusted" — `task.summary` originates from user-supplied text and must be treated as untrusted shell input regardless of intent.
 
 ```json
 {

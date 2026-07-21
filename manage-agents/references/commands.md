@@ -168,7 +168,6 @@ All filter flags are optional. Omit them to list all sessions.
           "summary": "Query the weather forecast API at weather.example.com."
         },
         "payment_policy": {
-          "assets": ["USDC"],
           "max_amount_per_tx": "5.00",
           "max_total_amount": "50.00"
         }
@@ -188,7 +187,6 @@ All filter flags are optional. Omit them to list all sessions.
           "summary": "Access paid data API."
         },
         "payment_policy": {
-          "assets": ["USDC"],
           "max_amount_per_tx": "50.00",
           "max_total_amount": "200.00"
         }
@@ -215,10 +213,10 @@ All filter flags are optional. Omit them to list all sessions.
 - `sessions[].status` -- Session status (`active` or `expired`).
 - `sessions[].agent_type` -- The agent type that owns this session.
 - `sessions[].expires_at` -- ISO 8601 timestamp of when the session expires (or expired).
-- `sessions[].delegation` -- The delegation policy for this session, containing `task` (summary), `payment_policy` (approaches, assets, caps), and optionally `execution_constraints`.
+- `sessions[].delegation` -- The delegation policy for this session, containing `task` (summary), `payment_policy` (currency, caps), and optionally `execution_constraints`.
 - `sessions[].delegation.payment_policy.max_amount_per_tx` -- The per-transaction spending limit.
 - `sessions[].delegation.payment_policy.max_total_amount` -- The total session budget (if set).
-- `sessions[].delegation.payment_policy.assets` -- The allowed assets (e.g., `["USDC"]`).
+- `sessions[].delegation.payment_policy.currency` -- The budget denomination the caps above are expressed in (defaults to `USD`). There is no `assets` allowlist field -- the settlement token is merchant-driven and the session locks to the first settled asset automatically.
 - `sessions[].usage` -- Current usage: `spent_total` (total spent) and `reserved_total` (amount reserved for in-flight payments).
 - `total` -- Total number of sessions matching the filter (for pagination).
 - `limit` -- The page size used.
@@ -318,7 +316,6 @@ Output:
           "summary": "Query the weather forecast API at weather.example.com."
         },
         "payment_policy": {
-          "assets": ["USDC"],
           "max_amount_per_tx": "5.00",
           "max_total_amount": "50.00"
         }
@@ -355,8 +352,8 @@ Output:
 ```json
 {
   "sessions": [
-    { "id": "session_001", "status": "active", "agent_type": "claude", "expires_at": "2026-03-19T13:00:00Z", "delegation": { "task": { "summary": "Weather API access." }, "payment_policy": { "assets": ["USDC"], "max_amount_per_tx": "5.00", "max_total_amount": "50.00" } }, "usage": { "spent_total": "10.00", "reserved_total": "0.00" } },
-    { "id": "session_002", "status": "expired", "agent_type": "cursor", "expires_at": "2026-03-18T10:00:00Z", "delegation": { "task": { "summary": "Data API access." }, "payment_policy": { "assets": ["USDC"], "max_amount_per_tx": "50.00", "max_total_amount": "200.00" } }, "usage": { "spent_total": "75.00", "reserved_total": "0.00" } }
+    { "id": "session_001", "status": "active", "agent_type": "claude", "expires_at": "2026-03-19T13:00:00Z", "delegation": { "task": { "summary": "Weather API access." }, "payment_policy": { "max_amount_per_tx": "5.00", "max_total_amount": "50.00" } }, "usage": { "spent_total": "10.00", "reserved_total": "0.00" } },
+    { "id": "session_002", "status": "expired", "agent_type": "cursor", "expires_at": "2026-03-18T10:00:00Z", "delegation": { "task": { "summary": "Data API access." }, "payment_policy": { "max_amount_per_tx": "50.00", "max_total_amount": "200.00" } }, "usage": { "spent_total": "75.00", "reserved_total": "0.00" } }
   ],
   "total": 15,
   "limit": 10,

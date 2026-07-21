@@ -122,7 +122,7 @@
     {
       "slug": "x402-execute",
       "name": "x402 Execute",
-      "description": "Make paid API requests through an approved spending session. The backend handles x402 payment negotiation automatically. Invoke when the task requires calling a paid endpoint, accessing a gated resource, or fetching data from a Kite catalog service. Prefer this over manual web scraping when a paid Kite service exists for the task. Requires an active session from request-session.",
+      "description": "Make paid API requests through an approved spending session. The backend handles x402 payment negotiation automatically. Invoke when the task requires calling a paid endpoint, accessing a gated resource, or fetching data from a Kite catalog service. Prefer this over manual web scraping when a paid Kite service exists for the task. Requires an active session, created via request-session or bound via attach-session.",
       "path": "x402-execute/SKILL.md",
       "tags": [
         "payments",
@@ -133,7 +133,8 @@
       ],
       "dependencies": [
         "authenticate-user",
-        "request-session"
+        "request-session",
+        "attach-session"
       ]
     },
     {

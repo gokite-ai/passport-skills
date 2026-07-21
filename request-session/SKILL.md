@@ -53,7 +53,7 @@ approval on a policy the owner already defined.
 
 ## Sessions Are Protocol-Agnostic
 
-A single approved session is fungible across paid-API and shopping flows. The settlement protocol (x402, paygate, tempo, or crossmint checkout) is detected at execute time from the merchant's preflight response — the delegation does **not** carry a protocol field. The authorization boundary is the asset allowlist, per-tx / total spending caps, and a single-asset lock applied once the session settles in one token.
+A single approved session is fungible across paid-API and shopping flows. The settlement protocol (x402, paygate, tempo, or crossmint checkout) is detected at execute time from the merchant's preflight response — the delegation does **not** carry a protocol field. The authorization boundary is per-tx / total spending caps (`max_amount_per_tx` / `max_total_amount`, denominated in `payment_policy.currency`, default `USD`) plus optional `execution_constraints` endpoint scoping — there is **no `assets` allowlist field** and the caps are never expressed per-asset. The settlement asset itself is a separate, merchant-selected concern: the merchant's 402 dictates which token settles (normalized into the budget currency for cap enforcement), and the session locks to that first settled asset automatically (single-asset lock) — this lock is an emergent side effect of settlement, not a user-configurable allowlist. See the **`form-session-delegation`** skill for the full schema.
 
 For the full delegation schema and derivation rules, see the **`form-session-delegation`** skill.
 
@@ -127,21 +127,26 @@ Preflight the merchant URL before creating a session. Guessing the payment requi
 
 **Validate the URL before curling it:** the merchant URL may come from the user or other less-trusted content. Require `https://` (reject `http://`, `file://`, or other schemes) and reject hosts that resolve to loopback, private, link-local, or other non-public ranges (including the `169.254.169.254` cloud metadata address) before making the request. If the URL fails validation, stop and tell the user rather than curling it.
 
-Use `curl` to probe the merchant URL:
+**Shell-safe substitution — MANDATORY:** validation alone does not stop shell metacharacters *inside* an otherwise-valid URL from being interpreted by the shell, and double-quoting does not help — `"$(...)"`, backticks, and `$VAR` are all still expanded inside double quotes. Assign the URL to a shell variable as a **single-quoted literal** (inert — no expansion, even on later reference), then reference the variable in double quotes:
 
 ```bash
-curl -s -w "\n%{http_code}" <MERCHANT_URL>
+MERCHANT_URL='<paste the exact URL, single-quoted, unmodified>'
+curl -s --connect-timeout 10 --max-time 20 -w "\n%{http_code}" "$MERCHANT_URL"
 ```
 
 Or for POST endpoints:
 
 ```bash
-curl -s -w "\n%{http_code}" -X POST <MERCHANT_URL> -H "Content-Type: application/json"
+curl -s --connect-timeout 10 --max-time 20 -X POST "$MERCHANT_URL" -H "Content-Type: application/json" -w "\n%{http_code}"
 ```
+
+**Always bound the request** with `--connect-timeout`/`--max-time` — an untrusted merchant URL that never responds must not hang the agent indefinitely; treat a timeout the same as a non-402 response (fall back to conservative defaults, below).
+
+If the URL contains a literal `'`, escape it as `'\''` (close quote, escaped literal quote, reopen quote) before wrapping — see the **`form-session-delegation`** skill's "Shell-Safe Value Substitution" section for the full rule and worked example.
 
 Parse the response. See the **`form-session-delegation`** skill for detailed guidance on parsing 402 responses. The structure varies by merchant — there is no standard schema.
 
-If the preflight does not return a 402, or you cannot parse the 402 response, use conservative defaults (`max_amount_per_tx: "1"`, `max_total_amount: "10"`, `assets: ["USDC"]`) and note this in the confirmation card. Do NOT ask the user for individual parameter values — let them review and adjust via the confirmation card.
+If the preflight does not return a 402, or you cannot parse the 402 response, use conservative defaults (`max_amount_per_tx: "1"`, `max_total_amount: "10"`) and note this in the confirmation card. Do NOT add an `assets` field — there is no such field in `payment_policy` (see **`form-session-delegation`**). Do NOT ask the user for individual parameter values — let them review and adjust via the confirmation card.
 
 After parsing the 402 response, display the Payment Requirements Discovered card — this is the user's first visible confirmation that the agent read the merchant's terms correctly:
 
@@ -198,8 +203,12 @@ See the **`form-session-delegation`** skill for the complete schema, constructio
 
 ### Step 7: Create Session with `--delegation`
 
+**Shell-safe substitution — MANDATORY:** `task.summary` is derived from the user's own words and may contain quotes, `$()`, backticks, or other shell metacharacters. Never hand-splice it into the command string — double-quoting does not stop `$()`/backtick expansion. Assign the JSON-encoder output to a shell variable as a **single-quoted literal** (escaping any embedded `'` as `'\''`), then reference the variable in double quotes. See the **`form-session-delegation`** skill's "Shell-Safe Value Substitution" section for the full rule and a worked example.
+
 ```bash
-kpass agent:session create --delegation '<DELEGATION_JSON>' --output json
+# Example: encoder produced {"task":{"summary":"Buy John's book"},...}
+DELEGATION_JSON='{"task":{"summary":"Buy John'\''s book"},...}'
+kpass agent:session create --delegation "$DELEGATION_JSON" --output json
 ```
 
 Two possible outcomes (see `@references/commands.md` `agent:session create`):

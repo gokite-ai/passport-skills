@@ -139,7 +139,7 @@ kpass shop:shipping update --name "Jane Doe" --email "jane@example.com" --line1 
 Cart total is $9.99. Agent needs a spending session — uses the **`request-session`** skill with the cart total as the budget source. Example delegation:
 
 ```json
-{"task":{"summary":"Shopping checkout — estimated total $9.99"},"payment_policy":{"assets":["USDC"],"max_amount_per_tx":"15","max_total_amount":"15","ttl_seconds":3600}}
+{"task":{"summary":"Shopping checkout — estimated total $9.99"},"payment_policy":{"max_amount_per_tx":"15","max_total_amount":"15","ttl_seconds":3600}}
 ```
 
 The `form-session-delegation` skill derives the parameters (per-tx limit, total budget, TTL) from the cart total. The user approves the session via passkey.
