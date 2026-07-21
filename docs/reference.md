@@ -43,6 +43,7 @@ The delegation includes:
 | 0 | Success, or human action required (not an error) |
 | 1 | Network / general error |
 | 2 | Usage error (missing flag, invalid argument) |
-| 3 | Auth error (invalid OTP, expired session, bad token, delegation violation) |
+| 3 | Auth error (invalid OTP, expired session, bad token) |
 | 4 | Not found (user not registered, session not found, service not found) |
 | 5 | Rate limited |
+| 6 | Session policy / payment violation (e.g. `session_asset_forbidden`, `session_total_exceeded`) -- do NOT re-authenticate; create a new session with corrected parameters. See each skill's `SKILL.md` for the full `error_code` list. |
