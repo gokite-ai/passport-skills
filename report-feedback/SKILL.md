@@ -147,7 +147,7 @@ See `@references/commands.md` for the full `agent:feedback submit` argument tabl
 | Exit code | Meaning | Recovery |
 |-----------|---------|----------|
 | 0 | Success | Show post-submit card |
-| 1 | Network / server error / oversized content | Retry once; on persistent failure, surface error and offer to save locally |
+| 1 | Network / server error / oversized content | Do NOT auto-retry — submission is not idempotent, so a lost response doesn't tell you whether the row was already written. Surface the error and offer to save locally; only resubmit if the user explicitly asks (see `@references/commands.md`). |
 | 2 | Usage error (missing/invalid flag) | Fix the flag and re-run |
 | 3 | Auth error (agent not registered or token expired) | Run `kpass agent:register --type <agent-type> --output json`; if still failing, use `authenticate-user` skill |
 | 4 | Not found | Should not happen for this command; surface error to user |

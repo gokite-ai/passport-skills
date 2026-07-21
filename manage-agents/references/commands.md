@@ -168,7 +168,6 @@ All filter flags are optional. Omit them to list all sessions.
           "summary": "Query the weather forecast API at weather.example.com."
         },
         "payment_policy": {
-          "assets": ["USDC"],
           "max_amount_per_tx": "5.00",
           "max_total_amount": "50.00"
         }
@@ -188,7 +187,6 @@ All filter flags are optional. Omit them to list all sessions.
           "summary": "Access paid data API."
         },
         "payment_policy": {
-          "assets": ["USDC"],
           "max_amount_per_tx": "50.00",
           "max_total_amount": "200.00"
         }
@@ -318,7 +316,6 @@ Output:
           "summary": "Query the weather forecast API at weather.example.com."
         },
         "payment_policy": {
-          "assets": ["USDC"],
           "max_amount_per_tx": "5.00",
           "max_total_amount": "50.00"
         }
@@ -355,8 +352,8 @@ Output:
 ```json
 {
   "sessions": [
-    { "id": "session_001", "status": "active", "agent_type": "claude", "expires_at": "2026-03-19T13:00:00Z", "delegation": { "task": { "summary": "Weather API access." }, "payment_policy": { "assets": ["USDC"], "max_amount_per_tx": "5.00", "max_total_amount": "50.00" } }, "usage": { "spent_total": "10.00", "reserved_total": "0.00" } },
-    { "id": "session_002", "status": "expired", "agent_type": "cursor", "expires_at": "2026-03-18T10:00:00Z", "delegation": { "task": { "summary": "Data API access." }, "payment_policy": { "assets": ["USDC"], "max_amount_per_tx": "50.00", "max_total_amount": "200.00" } }, "usage": { "spent_total": "75.00", "reserved_total": "0.00" } }
+    { "id": "session_001", "status": "active", "agent_type": "claude", "expires_at": "2026-03-19T13:00:00Z", "delegation": { "task": { "summary": "Weather API access." }, "payment_policy": { "max_amount_per_tx": "5.00", "max_total_amount": "50.00" } }, "usage": { "spent_total": "10.00", "reserved_total": "0.00" } },
+    { "id": "session_002", "status": "expired", "agent_type": "cursor", "expires_at": "2026-03-18T10:00:00Z", "delegation": { "task": { "summary": "Data API access." }, "payment_policy": { "max_amount_per_tx": "50.00", "max_total_amount": "200.00" } }, "usage": { "spent_total": "75.00", "reserved_total": "0.00" } }
   ],
   "total": 15,
   "limit": 10,
