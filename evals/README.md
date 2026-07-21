@@ -4,7 +4,7 @@ Ported from the `spring-test` branch as a behavioral safety net for the skills-o
 
 ## Layout
 
-- `evals.json` — master eval definitions (59 scenarios, each with prompt + assertion strings).
+- `evals.json` — master eval definitions (55 scenarios, each with prompt + assertion strings).
 - `functional-workspace/iteration-3/` — graded transcripts captured by dispatching subagents against two skill versions: `main/` and `spring-test/`. Each `eval-*/` directory holds an `eval_metadata.json` plus `<version>/outputs/response.md`.
 - `functional-workspace/iteration-3/grade_all.py` — re-grades every response.md against its assertions and writes per-version `grading.json`.
 - `functional-workspace/iteration-3/build_benchmark.py` — aggregates grading.json files into `grading_summary.json` (means, wins/ties/losses, `losses[]` queue for follow-up).

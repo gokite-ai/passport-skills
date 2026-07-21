@@ -24,6 +24,11 @@ PACKAGE_JSON="$ROOT/package.json"
 # Read current version from skills.json
 CURRENT=$(grep '"version"' "$SKILLS_JSON" | head -1 | sed 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/')
 
+if ! [[ "$CURRENT" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  echo "ERROR: skills.json \"version\" is not a plain major.minor.patch value: '$CURRENT'" >&2
+  exit 1
+fi
+
 IFS='.' read -r V_MAJOR V_MINOR V_PATCH <<< "$CURRENT"
 
 if [ "$DOWN" = true ]; then

@@ -14,6 +14,7 @@ allowed-tools:
   - "Bash(kpass agent:session *)"
   - "Bash(open *)"
   - "Bash(xdg-open *)"
+  - "Bash(cmd.exe /c start*)"
 ---
 
 # Attach Session
@@ -164,9 +165,9 @@ Then open the approval URL in the user's default browser automatically —
 this saves the user a copy-paste; if it fails, the URL is still in the card:
 
 ```bash
-open "{approval_url}"          # macOS
-xdg-open "{approval_url}"      # Linux
-start "{approval_url}"         # Windows
+open "{approval_url}"                  # macOS
+xdg-open "{approval_url}"              # Linux
+cmd.exe /c start "" "{approval_url}"   # Windows (via Bash, e.g. WSL/git-bash)
 ```
 
 ### Step 4: Poll for Approval
@@ -195,8 +196,8 @@ delegation. Display the approved card:
 
 🎫 Session:     {session_id}
 📝 Task:        {task_summary}
-💰 Per-tx:      Up to {max_amount_per_tx} {assets}
-💰 Budget:      {max_total_amount} {assets}
+💰 Per-tx:      Up to {max_amount_per_tx} {currency}
+💰 Budget:      {max_total_amount} {currency}
 ⏰ Expires:     {expires_at}
 ✅ Status:      Active
 
@@ -210,7 +211,7 @@ All set. I can now execute payments on your behalf.
 | `{task_summary}` | JSON field `session.delegation.task.summary` |
 | `{max_amount_per_tx}` | JSON field `session.delegation.payment_policy.max_amount_per_tx` |
 | `{max_total_amount}` | JSON field `session.delegation.payment_policy.max_total_amount` (show "unlimited" if not set) |
-| `{assets}` | JSON field `session.delegation.payment_policy.assets` (e.g., `USDC`); omit if not set |
+| `{currency}` | JSON field `session.delegation.payment_policy.currency` (defaults to `USD` if not set — there is no `assets` field; see the **`form-session-delegation`** skill) |
 | `{expires_at}` | JSON field `session.expires_at` |
 
 Note the delegation was authored by the owner when the session was created —

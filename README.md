@@ -22,7 +22,7 @@ Each skill is a `SKILL.md` file that gets injected into an AI agent's context at
 | **upgrade-passport** | `upgrade-passport/` | Detect and apply `kpass` CLI updates automatically when an `update_available` field appears in any kpass JSON envelope. |
 | **kite-discovery** | `kite-discovery/` | Browse, search, and inspect paid services in the Kite service catalog. No auth required. |
 | **authenticate-user** | `authenticate-user/` | Sign up new users or log in returning users. Always the first skill needed for Passport flows. |
-| **request-session** | `request-session/` | Register the agent, preflight merchant URLs, and create spending sessions with delegation-based user approval. Required before payments. |
+| **request-session** | `request-session/` | Register the agent, preflight merchant URLs, and create spending sessions with delegation-based user approval. Required before payments, unless an existing session is already bound via attach-session. |
 | **attach-session** | `attach-session/` | Attach an existing attachable session (e.g., pre-created in the web dashboard) to this agent by session ID, with owner passkey approval. |
 | **form-session-delegation** | `form-session-delegation/` | Helper skill for constructing delegation objects. Covers preflight 402 parsing, delegation schema, and construction rules. Not user-invocable. |
 | **x402-execute** | `x402-execute/` | Execute HTTP requests through approved sessions. The backend handles x402 payment negotiation. |

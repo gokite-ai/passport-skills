@@ -231,7 +231,7 @@ Test tokens only — your wallet is funded for development.
 | Exit Code | Meaning | Error Message Pattern | Recovery Action |
 |-----------|---------|----------------------|-----------------|
 | 0 | Success **or** `human_action_required` | `status: "success"` / `status: "human_action_required"` | For `human_action_required`, show the approval URL and poll with `send-status`. It is NOT an error. |
-| 1 | Network error / send failed | `network error: ...`; `send-status` returns `status: "error"` with `error_code` | Check connectivity and retry. For a failed send, start a new one. |
+| 1 | Network error / send failed | `network error: ...`; `send-status` returns `status: "error"` with `error_code` | A client-side network error while polling `send-status` is safe to retry — re-run the same status check, do not create a new send (the original request may still resolve). Only start a new send once `send-status` itself returns a confirmed terminal `error`/`failed` state — that means the backend has already determined the transfer did not go through. |
 | 2 | Usage / validation error | `Missing --chain flag`, `--chain must be one of base\|tempo\|solana`, `--to is not a valid <chain> address: ...`, `--amount must be a positive number`, `Missing --recipient flag`, `Missing --token flag` | Fix the flags. `--chain` is required; the address must match the chain. |
 | 3 | Auth error | `Not logged in. Run 'kpass login init ...'`; `send-status` `rejected`/`expired`/`--wait` timeout | Use **`authenticate-user`** to log in, then retry. For a rejected/expired send, start a new one. |
 | 4 | Not found | `not found` | Check the request ID or recipient address. |

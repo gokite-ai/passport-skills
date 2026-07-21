@@ -479,14 +479,14 @@ Before calling checkout, you MUST do ALL of the following in order:
 ### Error Output — Cart Empty (exit code 2, `error_code: "cart_empty"`)
 
 ```json
-{"_version": "1", "status": "error", "error": "cart is empty", "error_code": "cart_empty", "hint": "Cart is empty. Add items before checking out. Run 'kpass shop cart add' to add items.", "next_command": ""}
+{"_version": "1", "status": "error", "error": "cart is empty", "error_code": "cart_empty", "hint": "Cart is empty. Add items before checking out. Run 'kpass shop:cart add' to add items.", "next_command": ""}
 ```
 Recovery: Add items to cart first.
 
 ### Error Output — Shipping Incomplete (exit code 2, `error_code: "shipping_incomplete"`)
 
 ```json
-{"_version": "1", "status": "error", "error": "shipping profile is incomplete", "error_code": "shipping_incomplete", "hint": "Shipping profile is incomplete. Run 'kpass shop shipping view --output json' to see missing fields, then update with 'kpass shop shipping update'.", "next_command": ""}
+{"_version": "1", "status": "error", "error": "shipping profile is incomplete", "error_code": "shipping_incomplete", "hint": "Shipping profile is incomplete. Run 'kpass shop:shipping view --output json' to see missing fields, then update with 'kpass shop:shipping update'.", "next_command": ""}
 ```
 Recovery: Run `shop:shipping view` to see missing fields, then `shop:shipping update`.
 

@@ -104,7 +104,7 @@ If a command succeeds and has a display card template below, you MUST output tha
 
 The execute **response is the source of truth** for settlement — you do NOT need to check the wallet balance to confirm a payment.
 
-- **Success signal:** `x402.status_code` (or `payment.status_code` on the tempo/MPP path) is 2xx AND `usage.spent_total` increased. The merchant returning its real response body is itself proof the payment was accepted.
+- **Success signal:** `x402.status_code` (or `payment.status_code` on the tempo/MPP path) is 2xx AND, for a chargeable request, `usage.spent_total` increased. The merchant returning its real response body is itself proof the payment was accepted. **Exception — zero-payment SIWX retrievals** (see "Async Paid Goods" below, `payment.protocol: "siwx"` / `payment.amount: "0"`): these are genuinely free and `spent_total` will NOT increase, so judge success there by `x402.status_code` / the merchant's response alone, not by spend growth.
 - **On-chain proof:** the response carries the settlement reference — the EVM `transaction_hash` or the Solana signature under `payment.payment_response.reference`, plus `payment_receipt`. Quote THAT to evidence settlement, or look it up via the **`activity`** skill.
 - **Do NOT use `wallet balance` to confirm a payment.** `wallet balance` is served from a **30s cache**, so a balance read right after a payment can still show the pre-payment amount even though the funds already moved on-chain. A stale/unchanged balance is **NOT** evidence that a payment failed — trust the receipt/`status_code`/`spent_total`. (The `wallet balance` command reads fresh by default; very old clients must pass `?fresh=true`.)
 

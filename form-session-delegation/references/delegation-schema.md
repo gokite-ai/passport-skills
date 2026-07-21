@@ -8,6 +8,8 @@ The delegation draft passed to `agent:session create --delegation '<JSON>'` must
 
 **IMPORTANT: Do NOT wrap the delegation in an outer `{"delegation": ...}` object. The CLI does that automatically. Pass only the inner object directly.**
 
+**Safe construction:** `task.summary` is derived from the user's own words (Construction Rule 1) and may contain quotes, apostrophes, or other shell metacharacters (e.g. `Buy John's book`). Never build the `--delegation '<JSON>'` argument by hand-splicing such text into a shell single-quoted string — an embedded `'` breaks out of the quoting and can inject arbitrary shell content. Serialize the delegation object with a proper JSON encoder (e.g. your language's `json.dumps`/`JSON.stringify`, or a `jq -n` invocation) and pass the result as a single, distinctly-quoted argument (or via a variable), not by concatenating raw field values into a literal command string.
+
 ```json
 {
   "task": {

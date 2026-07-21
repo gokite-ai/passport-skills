@@ -195,7 +195,7 @@ All filter flags are optional. Omit them to list all activity.
 
 Before running any command, verify:
 
-1. **Authentication:** The user must be logged in. Use `me --output json` to check.
+1. **Authentication:** The user must be logged in. Use `kpass me --output json` to check.
 2. **Kind (`--kind`):** If provided, must be one of: `wallet_transfer`, `wallet_faucet`, `x402_payment`, `agent_registration`, `session_approval`, `passkey_registration`, `shopping_checkout`.
 3. **Limit (`--limit`):** If provided, must be an integer between 1 and 100.
 4. **Offset (`--offset`):** If provided, must be a non-negative integer (0 or greater).

@@ -34,7 +34,7 @@ provisioned tenant should already have the needed APIs enabled and roles granted
 ```bash
 gcloud services list --enabled --project <pid> | grep -E "run|cloudbuild|artifactregistry|sqladmin"
 gcloud projects get-iam-policy <pid> --flatten="bindings[].members" \
-  --filter="bindings.members:deployer@<pid>.iam.gserviceaccount.com" \
+  --filter="bindings.members:<deployer_sa_email>" \
   --format="value(bindings.role)"
 ```
 
@@ -43,6 +43,11 @@ Cloud SQL), **stop and report it**: the tenant must be re-provisioned with that
 capability, or an owner must grant it. Do not attempt to enable APIs / grant
 roles as the deployer SA — it normally lacks permission, and silently widening a
 tenant's surface is not this skill's job.
+
+`<deployer_sa_email>` above is the exact value from `deploy-info`'s
+`deployer_sa_email` field — do not guess it from a naming convention (e.g.
+`deployer@<pid>.iam.gserviceaccount.com`); the service-account email format is
+an implementation detail of the broker, not a fixed pattern.
 
 ---
 

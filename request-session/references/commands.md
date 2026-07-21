@@ -213,7 +213,7 @@ kpass agent:session create --delegation '<JSON>' --output json
 | Delegation | `--delegation` | Yes for normal sessions (omit for `--use-card`) | Constructed from preflight + user context. See the **`form-session-delegation`** skill for the full schema and construction rules. | Must be a valid JSON string of the inner delegation object (top-level keys: `task`, `payment_policy`, optional `execution_constraints`). The CLI wraps it under `{"delegation": …}` for transport — do NOT pre-wrap. **Cannot be combined with `--use-card`.** |
 | Request virtual card | `--use-card` | No | Pass when the merchant takes a card and the agent needs a session-bound scoped card | Boolean flag. Requires the individual amount/TTL flags below (not `--delegation`). See "Scoped-Card Sessions" below. |
 | Task summary | `--task-summary` | No (recommended with `--use-card`) | The user's goal, incl. merchant | String |
-| Per-tx limit | `--max-amount-per-tx` | With `--use-card` (or any individual-flag build) | Derived from the price | Decimal string |
+| Per-tx limit | `--max-amount-per-tx` | With `--use-card` | Derived from the price | Decimal string |
 | Total budget / card limit | `--max-total-amount` | **Required with `--use-card`** (becomes the card's spending limit) | The session budget | Decimal string |
 | TTL | `--ttl` / `--ttl-seconds` | With `--use-card` | e.g. `1h`, `7d`, or integer seconds | Positive duration |
 | Skip reuse detection | `--no-reuse` | No | Pass only when you have already decided to force a brand-new session | Boolean flag. Disables the automatic reuse check described below. Redundant with `--use-card` (reuse is always skipped for card sessions). |
@@ -364,6 +364,8 @@ Recovery for each is in SKILL.md → Error Handling → "Scoped-card (`--use-car
    start "{approval_url}"         # Windows
    ```
    Detect the OS and use the appropriate command. This saves the user from having to copy-paste the URL. If `open` fails, the URL is still in the card — the user can click or copy it manually.
+
+   `{approval_url}` is backend-generated (from the `agent:session create` response), not user input — but still store it in a variable and pass it as a single quoted argument as shown, rather than splicing it into a hand-built command string.
 3. **Immediately start polling for approval** using `agent:session status --request-id <request_id> --wait --output json`. Never skip this step. Never tell the user "let me know when done" without polling first.
 
 **CRITICAL:** Do NOT attempt to execute any transactions until the session is approved. The session is not active until the user approves it.

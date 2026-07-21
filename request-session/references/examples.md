@@ -56,7 +56,26 @@ Pass this inner object directly to `--delegation`. The CLI wraps it under `{"del
 }
 ```
 
-**Step 5:** Create the session.
+**Step 5:** Show the Proposed Session Parameters card and wait for explicit confirmation before creating the session — this is the user's only chance to catch a misread price or wrong scope before a passkey approval is triggered.
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📋 Proposed Session Parameters
+
+🏪 Merchant:         weather.example.com
+📝 Task:             Query the weather forecast API at weather.example.com.
+💰 Per-tx limit:     1 USDC
+💰 Total budget:     10 USDC
+⏰ Session duration: 1 hour
+🔒 Payment method:   x402
+🎯 Scope:            Scoped to weather.example.com/v1/forecast
+
+Shall I proceed with creating this session?
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+**User:** "yes, proceed"
+
+**Step 6:** Create the session.
 ```bash
 kpass agent:session create --delegation '{"task":{"summary":"Query the weather forecast API at weather.example.com."},"payment_policy":{"max_amount_per_tx":"1","max_total_amount":"10","ttl_seconds":3600},"execution_constraints":{"x402":{"scope_mode":"scoped","allowed_endpoints":[{"method":"POST","host":"weather.example.com","path_prefix":"/v1/forecast"}]}}}' --output json
 ```
@@ -94,7 +113,7 @@ A spending session needs your approval:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
-**Step 6:** Poll for approval.
+**Step 7:** Poll for approval.
 ```bash
 kpass agent:session status --request-id req_abc123 --wait --output json
 ```

@@ -35,9 +35,11 @@ End-to-end walkthrough for the `report-feedback` skill. Per-command syntax, argu
 
 **Agent (3) — run the command:**
 
+The feedback content is short enough to pass inline, so use `--content` rather than `--content-file` (which would require first writing the text to a file):
+
 ```bash
 kpass agent:feedback submit \
-  --content-file /tmp/feedback-$$.txt \
+  --content 'Shopping checkout via `kpass shop:checkout` failed three times in a row with the same error: "treasury wallet underfunded for asset USDC on base-sepolia". Cart total was $12.49, session sess_91xyz had a max_total_amount of...' \
   --category bug \
   --session-id sess_91xyz \
   --metadata '{"model":"claude-opus-4-7","last_exit_code":1,"retries":3,"command":"kpass shop:checkout"}' \

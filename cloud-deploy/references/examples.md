@@ -13,12 +13,15 @@ Components: **one Cloud Run service**.
 
 ```bash
 # --- Phase 1: provision ---
+set -euo pipefail   # stop on the first failed command instead of passing bad values downstream
+
 kpass cloud project create --name my-site --output json          # -> proj_abc (current)
 kpass cloud project fund --amount 10 --output json               # show approval_url; user approves
 kpass cloud project provision --wait --output json               # -> active
 kpass cloud project credentials --project proj_abc --output json # mints key
-# Capture deploy-info and extract the fields Phase 2 needs (data flow made explicit):
+# Capture deploy-info, verify the envelope succeeded, and extract the fields Phase 2 needs:
 INFO=$(kpass cloud project deploy-info --project proj_abc --output json)
+[ "$(echo "$INFO" | jq -r .status)" = "success" ] || { echo "deploy-info failed: $INFO" >&2; exit 1; }
 PID=$(echo "$INFO"        | jq -r .data.gcp_project_id)
 REGION=$(echo "$INFO"     | jq -r .data.region)
 RUNTIME_SA=$(echo "$INFO" | jq -r .data.runtime_sa_email)
@@ -56,7 +59,7 @@ gcloud config set project "<gcp_project_id>"
 # 0. Capability check — Cloud SQL must be available on the tenant
 gcloud services list --enabled --project <pid> | grep sqladmin    # else: report, needs re-provision
 gcloud projects get-iam-policy <pid> --flatten="bindings[].members" \
-  --filter="bindings.members:deployer@<pid>.iam.gserviceaccount.com" \
+  --filter="bindings.members:<deployer_sa_email>" \
   --format="value(bindings.role)" | grep cloudsql.admin
 
 # 1. Cloud SQL (confirm cost with the user first — hourly billing)
@@ -102,6 +105,15 @@ gcloud run services update notes-api --region <region> --project <pid> \
 
 echo "Open: $FRONTEND_URL"
 ```
+
+**If step 4 (frontend deploy) or step 5 (CORS tightening) fails, do not leave the
+deployment half-finished** — `notes-api` is now a public, unauthenticated endpoint
+still running with `CORS_ORIGINS=*`. Either fix the failure and re-run step 5
+immediately so the wildcard is closed before you stop working, or re-run
+`gcloud run services update notes-api --update-env-vars "CORS_ORIGINS=<a
+non-wildcard placeholder, e.g. the backend's own URL>"` as an interim lockdown
+until the real frontend origin is known. Do not consider the deploy complete
+while `CORS_ORIGINS=*` is still in effect.
 
 **Teardown when done** (Cloud SQL bills hourly):
 

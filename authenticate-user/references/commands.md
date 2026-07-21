@@ -347,6 +347,7 @@ kpass me --output json
   "_version": "1",
   "status": "error",
   "error": "Not logged in. Run signup or login first.",
+  "error_code": "not_authenticated",
   "hint": "Run 'kpass signup init --email <email> --output json' or 'kpass login init --email <email> --output json'.",
   "next_command": ""
 }

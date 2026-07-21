@@ -58,10 +58,10 @@ No agent registration or spending session is required. This command uses the use
 
 When presenting activity events to the user, format each event as a card:
 
-**For transaction events** (wallet_transfer, wallet_faucet, x402_payment, shopping_checkout):
+**For transaction events** (wallet_transfer, wallet_faucet, x402_payment — NOT shopping_checkout, which always uses the dedicated template below):
 > **{title}** -- {status}
 > Kind: {kind} | {occurred_at}
-> Amount: {details.transaction.amount_raw} {details.transaction.asset_symbol} | Chain: {details.transaction.chain_name}
+> Amount: {details.transaction.amount_raw ÷ 10^details.transaction.decimals} {details.transaction.asset_symbol} | Chain: {details.transaction.chain_name}
 > Tx: {details.transaction.tx_hash}
 
 **For shopping checkout events** (shopping_checkout):

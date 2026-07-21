@@ -44,7 +44,7 @@ Every `SKILL.md` must follow these patterns:
 - **CLI invocation**: Always use `kpass <command> [flags] --output json`
 - **Flags**: Include `--output json` on every command and `--no-interactive` where applicable
 - **JSON output**: Document the exact response shape with field descriptions
-- **Exit codes**: Reference the standard exit code table (0–5)
+- **Exit codes**: Reference the standard exit code table (0–6)
 - **Error handling**: Include recovery steps for every error scenario
 - **"Commands That DO NOT Exist"**: List common hallucinated commands to prevent agent mistakes
 - **Dependencies**: Clearly state which skills must run first

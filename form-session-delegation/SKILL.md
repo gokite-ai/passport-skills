@@ -48,6 +48,14 @@ Optional and advanced: the top-level `routing_enabled` / `routing_cost_cap_usd_m
 
 Before constructing the delegation, do a preflight HTTP request to the merchant URL to discover what payment the service requires.
 
+### Validate the URL Before Curling It — MANDATORY
+
+The merchant URL may come from the user, a catalog entry, or other less-trusted content — treat it as untrusted input before making a real network request with it:
+
+- **Scheme:** must be `https://`. Reject `http://`, `file://`, or any other scheme.
+- **Host:** reject targets that resolve to loopback (`127.0.0.0/8`, `::1`), private ranges (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`), link-local addresses (`169.254.0.0/16`, including the `169.254.169.254` cloud metadata endpoint), and other non-public/reserved ranges.
+- If the URL fails validation, stop and tell the user rather than curling it.
+
 ### How to Preflight
 
 Use `curl` to send a request to the merchant URL. Many x402-enabled services return a `402 Payment Required` response with payment requirement details:

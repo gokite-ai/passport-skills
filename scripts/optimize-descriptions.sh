@@ -23,7 +23,7 @@
 #   MODEL=claude-haiku-4-5-20251001 \
 #   ./scripts/optimize-descriptions.sh [skill1 skill2 ...]
 #
-# With no skill arguments, runs all 12 skills in parallel.
+# With no skill arguments, runs all 14 skills in parallel.
 
 set -euo pipefail
 
@@ -34,7 +34,9 @@ MODEL="${MODEL:-claude-haiku-4-5-20251001}"
 
 ALL_SKILLS=(
   activity
+  attach-session
   authenticate-user
+  cloud-deploy
   form-session-delegation
   kite-discovery
   kite-passport

@@ -70,7 +70,7 @@ kpass agent:feedback submit \
 ```json
 {
   "status": "error",
-  "error": "Missing --content. Usage: kpass agent:feedback submit --content <text> --output json",
+  "error": "Missing --content. Usage: kpass agent:feedback submit --content <text> --output json (or --content-file <path>)",
   "error_code": "USAGE"
 }
 ```
@@ -111,7 +111,7 @@ If `--content` exceeds 1 MiB the backend returns 413. Recovery: trim content to 
 {"status": "error", "error": "...", "error_code": "NETWORK"}
 ```
 
-**Recovery:** Retry once; if it still fails, surface the error to the user and offer to try again later.
+**Recovery:** Submission is not idempotent (see above) — a network/server error does not tell you whether the row was actually persisted before the response was lost. Do not automatically retry. Tell the user it failed and let them decide whether to resubmit (accepting a possible duplicate row) or drop it.
 
 ### What to Do After This Command
 
@@ -120,9 +120,10 @@ On success:
 2. Briefly thank the user.
 3. Return to whatever task was in progress, or end the session cleanly.
 
-On failure (after one retry):
+On failure:
 1. Tell the user the submission failed and why.
 2. Offer to save the content locally so it isn't lost (e.g., paste it to a file path or scratch buffer).
+3. Only resubmit if the user explicitly asks to try again — since there is no idempotency key, a blind retry can create a duplicate feedback row.
 
 ---
 
@@ -131,7 +132,7 @@ On failure (after one retry):
 | Exit code | Meaning | Recovery |
 |-----------|---------|----------|
 | 0 | Success | Show post-submit card |
-| 1 | Network / server error / oversized content | Retry once; on persistent failure, surface error and offer to save locally |
+| 1 | Network / server error / oversized content | Do not auto-retry (no idempotency — the row may have already been written). Surface the error and offer to save locally; only resubmit if the user explicitly asks. |
 | 2 | Usage error (missing/invalid flag) | Fix the flag and re-run |
 | 3 | Auth error (agent not registered or token expired) | Run `kpass agent:register --type <agent-type> --output json`; if still failing, use `authenticate-user` skill |
 | 4 | Not found | Should not happen for this command; surface error to user |
@@ -144,6 +145,7 @@ Before running the command, verify:
 
 - [ ] `--content` (or file content from `--content-file`) is non-empty after trimming whitespace.
 - [ ] Content is under ~1 MiB. If larger, trim to the most relevant slice.
+- [ ] **Redact credentials, cookies, tokens, payment data, and unnecessary PII** from both the content and `--metadata` before submitting — feedback is stored server-side and read by humans; do not forward secrets or sensitive personal data just because they appeared in the session transcript.
 - [ ] `--category`, if passed, is a single short token (no spaces; lowercase preferred).
 - [ ] `--metadata`, if passed, parses as a JSON **object** (not an array, not a scalar). Quote it with single quotes so the shell doesn't mangle it.
 - [ ] Exactly one of `--content` or `--content-file` is set.

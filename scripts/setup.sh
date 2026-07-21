@@ -41,9 +41,9 @@ read_skills_json_field() {
   if command -v jq &>/dev/null; then
     jq -r ".${field}" "$SKILLS_JSON"
   elif command -v node &>/dev/null; then
-    node -p "require('$SKILLS_JSON').${field}"
+    node -e 'console.log(require(process.argv[1])[process.argv[2]])' "$SKILLS_JSON" "$field"
   elif command -v python3 &>/dev/null; then
-    python3 -c "import json; print(json.load(open('$SKILLS_JSON'))['${field}'])"
+    python3 -c "import json, sys; print(json.load(open(sys.argv[1]))[sys.argv[2]])" "$SKILLS_JSON" "$field"
   else
     return 1
   fi

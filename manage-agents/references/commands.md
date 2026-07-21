@@ -367,11 +367,11 @@ Output:
   "next_command": ""
 }
 ```
-There are 15 total but only 2 returned (first page of 10, but server returned 2). Check: `0 + 2 < 15`, so there may be more pages.
+There are 15 total but only 2 returned (first page of 10, but server returned 2). Check: `0 + 2 < 15`, so there may be more pages. The next offset is the current offset plus the number of items just returned (`0 + 2 = 2`), not the `--limit` value.
 
 **Page 2:**
 ```bash
-kpass user sessions --limit 10 --offset 10 --output json
+kpass user sessions --limit 10 --offset 2 --output json
 ```
 Continue until `offset + sessions.length >= total`.
 

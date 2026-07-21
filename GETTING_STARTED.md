@@ -28,7 +28,7 @@ cd ..
 ```
 
 ```bash
-kpass --version  # should print kpass v1.2.3
+kpass --version  # should print kpass v1.5.0-rc.1 or higher
 ```
 
 ### Clone the skills

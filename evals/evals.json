@@ -151,7 +151,7 @@
     "prompt": "Check the status of my pending session",
     "expected_output": "Agent runs kpass agent:session list --output json and shows session status, delegation details, and whether the session is pending, active, or expired",
     "assertions": [
-      "kpass user sessions",
+      "kpass agent:session list",
       "--output json"
     ]
   },
@@ -300,8 +300,8 @@
     "prompt": "I approved the session in my Passport app — is it active yet?",
     "expected_output": "Agent runs kpass agent:session status --request-id <REQUEST_ID> --wait --output json to poll for approval and reports the result once the session becomes active",
     "assertions": [
-      "kpass user sessions",
-      "--status active",
+      "kpass agent:session status --request-id",
+      "--wait",
       "--output json"
     ]
   },
@@ -433,7 +433,7 @@
     "prompt": "How much of my session budget have I used so far?",
     "expected_output": "Agent runs kpass agent:session list --status active --output json and reads usage.spent_total vs payment_policy.max_total_amount to show remaining budget",
     "assertions": [
-      "kpass user sessions",
+      "kpass agent:session list --status active",
       "spent_total",
       "max_total_amount",
       "--output json"
@@ -499,6 +499,7 @@
     "assertions": [
       "kpass shop:cart add",
       "shop:checkout",
+      "--confirmed",
       "--output json"
     ]
   },

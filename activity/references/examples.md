@@ -42,7 +42,7 @@ Output:
           "direction": "debit",
           "chain_name": "base",
           "asset_symbol": "USDC",
-          "amount_raw": "124900000",
+          "amount_raw": "12490000",
           "decimals": 6,
           "tx_hash": "0xabc123...",
           "shopping": {

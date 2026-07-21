@@ -109,6 +109,10 @@ You no longer need to run `agent:session list` and eyeball matches before creati
 
 Running `kpass agent:session list --status active --output json` is now optional — use it only for diagnostics or to inspect sessions directly.
 
+### Shopping Checkout — Skip Steps 3–4
+
+If this session is being created for the **`shopping`** skill's checkout (the cart total is already known), skip Steps 3–4 entirely — do not ask for a merchant URL and do not curl anything. Go directly to Step 5 using Path B from the **`form-session-delegation`** skill (budget derived from the cart total, no `execution_constraints`). Steps 3–4 remain mandatory for every non-shopping flow (paid-API access via a merchant URL).
+
 ### Step 3: Get Merchant URL
 
 If the user has not provided a merchant URL or service endpoint, ask:
@@ -120,6 +124,8 @@ You need the URL to perform preflight discovery and to potentially scope the del
 ### Step 4: Preflight — Discover Payment Requirements
 
 Preflight the merchant URL before creating a session. Guessing the payment requirements (or asking the user for tx limits / budget when the merchant already advertises them) produces a delegation that mismatches the merchant's actual price — at execution time, the backend will reject the payment with `session_rule_exceeded` or `session_total_exceeded`, and the user will have approved a useless session.
+
+**Validate the URL before curling it:** the merchant URL may come from the user or other less-trusted content. Require `https://` (reject `http://`, `file://`, or other schemes) and reject hosts that resolve to loopback, private, link-local, or other non-public ranges (including the `169.254.169.254` cloud metadata address) before making the request. If the URL fails validation, stop and tell the user rather than curling it.
 
 Use `curl` to probe the merchant URL:
 
@@ -356,7 +362,7 @@ Do NOT attempt any of the following. They will fail:
 Before running any command, verify:
 
 1. **Agent type:** Your own agent identity string, no spaces. Use `claude` for Claude Code, `cursor` for Cursor, `codex` for Codex, `cline` for Cline. Never ask the user.
-2. **Delegation JSON:** Must be valid JSON. Must contain a `delegation` object with `task.summary`, `payment_policy.max_amount_per_tx`, and `payment_policy.ttl_seconds` at minimum. See the **`form-session-delegation`** skill for the complete schema.
+2. **Delegation JSON:** Must be valid JSON. Must be the **inner** delegation object itself — do NOT wrap it in an outer `{"delegation": ...}` (the CLI does that automatically) — containing `task.summary`, `payment_policy.max_amount_per_tx`, and `payment_policy.ttl_seconds` at minimum. See the **`form-session-delegation`** skill for the complete schema.
 3. **Session ID:** Must come from a `session list` or `session status` response. Do not fabricate values.
 4. **Request ID:** Must come from a `session create` response. Do not fabricate values.
 

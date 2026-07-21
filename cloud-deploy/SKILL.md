@@ -70,19 +70,22 @@ isolated GCP project; the actual build/deploy runs locally with `gcloud`.
 Run these in order. Full argument tables, JSON shapes, and error codes are in
 `@references/kpass-cloud.md`.
 
-1. **Create (or select) the project.** `kpass cloud project create --name <n>`
-   (region optional; server defaults and returns it). It becomes the current
-   project. To target an existing one: `kpass cloud project use <id>`.
-2. **Fund it.** `kpass cloud project fund --amount <USD>` prints a passkey
-   approval URL. Funding is a **browser step** (passkey, gasless) — show the URL
-   to the user verbatim and wait for them to confirm they approved. Do not poll
-   or fake progress.
-3. **Provision.** `kpass cloud project provision --wait`. Gated on balance ≥ the
-   minimum; on `INSUFFICIENT_CREDIT` (402) the funding hasn't settled — tell the
-   user to approve, then retry. `--wait` polls until `active` or `error`.
-4. **Mint the deployer key.** `kpass cloud project credentials --project <id>` —
-   returned once, stored at `.kite-passport/cloud/<id>/deployer-key.json`. Don't
-   re-run needlessly; re-minting **rotates** and breaks prior keys.
+1. **Create (or select) the project.** `kpass cloud project create --name <n>
+   --output json` (region optional; server defaults and returns it). It becomes
+   the current project. To target an existing one: `kpass cloud project use <id>
+   --output json`.
+2. **Fund it.** `kpass cloud project fund --amount <USD> --output json` prints a
+   passkey approval URL. Funding is a **browser step** (passkey, gasless) — show
+   the URL to the user verbatim and wait for them to confirm they approved. Do
+   not poll or fake progress.
+3. **Provision.** `kpass cloud project provision --wait --output json`. Gated on
+   balance ≥ the minimum; on `INSUFFICIENT_CREDIT` (402) the funding hasn't
+   settled — tell the user to approve, then retry. `--wait` polls until `active`
+   or `error`.
+4. **Mint the deployer key.** `kpass cloud project credentials --project <id>
+   --output json` — returned once, stored at
+   `.kite-passport/cloud/<id>/deployer-key.json`. Don't re-run needlessly;
+   re-minting **rotates** and breaks prior keys.
 5. **Read the deploy facts.** `kpass cloud project deploy-info --project <id>
    --output json` → `gcp_project_id`, `region`, `artifact_registry`,
    `deployer_sa_email`, `runtime_sa_email`, and `deployer_key_path`. **These are
@@ -101,7 +104,8 @@ examples in `@references/examples.md`.
 |---|---|---|
 | A `Dockerfile` or buildable source, listens on a port | **Cloud Run service** | `gcloud run deploy --source .` (or build+push then `--image`), `--port`, `--service-account <runtime_sa>` |
 | `docker-compose.yml` with multiple app services | **Multiple Cloud Run services** (one deploy each) | Deploy backend first; frontend after (it may need the backend URL) |
-| A `db`/`postgres`/`mysql` service in compose, or `DATABASE_URL`, `asyncpg`, `pg`, `prisma`, `sequelize`, an ORM, or migrations | **Cloud SQL instance** | `gcloud sql instances create`, DB + user, `--add-cloudsql-instances`, socket `DATABASE_URL` |
+| An explicit `db`/`postgres`/`mysql` service in `docker-compose.yml` | **Cloud SQL instance** | `gcloud sql instances create`, DB + user, `--add-cloudsql-instances`, socket `DATABASE_URL` |
+| `DATABASE_URL`, `asyncpg`, `pg`, `prisma`, `sequelize`, an ORM, or migrations **without** an explicit compose DB service | Possible Cloud SQL need, but not certain — the app may point at an existing external DB. **Ask the user which database to target before provisioning** | Same as above, only after the user confirms a new managed instance is wanted |
 | Frontend that bakes an API URL at build time (`VITE_API_URL`, `NEXT_PUBLIC_*`, `REACT_APP_*`) | Build-time **build-arg**, deploy order matters | Deploy backend → get its URL → build frontend with that URL → deploy frontend |
 | App reads config from env (`CORS_ORIGINS`, secrets, feature flags) | `--set-env-vars` (or Secret Manager for secrets) | Tighten CORS to the frontend URL after both are up |
 | Public web endpoint expected | `--allow-unauthenticated` | Omit for internal-only services |
@@ -144,11 +148,14 @@ re-provision action). See the capability notes in `@references/gcp-deploy.md`.
 
 ```bash
 # Phase 1 (after `authenticate-user`)
+set -euo pipefail   # stop on the first failed command instead of passing bad values downstream
+
 kpass cloud project create --name my-api --output json          # -> proj_abc, becomes current
 kpass cloud project fund --amount 10 --output json              # -> open approval_url, user approves
 kpass cloud project provision --wait --output json              # -> state: active
 kpass cloud project credentials --project proj_abc --output json
 INFO=$(kpass cloud project deploy-info --project proj_abc --output json)
+[ "$(echo "$INFO" | jq -r .status)" = "success" ] || { echo "deploy-info failed: $INFO" >&2; exit 1; }
 # parse INFO.data: gcp_project_id, region, runtime_sa_email, deployer_key_path
 
 # Phase 2 — one Cloud Run service from source (Cloud Build; no local docker)
