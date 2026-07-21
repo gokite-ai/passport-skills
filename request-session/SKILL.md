@@ -53,7 +53,7 @@ approval on a policy the owner already defined.
 
 ## Sessions Are Protocol-Agnostic
 
-A single approved session is fungible across paid-API and shopping flows. The settlement protocol (x402, paygate, tempo, or crossmint checkout) is detected at execute time from the merchant's preflight response — the delegation does **not** carry a protocol field. The authorization boundary is per-tx / total spending caps plus optional `execution_constraints` endpoint scoping — there is **no `assets` allowlist field**; the merchant's 402 dictates which token settles, and the session locks to the first settled asset automatically (single-asset lock). See the **`form-session-delegation`** skill for the full schema.
+A single approved session is fungible across paid-API and shopping flows. The settlement protocol (x402, paygate, tempo, or crossmint checkout) is detected at execute time from the merchant's preflight response — the delegation does **not** carry a protocol field. The authorization boundary is per-tx / total spending caps (`max_amount_per_tx` / `max_total_amount`, denominated in `payment_policy.currency`, default `USD`) plus optional `execution_constraints` endpoint scoping — there is **no `assets` allowlist field** and the caps are never expressed per-asset. The settlement asset itself is a separate, merchant-selected concern: the merchant's 402 dictates which token settles (normalized into the budget currency for cap enforcement), and the session locks to that first settled asset automatically (single-asset lock) — this lock is an emergent side effect of settlement, not a user-configurable allowlist. See the **`form-session-delegation`** skill for the full schema.
 
 For the full delegation schema and derivation rules, see the **`form-session-delegation`** skill.
 
@@ -131,14 +131,16 @@ Preflight the merchant URL before creating a session. Guessing the payment requi
 
 ```bash
 MERCHANT_URL='<paste the exact URL, single-quoted, unmodified>'
-curl -s -w "\n%{http_code}" "$MERCHANT_URL"
+curl -s --connect-timeout 10 --max-time 20 -w "\n%{http_code}" "$MERCHANT_URL"
 ```
 
 Or for POST endpoints:
 
 ```bash
-curl -s -w "\n%{http_code}" -X POST "$MERCHANT_URL" -H "Content-Type: application/json"
+curl -s --connect-timeout 10 --max-time 20 -X POST "$MERCHANT_URL" -H "Content-Type: application/json" -w "\n%{http_code}"
 ```
+
+**Always bound the request** with `--connect-timeout`/`--max-time` — an untrusted merchant URL that never responds must not hang the agent indefinitely; treat a timeout the same as a non-402 response (fall back to conservative defaults, below).
 
 If the URL contains a literal `'`, escape it as `'\''` (close quote, escaped literal quote, reopen quote) before wrapping — see the **`form-session-delegation`** skill's "Shell-Safe Value Substitution" section for the full rule and worked example.
 

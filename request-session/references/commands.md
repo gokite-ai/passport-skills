@@ -362,11 +362,11 @@ Recovery for each is in SKILL.md → Error Handling → "Scoped-card (`--use-car
    `{approval_url}` is backend-generated (from the `agent:session create` response), not user input — but treat it as untrusted anyway: do not splice it into the command as bare text or inside double quotes (double quotes still expand `$(...)`, backticks, and `$VAR`). Assign it to a shell variable as a **single-quoted literal** (inert — no expansion, even on later reference; escape any embedded `'` as `'\''`), then reference the variable in double quotes:
    ```bash
    APPROVAL_URL='<value of the approval_url field, single-quoted, unmodified>'
-   open "$APPROVAL_URL"          # macOS
-   xdg-open "$APPROVAL_URL"      # Linux
-   start "$APPROVAL_URL"         # Windows
+   open "$APPROVAL_URL"                        # macOS
+   xdg-open "$APPROVAL_URL"                    # Linux
+   cmd.exe /c start "" "$APPROVAL_URL"         # Windows (via Bash, e.g. WSL/git-bash)
    ```
-   Detect the OS and use the appropriate command. This saves the user from having to copy-paste the URL. If `open` fails, the URL is still in the card — the user can click or copy it manually.
+   The Windows form needs the empty `""` title argument — `start "$APPROVAL_URL"` alone makes `cmd.exe` treat the URL as the window title instead of the target, and nothing opens. Detect the OS and use the appropriate command. This saves the user from having to copy-paste the URL. If `open` fails, the URL is still in the card — the user can click or copy it manually.
 3. **Immediately start polling for approval** using `agent:session status --request-id <request_id> --wait --output json`. Never skip this step. Never tell the user "let me know when done" without polling first.
 
 **CRITICAL:** Do NOT attempt to execute any transactions until the session is approved. The session is not active until the user approves it.

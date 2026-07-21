@@ -64,7 +64,7 @@ Instead, assign the value to a shell variable as a **single-quoted literal** —
 
 ```bash
 MERCHANT_URL='<paste the exact URL, single-quoted, unmodified>'
-curl -s -w "\n%{http_code}" "$MERCHANT_URL"
+curl -s --connect-timeout 10 --max-time 20 -w "\n%{http_code}" "$MERCHANT_URL"
 ```
 
 If the value contains a single quote, escape each `'` as `'\''` (close the quote, insert an escaped literal quote, reopen the quote) before wrapping it — do not skip this for values from less-trusted sources (user-provided URLs, catalog entries, merchant response bodies). The same rule applies to the POST body below and to any other dynamic value (delegation JSON, poll URLs, approval URLs) substituted into a command anywhere in this skill family.
@@ -74,17 +74,17 @@ If the value contains a single quote, escape each `'` as `'\''` (close the quote
 Use `curl` to send a request to the merchant URL. Many x402-enabled services return a `402 Payment Required` response with payment requirement details:
 
 ```bash
-curl -s -w "\n%{http_code}" "$MERCHANT_URL"
+curl -s --connect-timeout 10 --max-time 20 -w "\n%{http_code}" "$MERCHANT_URL"
 ```
 
 Or for a POST endpoint:
 
 ```bash
 BODY='<request body JSON, single-quoted, unmodified>'
-curl -s -w "\n%{http_code}" -X POST "$MERCHANT_URL" -H "Content-Type: application/json" -d "$BODY"
+curl -s --connect-timeout 10 --max-time 20 -X POST "$MERCHANT_URL" -H "Content-Type: application/json" -d "$BODY" -w "\n%{http_code}"
 ```
 
-The `-s` flag silences progress output. The `-w "\n%{http_code}"` appends the HTTP status code on a new line so you can distinguish the response body from the status.
+The `-s` flag silences progress output. The `-w "\n%{http_code}"` appends the HTTP status code on a new line so you can distinguish the response body from the status. **Always bound the request** with `--connect-timeout`/`--max-time` — an untrusted merchant URL that never responds (or responds arbitrarily slowly) must not hang the agent indefinitely; treat a timeout the same as a non-402 response (fall back to conservative defaults, per "Parsing the 402 Response" below).
 
 ### Parsing the 402 Response
 

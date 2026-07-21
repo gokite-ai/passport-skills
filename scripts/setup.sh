@@ -132,6 +132,11 @@ fi
 # ---------------------------------------------------------------------------
 echo "Installing kpass via the official installer (https://cli.gokite.ai/install.sh)..." >&2
 if curl -fsSL https://cli.gokite.ai/install.sh | bash >&2; then
+  # The installer typically only updates shell startup files (.bashrc/.zshrc),
+  # which this non-interactive script never sources. Export the standard bundle
+  # locations directly so the recheck below finds a fresh install even before
+  # PATH has been refreshed in any shell.
+  export PATH="${KPASS_INSTALL_DIR:-$HOME/.kpass}/bin:$HOME/.local/bin:$PATH"
   report_if_suitable "installer" || true
 fi
 echo "Installer did not produce a kpass >= ${MIN_CLI_VERSION} on PATH." >&2
