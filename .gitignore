@@ -1,0 +1,37 @@
+# Dependencies
+node_modules/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.*
+
+# Logs
+*.log
+npm-debug.log*
+
+# Build artifacts
+dist/
+coverage/
+tmp/
+
+.kite-passport/
+
+# Generated locally by `npx skills add` — machine-specific absolute paths, see GETTING_STARTED.md
+skills-lock.json
+
+# Local agent tooling state (agent-deck stubs, OMC session state)
+.omc/
+.claude/
+.cursor/
+.agents/
