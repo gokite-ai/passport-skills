@@ -100,12 +100,15 @@ try_locate "passport-bundle" && exit 0
 # ---------------------------------------------------------------------------
 echo "ksearch not found. Installing the Kite Passport bundle (kpass + ksearch + skills) via the official installer (https://cli.gokite.ai/install.sh)..." >&2
 if curl -fsSL https://cli.gokite.ai/install.sh | bash >&2; then
+  # try_locate's bundle-path checks are PATH-independent, so run it before
+  # exporting PATH. Otherwise the PATH-based "command -v" branch matches
+  # first and mislabels the fresh install as "path" instead of "installer".
+  try_locate "installer" && exit 0
   # The installer typically only updates shell startup files (.bashrc/.zshrc),
   # which this non-interactive script never sources. Export the standard
-  # bundle locations directly so the recheck below finds a fresh install even
-  # before PATH has been refreshed in any shell.
+  # bundle locations directly in case anything downstream in this shell
+  # needs ksearch on PATH.
   export PATH="${KPASS_INSTALL_DIR:-$HOME/.kpass}/bin:$HOME/.local/bin:$PATH"
-  try_locate "installer" && exit 0
 fi
 echo "Installer did not produce a ksearch binary in any known location." >&2
 
