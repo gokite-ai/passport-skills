@@ -1,0 +1,32 @@
+{
+  "name": "@kpass/skills",
+  "version": "1.6.3",
+  "private": true,
+  "license": "MIT",
+  "description": "AI agent skills for the Kite Passport CLI — authentication, sessions, payments, and transfers",
+  "keywords": [
+    "ai-agent",
+    "skills",
+    "kpass",
+    "x402",
+    "payments",
+    "wallet",
+    "claude",
+    "cursor",
+    "cline"
+  ],
+  "homepage": "https://skills.sh",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/gokite-ai/passport-skills.git"
+  },
+  "scripts": {
+    "validate": "bash scripts/validate.sh",
+    "lint": "markdownlint-cli2 '**/*.md' '#node_modules' '#evals' '#.agents' '#.claude'"
+  },
+  "devDependencies": {
+    "js-yaml": "^4.1.0",
+    "markdownlint-cli2": "^0.23.1",
+    "skills": "^1.5.10"
+  }
+}

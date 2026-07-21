@@ -1,0 +1,562 @@
+[
+  {
+    "id": 1,
+    "prompt": "Show me my recent activity",
+    "expected_output": "Agent runs kpass activity --output json and renders each event as a display card with kind, status, timestamp, and relevant details",
+    "assertions": [
+      "kpass activity",
+      "--output json",
+      "━━━"
+    ]
+  },
+  {
+    "id": 2,
+    "prompt": "Show me only my wallet transfers",
+    "expected_output": "Agent runs kpass activity --kind wallet_transfer --output json and renders wallet transfer events as display cards with amount, asset, and tx hash",
+    "assertions": [
+      "kpass activity",
+      "--kind wallet_transfer",
+      "--output json"
+    ]
+  },
+  {
+    "id": 3,
+    "prompt": "I can see 10 events on the first page of my activity — show me the next page of older activity",
+    "expected_output": "Agent runs kpass activity --limit N --offset N --output json to paginate results beyond the first page, using an offset equal to the number of events already shown",
+    "assertions": [
+      "kpass activity",
+      "--limit",
+      "--offset",
+      "--output json"
+    ]
+  },
+  {
+    "id": 4,
+    "prompt": "Log me in to Kite Passport",
+    "expected_output": "Agent runs setup.sh, then kpass login init --email <EMAIL> --output json --no-interactive, asks the user for the OTP code, then runs kpass login verify",
+    "assertions": [
+      "kpass login init",
+      "--output json",
+      "--no-interactive"
+    ]
+  },
+  {
+    "id": 5,
+    "prompt": "I need to create a Kite Passport account",
+    "expected_output": "Agent runs setup.sh, then kpass signup init --email <EMAIL> --output json --no-interactive, waits for email verification, then runs signup poll and signup exchange",
+    "assertions": [
+      "kpass signup init",
+      "--output json",
+      "--no-interactive"
+    ]
+  },
+  {
+    "id": 6,
+    "prompt": "Am I logged in?",
+    "expected_output": "Agent runs kpass me --output json and reports the current user email and user_id if authenticated, or tells the user they are not logged in",
+    "assertions": [
+      "kpass me",
+      "--output json"
+    ]
+  },
+  {
+    "id": 7,
+    "prompt": "Create an agent session to access api.example.com",
+    "expected_output": "Agent constructs a delegation JSON with task description, paymentPolicy with max_amount_per_tx and max_total_amount, and executionPolicy, then passes it to kpass agent:session create",
+    "assertions": [
+      "delegation",
+      "payment_policy",
+      "kpass agent:session create"
+    ]
+  },
+  {
+    "id": 8,
+    "prompt": "Set up a session with a $5 budget to call the Exa search API at exa.mpp.tempo.xyz",
+    "expected_output": "Agent preflights exa.mpp.tempo.xyz to discover payment requirements, then constructs a delegation with max_total_amount reflecting the $5 total budget and max_amount_per_tx set to the per-request price, then calls kpass agent:session create",
+    "assertions": [
+      "delegation",
+      "max_total_amount",
+      "kpass agent:session create"
+    ]
+  },
+  {
+    "id": 9,
+    "prompt": "Find paid APIs for weather data",
+    "expected_output": "Agent runs setup-ksearch.sh, then ksearch services list --query weather --output json, and renders each service as a display card with name, summary, pricing, and base URL",
+    "assertions": [
+      "ksearch services list",
+      "--query",
+      "--output json"
+    ]
+  },
+  {
+    "id": 10,
+    "prompt": "Show me details about the Exa service",
+    "expected_output": "Agent runs ksearch services get --service-id <exa-service-id> --output json and renders the service detail card with all endpoints, pricing, and payment approach",
+    "assertions": [
+      "ksearch services get",
+      "service_id",
+      "--output json"
+    ]
+  },
+  {
+    "id": 11,
+    "prompt": "What paid services are available on Kite?",
+    "expected_output": "Agent runs ksearch services list --output json and displays all available services with name, summary, starting price, and tags",
+    "assertions": [
+      "ksearch services list",
+      "--output json",
+      "━━━"
+    ]
+  },
+  {
+    "id": 12,
+    "prompt": "What agents are registered on my account?",
+    "expected_output": "Agent runs kpass user agents --output json and displays a list of registered agents with their IDs, types, and registration dates",
+    "assertions": [
+      "kpass user agents",
+      "--output json"
+    ]
+  },
+  {
+    "id": 13,
+    "prompt": "Show me my active spending sessions",
+    "expected_output": "Agent runs kpass user sessions --output json and displays each session with its status, delegation details, and spending limits",
+    "assertions": [
+      "kpass user sessions",
+      "--output json"
+    ]
+  },
+  {
+    "id": 14,
+    "prompt": "Set up a spending session so I can make payments",
+    "expected_output": "Agent runs kpass agent:register --type claude --output json to register the agent, then constructs a delegation and runs kpass agent:session create, then opens the approval URL for the user",
+    "assertions": [
+      "kpass agent:register",
+      "agent:session create",
+      "--output json"
+    ]
+  },
+  {
+    "id": 15,
+    "prompt": "Use my existing session to make a payment",
+    "expected_output": "Agent runs kpass agent:session list --output json first to find an active session, then proceeds with the payment execution using the existing session_id",
+    "assertions": [
+      "agent:session list",
+      "--output json"
+    ]
+  },
+  {
+    "id": 16,
+    "prompt": "Check the status of my pending session",
+    "expected_output": "Agent runs kpass agent:session list --output json and shows session status, delegation details, and whether the session is pending, active, or expired",
+    "assertions": [
+      "kpass user sessions",
+      "--output json"
+    ]
+  },
+  {
+    "id": 17,
+    "prompt": "Find me a phone charger under $10",
+    "expected_output": "Agent runs kpass shop:search \"phone charger\" --output json with max-results, displays product cards with title, price, and provider, then asks which to add to cart",
+    "assertions": [
+      "kpass shop:search",
+      "--output json",
+      "━━━"
+    ]
+  },
+  {
+    "id": 18,
+    "prompt": "What's in my shopping cart?",
+    "expected_output": "Agent runs kpass shop:cart --output json and renders each cart item as a display card with title, quantity, price, and provider, then shows the cart total",
+    "assertions": [
+      "kpass shop:cart",
+      "--output json"
+    ]
+  },
+  {
+    "id": 19,
+    "prompt": "I want to checkout and buy the items in my cart",
+    "expected_output": "Agent verifies shipping info with kpass shop:shipping --output json, confirms the cart total with the user, creates a spending session with a budget matching the total, then runs kpass shop:checkout --output json only after explicit user confirmation",
+    "assertions": [
+      "kpass shop:checkout",
+      "--output json"
+    ]
+  },
+  {
+    "id": 20,
+    "prompt": "What's my wallet balance?",
+    "expected_output": "Agent runs kpass wallet balance --output json and displays a card showing wallet address, chain, and each asset symbol with its balance",
+    "assertions": [
+      "kpass wallet balance",
+      "--output json",
+      "━━━"
+    ]
+  },
+  {
+    "id": 21,
+    "prompt": "Send 5 USDC to 0xabc123def456",
+    "expected_output": "Agent runs kpass wallet send --to 0xabc123def456 --asset USDC --amount 5 --output json and displays a confirmation card with the tx hash",
+    "assertions": [
+      "kpass wallet send",
+      "--to 0xabc123def456",
+      "--asset USDC",
+      "--amount 5",
+      "--output json"
+    ]
+  },
+  {
+    "id": 22,
+    "prompt": "Make a paid API call to api.example.com/data",
+    "expected_output": "Agent runs kpass agent:session execute --url api.example.com/data --output json and displays the response content from the paid API endpoint",
+    "assertions": [
+      "agent:session execute",
+      "--url",
+      "--output json"
+    ]
+  },
+  {
+    "id": 23,
+    "prompt": "POST to api.example.com/submit with body {\"key\": \"value\"}",
+    "expected_output": "Agent runs kpass agent:session execute --url api.example.com/submit --method POST --body '{\"key\": \"value\"}' --output json",
+    "assertions": [
+      "agent:session execute",
+      "--body",
+      "--output json"
+    ]
+  },
+  {
+    "id": 24,
+    "prompt": "Log me out of Kite Passport",
+    "expected_output": "Agent runs kpass logout --output json and confirms the user has been signed out",
+    "assertions": [
+      "kpass logout",
+      "--output json"
+    ]
+  },
+  {
+    "id": 25,
+    "prompt": "I tried to log in but got an error saying my email isn't registered — what should I do?",
+    "expected_output": "Agent recognises exit code 4 / 'email not registered' and falls back to kpass signup init --email <EMAIL> --no-interactive --output json, then continues the signup flow with signup poll and signup exchange",
+    "assertions": [
+      "kpass signup init",
+      "--no-interactive",
+      "--output json"
+    ]
+  },
+  {
+    "id": 26,
+    "prompt": "The OTP code I entered didn't work — it says invalid code",
+    "expected_output": "Agent recognises the invalid OTP error (exit code 3 from login verify), asks the user to re-check their email for the correct 8-character code, and retries kpass login verify with the same login_id",
+    "assertions": [
+      "kpass login verify",
+      "login_id"
+    ]
+  },
+  {
+    "id": 27,
+    "prompt": "Drop some testnet USDC into my wallet",
+    "expected_output": "Agent runs kpass faucet drop --recipient <ADDRESS> --token USDC --output json and displays a Tokens Received card with the drop details",
+    "assertions": [
+      "kpass faucet drop",
+      "--recipient",
+      "--token USDC",
+      "--output json"
+    ]
+  },
+  {
+    "id": 28,
+    "prompt": "Send 0.5 ETH to 0xdeadbeef1234567890abcdef",
+    "expected_output": "Agent runs kpass wallet send --to 0xdeadbeef1234567890abcdef --asset ETH --amount 0.5 --output json and shows the Transfer Complete card",
+    "assertions": [
+      "kpass wallet send",
+      "--asset ETH",
+      "--amount 0.5",
+      "--output json"
+    ]
+  },
+  {
+    "id": 29,
+    "prompt": "Show me only my Claude agents",
+    "expected_output": "Agent runs kpass user agents --agent-type claude --output json and lists only agents of type claude",
+    "assertions": [
+      "kpass user agents",
+      "--agent-type claude",
+      "--output json"
+    ]
+  },
+  {
+    "id": 30,
+    "prompt": "List only my active sessions",
+    "expected_output": "Agent runs kpass user sessions --status active --output json and shows only sessions with active status, including remaining budget from usage fields",
+    "assertions": [
+      "kpass user sessions",
+      "--status active",
+      "--output json"
+    ]
+  },
+  {
+    "id": 31,
+    "prompt": "I approved the session in my Passport app — is it active yet?",
+    "expected_output": "Agent runs kpass agent:session status --request-id <REQUEST_ID> --wait --output json to poll for approval and reports the result once the session becomes active",
+    "assertions": [
+      "kpass user sessions",
+      "--status active",
+      "--output json"
+    ]
+  },
+  {
+    "id": 32,
+    "prompt": "Register my agent before setting up a session",
+    "expected_output": "Agent runs kpass agent:register --type claude --output json and displays the registration confirmation with the new agent_id",
+    "assertions": [
+      "kpass agent:register",
+      "--type claude",
+      "--output json"
+    ]
+  },
+  {
+    "id": 33,
+    "prompt": "Add a wireless mouse to my cart",
+    "expected_output": "Agent runs kpass shop:search \"wireless mouse\" to find a product, then runs kpass shop:cart add --provider <PROVIDER> --external-id <ID> --quantity 1 --output json and shows the Added to Cart confirmation card",
+    "assertions": [
+      "kpass shop:cart add",
+      "--provider",
+      "--external-id",
+      "--output json"
+    ]
+  },
+  {
+    "id": 34,
+    "prompt": "Remove the keyboard from my cart",
+    "expected_output": "Agent runs kpass shop:cart view to identify the keyboard item, then runs kpass shop:cart remove --provider <PROVIDER> --external-id <ID> --output json",
+    "assertions": [
+      "kpass shop:cart remove",
+      "--provider",
+      "--external-id",
+      "--output json"
+    ]
+  },
+  {
+    "id": 35,
+    "prompt": "Empty my shopping cart",
+    "expected_output": "Agent runs kpass shop:cart clear --output json and confirms the cart has been cleared",
+    "assertions": [
+      "kpass shop:cart clear",
+      "--output json"
+    ]
+  },
+  {
+    "id": 36,
+    "prompt": "Update my shipping address to 123 Main St, Springfield, IL 62701",
+    "expected_output": "Agent runs kpass shop:shipping update with --name, --email, --line1, --city, --state, --postal flags populated and --output json",
+    "assertions": [
+      "kpass shop:shipping update",
+      "--line1",
+      "--city",
+      "--postal",
+      "--output json"
+    ]
+  },
+  {
+    "id": 37,
+    "prompt": "What's the status of my order ORD-abc123?",
+    "expected_output": "Agent runs kpass shop:order status --order-id ORD-abc123 --output json and reports the current order status and tracking info",
+    "assertions": [
+      "kpass shop:order status",
+      "--order-id",
+      "--output json"
+    ]
+  },
+  {
+    "id": 38,
+    "prompt": "Find AI APIs on Kite — I only want ones that accept USDC",
+    "expected_output": "Agent runs ksearch services list --query AI --asset USDC --output json (or equivalent filter combination) to surface services accepting USDC payment",
+    "assertions": [
+      "ksearch services list",
+      "--asset USDC",
+      "--output json"
+    ]
+  },
+  {
+    "id": 39,
+    "prompt": "Show me more Kite services — there must be more than the first page",
+    "expected_output": "Agent runs ksearch services list --limit N --cursor <CURSOR> --output json using the cursor from the previous response to fetch the next page",
+    "assertions": [
+      "ksearch services list",
+      "--cursor",
+      "--output json"
+    ]
+  },
+  {
+    "id": 40,
+    "prompt": "Is the Kite service catalog working right now?",
+    "expected_output": "Agent runs ksearch health --output json and reports whether the catalog backend is reachable and healthy",
+    "assertions": [
+      "ksearch health",
+      "--output json"
+    ]
+  },
+  {
+    "id": 41,
+    "prompt": "PUT to api.example.com/resource/42 with body {\"status\": \"done\"}",
+    "expected_output": "Agent runs kpass agent:session execute --url api.example.com/resource/42 --method PUT --body '{\"status\": \"done\"}' --output json",
+    "assertions": [
+      "agent:session execute",
+      "--method PUT",
+      "--body",
+      "--output json"
+    ]
+  },
+  {
+    "id": 42,
+    "prompt": "Call api.example.com/ingest with a custom header X-Api-Version: 2",
+    "expected_output": "Agent runs kpass agent:session execute --url api.example.com/ingest --headers '{\"X-Api-Version\": \"2\"}' --output json with the header passed as a JSON object",
+    "assertions": [
+      "agent:session execute",
+      "--headers",
+      "X-Api-Version",
+      "--output json"
+    ]
+  },
+  {
+    "id": 43,
+    "prompt": "The paid API returned a 404 — does that mean my payment failed?",
+    "expected_output": "Agent explains that a non-2xx status in x402.status_code is a response from the target service, not a payment failure — the CLI exits 0 and payment was processed. It shows the x402.status_code field and advises checking the target API's documentation.",
+    "assertions": [
+      "x402.status_code",
+      "404"
+    ]
+  },
+  {
+    "id": 44,
+    "prompt": "How much of my session budget have I used so far?",
+    "expected_output": "Agent runs kpass agent:session list --status active --output json and reads usage.spent_total vs payment_policy.max_total_amount to show remaining budget",
+    "assertions": [
+      "kpass user sessions",
+      "spent_total",
+      "max_total_amount",
+      "--output json"
+    ]
+  },
+  {
+    "id": 45,
+    "prompt": "Set up a session for api.payments.xyz — I don't know what it costs yet",
+    "expected_output": "Agent performs a preflight curl to api.payments.xyz to discover 402 payment requirements, displays the Payment Requirements Discovered card, then constructs a delegation and shows the Proposed Session Parameters card before asking for confirmation",
+    "assertions": [
+      "curl",
+      "api.payments.xyz",
+      "payment_policy",
+      "max_amount_per_tx"
+    ]
+  },
+  {
+    "id": 46,
+    "prompt": "The session approval request I sent expired before I approved it",
+    "expected_output": "Agent recognises the expired session request error (exit code 3, session request expired) and creates a new session with kpass agent:session create, presenting a new approval URL",
+    "assertions": [
+      "agent:session create",
+      "--output json"
+    ]
+  },
+  {
+    "id": 47,
+    "prompt": "Show me my x402 API payment history",
+    "expected_output": "Agent runs kpass activity --kind x402_payment --output json and renders each API payment event as a display card showing the endpoint, amount, and timestamp",
+    "assertions": [
+      "kpass activity",
+      "--kind x402_payment",
+      "--output json"
+    ]
+  },
+  {
+    "id": 48,
+    "prompt": "Show me my shopping checkouts from last month",
+    "expected_output": "Agent runs kpass activity --kind shopping_checkout --output json with offset pagination to reach older events, then filters by occurred_at to surface events within the requested time window",
+    "assertions": [
+      "kpass activity",
+      "--kind shopping_checkout",
+      "--output json",
+      "--offset"
+    ]
+  },
+  {
+    "id": 49,
+    "prompt": "Search for AI services in the Kite catalog and show me the details for the first result",
+    "expected_output": "Agent runs ksearch services list --query AI --output json to get results, extracts the first service_id, then runs ksearch services get --service-id <ID> --output json to show full details",
+    "assertions": [
+      "ksearch services list",
+      "--query",
+      "ksearch services get",
+      "--service-id",
+      "--output json"
+    ]
+  },
+  {
+    "id": 50,
+    "prompt": "I want to buy a USB hub and a webcam in one order",
+    "expected_output": "Agent searches for each product, runs kpass shop:cart add for each item, shows the full cart, verifies shipping, creates a single spending session sized to the combined total, and only runs kpass shop:checkout --confirmed after explicit user approval",
+    "assertions": [
+      "kpass shop:cart add",
+      "shop:checkout",
+      "--output json"
+    ]
+  },
+  {
+    "id": 51,
+    "prompt": "Set up a session for fal.ai with $0.03 per-tx and $3 total budget",
+    "expected_output": "Agent preflights fal.ai, derives the payment approach from the 402 response (likely tempo), and calls kpass agent:session create --delegation '<INNER-JSON>' --output json. The inner JSON must contain payment_policy.max_amount_per_tx, payment_policy.max_total_amount, and payment_policy.allowed_payment_approaches with the derived approach. Amount strings must be CLEAN decimals (e.g. 0.03, not 0.029999999999999998) — no more than 6 decimal digits and no trailing-9 float artifacts — so the USDC 6-decimal check does not reject the value at execute time.",
+    "assertions": [
+      "kpass agent:session create",
+      "--delegation",
+      "max_amount_per_tx",
+      "allowed_payment_approaches",
+      "--output json"
+    ]
+  },
+  {
+    "id": 52,
+    "prompt": "Create a session for a service that uses tempo payment protocol",
+    "expected_output": "Agent runs kpass agent:session create --delegation '<INNER-JSON>' --output json where payment_policy.allowed_payment_approaches is [\"tempo\"] (the base name — never tempo_http). Must not pass an _http-suffixed value in the allowed_payment_approaches array.",
+    "assertions": [
+      "kpass agent:session create",
+      "--delegation",
+      "\"allowed_payment_approaches\": [\"tempo\"]",
+      "--output json"
+    ]
+  },
+  {
+    "id": 53,
+    "prompt": "I created a session in the Passport dashboard, here's the ID: session_dash7788. Use it so you can make payments.",
+    "expected_output": "Agent registers itself if needed, then runs kpass agent:session attach --session-id session_dash7788 --output json directly — no merchant preflight, no delegation JSON construction, since the owner already defined the session's policy. Displays the Attach Approval Required card with the approval_url, opens it, and polls kpass agent:session status --request-id <id> --wait --output json until the owner approves, then shows the Session Attached card with the task summary and budget read from the approved session's delegation.",
+    "assertions": [
+      "kpass agent:session attach",
+      "--session-id session_dash7788",
+      "--output json",
+      "human_action_required",
+      "kpass agent:session status --request-id",
+      "--wait",
+      "Session Attached"
+    ]
+  },
+  {
+    "id": 54,
+    "prompt": "Attach session_dedicated4421 to this agent — I already have it.",
+    "expected_output": "Agent runs kpass agent:session attach --session-id session_dedicated4421 --output json, which returns exit code 2 with error_code: session_not_attachable because the session is a dedicated (create-time-bound) session, not an attachable one. Agent explains the distinction and points to request-session for creating a new session, rather than retrying attach on the same ID.",
+    "assertions": [
+      "kpass agent:session attach",
+      "session_not_attachable",
+      "request-session"
+    ]
+  },
+  {
+    "id": 55,
+    "prompt": "Attach session_foreignowner902 to this agent.",
+    "expected_output": "Agent runs kpass agent:session attach --session-id session_foreignowner902 --output json, which returns exit code 6 with error_code: agent_not_same_owner because the session belongs to a different account's agent. Agent explains the ownership boundary and does not retry with a different fabricated --agent-id or suggest re-registering as a workaround.",
+    "assertions": [
+      "kpass agent:session attach",
+      "agent_not_same_owner",
+      "--output json"
+    ]
+  }
+]
