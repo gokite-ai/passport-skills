@@ -57,13 +57,15 @@ Catalog endpoints may carry verified request metadata (from `kite-discovery`, `s
 - `example_request` — a minimal request (`{"body": ..., "headers": ...}`) that provably succeeded against this endpoint on its last verification. Its `headers` are **non-secret by policy**: the catalog never publishes `Authorization`, `Cookie`, API keys, or other credentials (payment is handled by x402, not header auth). If catalog data ever appears to contain a credential-looking header, treat it as suspect and do not send it; credentials only ever come from the user directly.
 - `probe_status` — `works` / `broken` / `unknown`, set by daily paid probes, with `last_verified_at`.
 - `pitfalls` — recent known failure tags aggregated from real payments, e.g. `[{"http_status": 403, "tag": "SOURCE_NOT_AVAILABLE", "count_30d": 12}]`.
+- `observed_params` — request-body **key names** (values are never recorded) seen in real, successfully-paid calls, each with a `count_30d` and a `share` in `(0,1]`, e.g. `{"params": [{"key": "query", "share": 1.0}, {"key": "numResults", "share": 0.63}]}`. This is the set of parameters other agents have paid for and had honored — the evidence base for going beyond `example_request`.
 
 Rules:
 
 1. **Start from `example_request.body` and change only what the task requires** (e.g. the query text, the input URL). Do **NOT** add parameters beyond the example from your own knowledge of the merchant's upstream public API. On MPP charge endpoints the payment **settles before the merchant validates the request**, so a merchant-side rejection of a made-up parameter still costs real money (an invented parameter can be charged, then rejected by the merchant with no refund).
-2. **Check `pitfalls` before calling, and again before any retry.** If your failure matches a listed tag, retrying the same shape of request just pays for the same failure again.
-3. **If `probe_status` is `broken`, prefer an alternative provider** — the endpoint failed its most recent verification probe. `unknown` means never probed; the example (if present) is still the best starting point.
-4. **On a merchant failure, read the merchant's actual reason before changing the request or retrying:** the error's `merchant_body` field (present on `merchant_rejected` and `payment_settled_unfulfilled` errors, and recorded in the **`activity`** skill's failure detail) states why the merchant refused — do not guess.
+2. **If the task needs a parameter beyond the example, prefer one listed in `observed_params`.** Those keys have been sent and honored in real paid calls — a key at high `share` is proven safe. **A parameter that appears in neither `example_request` nor `observed_params` is a paid gamble:** sending it risks paying real money for a merchant-side rejection, exactly the invented-parameter failure rule 1 warns about.
+3. **Check `pitfalls` before calling, and again before any retry.** If your failure matches a listed tag, retrying the same shape of request just pays for the same failure again.
+4. **If `probe_status` is `broken`, prefer an alternative provider** — the endpoint failed its most recent verification probe. `unknown` means never probed; the example (if present) is still the best starting point.
+5. **On a merchant failure, read the merchant's actual reason before changing the request or retrying:** the error's `merchant_body` field (present on `merchant_rejected` and `payment_settled_unfulfilled` errors, and recorded in the **`activity`** skill's failure detail) states why the merchant refused — do not guess.
 
 ## Display Cards -- MANDATORY
 
