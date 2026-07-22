@@ -169,7 +169,14 @@ Prefer `--service-id`. The CLI also accepts `--service-host-id` but use `--servi
         "last_verified_at": "2026-07-13T15:04:05Z",
         "pitfalls": [
           {"http_status": 403, "tag": "SOURCE_NOT_AVAILABLE", "count_30d": 12, "last_seen": "2026-07-12T04:04:14Z"}
-        ]
+        ],
+        "observed_params": {
+          "last_seen": "2026-07-13T15:04:05Z",
+          "params": [
+            {"key": "query", "count_30d": 480, "share": 1.0},
+            {"key": "numResults", "count_30d": 300, "share": 0.63}
+          ]
+        }
       },
       {
         "method": "POST",
@@ -189,11 +196,12 @@ Prefer `--service-id`. The CLI also accepts `--service-host-id` but use `--servi
 - `service.service_id` -- Stable identifier.
 - `service.base_url` -- Root service URL for Passport handoff.
 - `service.auth_requirements.mode` -- Currently `payment_only`.
-- `service.featured_endpoints[]` -- Up to 5 candidate endpoints, ordered by price (cheapest first). Each has `method`, `path`, and `summary`, plus four optional verification fields (omitted when unset):
+- `service.featured_endpoints[]` -- Up to 5 candidate endpoints, ordered by price (cheapest first). Each has `method`, `path`, and `summary`, plus five optional verification fields (omitted when unset):
   - `example_request` -- A minimal request (`body` + optional **non-secret** `headers` -- the catalog never publishes `Authorization`, `Cookie`, or API-key headers) that provably succeeded against this endpoint. **This is the correct starting point for building the paid request** -- pass it to `x402-execute` and change only what the task requires. Do not invent extra parameters from knowledge of the merchant's public API: on MPP charge endpoints, payment settles before the merchant validates, so a rejected request still costs money.
   - `probe_status` -- `works` / `broken` / `unknown`, set by daily paid verification probes. `broken` means the endpoint failed its most recent probe: keep it listed, but prefer an alternative provider.
   - `last_verified_at` -- When the endpoint last passed a probe (RFC 3339).
   - `pitfalls` -- Recent known failure tags aggregated from real payments (e.g. `{"http_status": 403, "tag": "SOURCE_NOT_AVAILABLE", "count_30d": 12}`). Surface these before executing, and check them before any paid retry.
+  - `observed_params` -- Request-body **key names** (values never recorded) seen in real, successfully-paid calls, each with a `count_30d` and a `share` in `(0,1]` (fraction of successful calls that included it). Answers what `example_request` cannot: *is this extra parameter legal here?* A key at high share is proven safe to send; **a key that never appears is a paid gamble** -- on MPP charge endpoints payment settles before the merchant validates, so an invented parameter still costs money if rejected.
 - `service.starting_price` -- Cheapest known price across all endpoints.
 
 ### What to Do After This Command
@@ -205,7 +213,7 @@ Prefer `--service-id`. The CLI also accepts `--service-host-id` but use `--servi
 5. If the user wants to proceed, hand off to Passport skills with this context:
    - Service name and base URL
    - Chosen endpoint method and path
-   - The endpoint's `example_request` and `pitfalls`, when present (x402-execute starts from the example body)
+   - The endpoint's `example_request`, `pitfalls`, and `observed_params`, when present (x402-execute starts from the example body and treats observed params as the safe set to add beyond it)
    - Payment approach and asset(s)
    - Pricing context
 

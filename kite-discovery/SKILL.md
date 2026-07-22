@@ -166,14 +166,14 @@ Before running any command, verify:
 6. **Cursor (`--cursor`):** Must come from a previous response's `next_cursor` field. Do not fabricate.
 7. **Output format:** Always `--output json`. Never omit.
 8. **Pricing shown:** You surfaced pricing and payment approach before recommending execution.
-9. **Handoff context:** You provided base URL, endpoint, pricing, and (when present) the endpoint's `example_request` and `pitfalls` to Passport skills.
+9. **Handoff context:** You provided base URL, endpoint, pricing, and (when present) the endpoint's `example_request`, `pitfalls`, and `observed_params` to Passport skills.
 
 ---
 
 ## Cross-Skill References
 
 - **No prerequisite skills.** Discovery is a public API -- no authentication or session is required.
-- **After finding a service:** To set up a spending session for a discovered service, use the **`request-session`** skill. Pass the service's `base_url` and `featured_endpoints` as the merchant URL and preflight targets. Carry each chosen endpoint's `example_request` and `pitfalls` (when present) forward too — **`x402-execute`** builds the paid request from the example body instead of inventing parameters.
+- **After finding a service:** To set up a spending session for a discovered service, use the **`request-session`** skill. Pass the service's `base_url` and `featured_endpoints` as the merchant URL and preflight targets. Carry each chosen endpoint's `example_request`, `pitfalls`, and `observed_params` (when present) forward too — **`x402-execute`** builds the paid request from the example body, uses `observed_params` as the set of parameters proven safe in successful calls, and avoids inventing parameters never observed.
 - **After session is active:** To execute paid API requests through the session, use the **`x402-execute`** skill.
 - **For direct wallet transfers (no session):** Use the **`wallet-send`** skill.
 - **For diagnostics on agents/sessions:** Use the **`manage-agents`** skill.
