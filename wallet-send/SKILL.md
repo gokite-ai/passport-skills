@@ -2,7 +2,7 @@
 name: wallet-send
 description: >-
   Check a multichain wallet balance, send crypto on a specific chain
-  (base/tempo/solana), look up per-chain wallet addresses, or get test tokens
+  (base/tempo/solana/robinhood), look up per-chain wallet addresses, or get test tokens
   from the faucet (staging/testnet only). Proactively invoke for any task
   involving token transfers, balance inquiries, "how much do I have?",
   "what's my address?", or funding a wallet on testnet. No spending session
@@ -18,7 +18,7 @@ allowed-tools:
 
 Check a wallet balance across chains, send tokens **on a specific chain**, list per-chain wallet addresses, and request test tokens from the faucet. These commands use the user's own JWT (not an agent session) and do NOT require a spending session.
 
-Kite is **multichain**. Every send targets one of three chains — **`base`**, **`tempo`**, or **`solana`** — and `--chain` is **required** (there is no default; `kite` is rejected). Balances are aggregated across all chains. A wallet send normally requires a **passkey approval in the browser** (step-up), so `wallet send` hands you an approval URL and you poll the result with `wallet send-status`.
+Kite is **multichain**. Every send targets one of four chains — **`base`**, **`tempo`**, **`solana`**, or **`robinhood`** — and `--chain` is **required** (there is no default; `kite` is rejected). Balances are aggregated across all chains. A wallet send normally requires a **passkey approval in the browser** (step-up), so `wallet send` hands you an approval URL and you poll the result with `wallet send-status`.
 
 > **Reference files** (read when you need exact detail):
 > - `@references/commands.md` — full per-command flag tables, validation rules, and every JSON shape.
@@ -45,18 +45,19 @@ No agent registration or spending session is required. Wallet commands operate w
 
 | Chain | VM family | Assets | Notes |
 |-------|-----------|--------|-------|
-| `base` | `evm` (`0x…`) | USDC | base + tempo share **one EVM address** |
+| `base` | `evm` (`0x…`) | USDC | base + tempo + robinhood share **one EVM address** |
 | `tempo` | `evm` (`0x…`) | USDC | physically USDC.e (surfaced as USDC); ~0.01 USDC is reserved for gas — the `amount` the CLI shows is already the spendable figure |
 | `solana` | `solana` (base58) | USDC, PYUSD | separate Solana address; optional (omitted if the user has no Solana wallet) |
+| `robinhood` | `evm` (`0x…`) | USDG | **USDG only**; same EVM address as base/tempo; no faucet |
 
-**Lead with `USDC` (all chains) and `PYUSD` (solana only).** `KITE` is not part of the multichain surface — do not suggest it as a send/receive asset even though the CLI's `--asset` help still lists it as an example.
+**Use `USDC` on base/tempo/solana, `PYUSD` on solana, and `USDG` on robinhood.** Never imply that USDG is supported on base/tempo or that USDC is supported on robinhood. `KITE` is not part of the multichain surface — do not suggest it as a send/receive asset even though the CLI's `--asset` help still lists it as an example.
 
 ## Defaults (Do Not Ask the User Unless They Specify Otherwise)
 
 | Setting | Default value | Override |
 |---------|--------------|---------|
 | Output format | `--output json` | Always use JSON output. Never omit this flag. |
-| Chain | Ask the user | **Required for `wallet send`.** There is no default. If the user did not say which chain, ask (e.g. "base, tempo, or solana?"). |
+| Chain | Ask the user | **Required for `wallet send`.** There is no default. If the user did not say which chain, ask (e.g. "base, tempo, solana, or robinhood?"). |
 | Asset | Ask the user | There is no default. You must know which token to send (e.g. `USDC`, `PYUSD`). |
 | Base URL | Omit (uses built-in default) | Only pass `--base-url` if the user explicitly provides a custom backend URL. |
 
@@ -76,7 +77,7 @@ No agent registration or spending session is required. Wallet commands operate w
 | `kpass wallet address [--chain <c>] --output json` | Per-chain receive addresses | login | `@references/commands.md` |
 | `kpass faucet drop --recipient <addr> --token <sym> --output json` | Test tokens (testnet only) | login | `@references/commands.md` |
 
-`--chain` accepts `base`, `tempo`, or `solana`. `--to`/`--recipient` is validated **client-side per chain**: an EVM address (`0x` + 40 hex; EIP-55 checksum enforced when mixed-case) for base/tempo, a base58 32-byte public key for solana. A malformed address fails with exit 2 before any network call.
+`--chain` accepts `base`, `tempo`, `solana`, or `robinhood`. `--to`/`--recipient` is validated **client-side per chain**: an EVM address (`0x` + 40 hex; EIP-55 checksum enforced when mixed-case) for base/tempo/robinhood, a base58 32-byte public key for solana. A malformed address fails with exit 2 before any network call.
 
 ---
 
@@ -187,6 +188,7 @@ After a successful **balance** check, present the aggregate and per-chain breakd
    base     {amount}
    tempo    {amount}
    solana   {amount}
+   robinhood {amount}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
@@ -200,13 +202,16 @@ After a successful **address** lookup:
 
 base     {address}
 tempo    {address}
+robinhood {address}
 solana   {address}
 
-base + tempo share one EVM address.
+base + tempo + robinhood share one EVM address.
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
 One line per entry in `wallets[]` (`{chain}` → `{address}`). Show the shared-address note only when two chains report the same address.
+
+When showing the Robinhood address, state clearly: **Only send USDG on Robinhood to this address.** The address may match Base and Tempo, but the supported asset does not.
 
 ## `faucet drop` — display card
 
@@ -232,7 +237,7 @@ Test tokens only — your wallet is funded for development.
 |-----------|---------|----------------------|-----------------|
 | 0 | Success **or** `human_action_required` | `status: "success"` / `status: "human_action_required"` | For `human_action_required`, show the approval URL and poll with `send-status`. It is NOT an error. |
 | 1 | Network error / send failed | `network error: ...`; `send-status` returns `status: "error"` with `error_code` | A client-side network error while polling `send-status` is safe to retry — re-run the same status check, do not create a new send (the original request may still resolve). Only start a new send once `send-status` itself returns a confirmed terminal `error`/`failed` state — that means the backend has already determined the transfer did not go through. |
-| 2 | Usage / validation error | `Missing --chain flag`, `--chain must be one of base\|tempo\|solana`, `--to is not a valid <chain> address: ...`, `--amount must be a positive number`, `Missing --recipient flag`, `Missing --token flag` | Fix the flags. `--chain` is required; the address must match the chain. |
+| 2 | Usage / validation error | `Missing --chain flag`, `--chain must be one of base\|tempo\|solana\|robinhood`, `--to is not a valid <chain> address: ...`, `--amount must be a positive number`, `Missing --recipient flag`, `Missing --token flag` | Fix the flags. `--chain` is required; the address must match the chain. |
 | 3 | Auth error | `Not logged in. Run 'kpass login init ...'`; `send-status` `rejected`/`expired`/`--wait` timeout | Use **`authenticate-user`** to log in, then retry. For a rejected/expired send, start a new one. |
 | 4 | Not found | `not found` | Check the request ID or recipient address. |
 | 5 | Rate limited | `rate limit` | Wait ~30 seconds and retry. |
@@ -247,7 +252,7 @@ See `@references/commands.md` for the exact error envelope of every command and 
 Do NOT attempt any of the following — they will fail:
 
 - `kpass wallet` (no sub-command) — use `wallet balance`, `wallet send`, `wallet send-status`, or `wallet address`.
-- `kpass wallet send` **without `--chain`** — `--chain` is required (`base|tempo|solana`).
+- `kpass wallet send` **without `--chain`** — `--chain` is required (`base|tempo|solana|robinhood`).
 - `kpass wallet send --chain kite` — `kite` is not a supported chain.
 - `kpass wallet transfer` / `kpass send` / `kpass balance` — use `wallet send` / `wallet balance`.
 - `kpass wallet send --recipient` — the flag is `--to`. `--token` / `--currency` — the flag is `--asset`.

@@ -24,7 +24,7 @@ kpass wallet balance --output json
 
 ```json
 {
-  "total_usd_approx": "1250.50",
+  "total_usd_approx": "1251.50",
   "assets": [
     {
       "asset": "USDC",
@@ -45,12 +45,21 @@ kpass wallet balance --output json
         { "chain": "solana", "amount": "250.50", "partial": false }
       ],
       "partial": false
+    },
+    {
+      "asset": "USDG",
+      "total": "1.00",
+      "decimals": 6,
+      "chains": [
+        { "chain": "robinhood", "amount": "1.00", "partial": false }
+      ],
+      "partial": false
     }
   ],
   "as_of": "2026-06-23T18:00:00Z",
   "_version": "1",
   "status": "success",
-  "hint": "Total balance ≈ $1250.50 across 2 asset(s).",
+  "hint": "Total balance ≈ $1251.50 across 3 asset(s).",
   "next_command": ""
 }
 ```
@@ -58,10 +67,10 @@ kpass wallet balance --output json
 **Key fields:**
 - `total_usd_approx` — approximate total value across all assets and chains (string).
 - `assets[]` — one entry per asset symbol.
-  - `asset` — symbol (e.g. `USDC`, `PYUSD`). `KITE` does not appear on the multichain surface.
+  - `asset` — symbol (e.g. `USDC`, `PYUSD`, `USDG`). `KITE` does not appear on the multichain surface.
   - `total` — summed spendable amount across chains (string).
   - `decimals` — token decimals.
-  - `chains[]` — per-chain breakdown: `{ chain, amount, partial }`. `chain` is `base`, `tempo`, or `solana`.
+  - `chains[]` — per-chain breakdown: `{ chain, amount, partial }`. `chain` is `base`, `tempo`, `solana`, or `robinhood`.
   - `partial` (on an asset or a chain) — `true` means that chain's read failed and the figure is incomplete. Tell the user the number may be understated.
 - `as_of` — timestamp the balances were read.
 
@@ -81,7 +90,7 @@ kpass wallet balance --output json
 
 ### What to Do After This Command
 
-Display the balance card (SKILL.md). Before a send, confirm the user has enough of the asset **on the target chain** — a USDC balance on `base` cannot fund a `solana` send.
+Display the balance card (SKILL.md). Before a send, confirm the user has enough of the asset **on the target chain** — a USDC balance on `base` cannot fund a `solana` send, and only USDG can be sent on `robinhood`.
 
 ---
 
@@ -90,17 +99,17 @@ Display the balance card (SKILL.md). Before a send, confirm the user has enough 
 Transfers tokens from the user's wallet on a specific chain to a recipient address. A send normally requires a passkey approval in the browser (step-up); this command starts that flow.
 
 ```
-kpass wallet send --chain <base|tempo|solana> --to <RECIPIENT_ADDRESS> --amount <N> --asset <SYMBOL> --output json
+kpass wallet send --chain <base|tempo|solana|robinhood> --to <RECIPIENT_ADDRESS> --amount <N> --asset <SYMBOL> --output json
 ```
 
 ### Arguments
 
 | Argument | Flag | Required | Source | Validation |
 |----------|------|----------|--------|------------|
-| Chain | `--chain` | **Yes** | Ask the user | One of `base`, `tempo`, `solana`. No default. `kite` and anything else are rejected (exit 2). |
-| Recipient address | `--to` | Yes | Ask the user | Validated **for the chosen chain**: base/tempo = EVM `0x` + 40 hex (EIP-55 checksum enforced when mixed-case); solana = base58 decoding to 32 bytes. Invalid → exit 2 before any network call. |
+| Chain | `--chain` | **Yes** | Ask the user | One of `base`, `tempo`, `solana`, `robinhood`. No default. `kite` and anything else are rejected (exit 2). |
+| Recipient address | `--to` | Yes | Ask the user | Validated **for the chosen chain**: base/tempo/robinhood = EVM `0x` + 40 hex (EIP-55 checksum enforced when mixed-case); solana = base58 decoding to 32 bytes. Invalid → exit 2 before any network call. |
 | Amount | `--amount` | Yes | Ask the user | Positive decimal string (e.g. `"25"`, `"0.50"`). |
-| Asset symbol | `--asset` | Yes | Ask the user | Token symbol. Lead with `USDC` (all chains) / `PYUSD` (solana). |
+| Asset symbol | `--asset` | Yes | Ask the user | Token symbol: `USDC` on base/tempo/solana, `PYUSD` on solana, `USDG` on robinhood. |
 | Idempotency key | `--idempotency-key` | No | Omit | Forwarded as the `Idempotency-Key` header; auto-generated when omitted. **The backend accepts but does not yet de-duplicate on it — treat it as reserved; do not rely on it to make retries safe.** |
 | Output format | `--output json` | Yes | Always pass | Literal value `json` |
 
@@ -148,10 +157,10 @@ kpass wallet send --chain <base|tempo|solana> --to <RECIPIENT_ADDRESS> --amount 
 ### Validation Errors (exit code 2)
 
 ```json
-{ "_version": "1", "status": "error", "error": "Missing --chain flag. Usage: kpass wallet send --chain <base|tempo|solana> --to <RECIPIENT_ADDRESS> --amount <N> --asset <SYMBOL> --output json", "hint": "", "next_command": "" }
+{ "_version": "1", "status": "error", "error": "Missing --chain flag. Usage: kpass wallet send --chain <base|tempo|solana|robinhood> --to <RECIPIENT_ADDRESS> --amount <N> --asset <SYMBOL> --output json", "hint": "", "next_command": "" }
 ```
 
-Other exit-2 messages: `--chain must be one of base|tempo|solana (got: "...")`; `--to is not a valid <chain> address: EVM address must be 0x + 40 hex chars (got N)` / `EVM address fails EIP-55 checksum (possible typo)` / `Solana address must decode to 32 bytes (got N)`; `--amount must be a positive number (got: "...")`; `Missing --to flag`; `Missing --asset flag`.
+Other exit-2 messages: `--chain must be one of base|tempo|solana|robinhood (got: "...")`; `--to is not a valid <chain> address: EVM address must be 0x + 40 hex chars (got N)` / `EVM address fails EIP-55 checksum (possible typo)` / `Solana address must decode to 32 bytes (got N)`; `--amount must be a positive number (got: "...")`; `Missing --to flag`; `Missing --asset flag`.
 
 ---
 
@@ -222,7 +231,7 @@ kpass wallet address --chain solana --output json
 
 | Argument | Flag | Required | Source | Validation |
 |----------|------|----------|--------|------------|
-| Chain filter | `--chain` | No | Pass to show one chain | One of `base`, `tempo`, `solana`. Omit for all. Invalid → exit 2. |
+| Chain filter | `--chain` | No | Pass to show one chain | One of `base`, `tempo`, `solana`, `robinhood`. Omit for all. Invalid → exit 2. |
 | Output format | `--output json` | Yes | Always pass | Literal value `json` |
 
 ### Success Output (exit code 0)
@@ -232,19 +241,21 @@ kpass wallet address --chain solana --output json
   "wallets": [
     { "chain": "base", "vm_family": "evm", "address": "0x1234abcd5678ef90..." },
     { "chain": "tempo", "vm_family": "evm", "address": "0x1234abcd5678ef90..." },
+    { "chain": "robinhood", "vm_family": "evm", "address": "0x1234abcd5678ef90..." },
     { "chain": "solana", "vm_family": "solana", "address": "9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin" }
   ],
   "_version": "1",
   "status": "success",
-  "hint": "3 wallet(s) found.",
+  "hint": "4 wallet(s) found.",
   "next_command": ""
 }
 ```
 
 **Key fields:**
 - `wallets[]` — `{ chain, vm_family, address }`.
-  - `vm_family` is `"evm"` for base/tempo and `"solana"` for solana.
-  - **base and tempo share one EVM address** (same `address` value). When two rows match, tell the user it is one wallet, not a duplicate.
+  - `vm_family` is `"evm"` for base/tempo/robinhood and `"solana"` for solana.
+  - **base, tempo, and robinhood share one EVM address** (same `address` value). When rows match, tell the user it is one wallet, not a duplicate.
+  - For robinhood, say **only send USDG on Robinhood to this address**. The same address does not imply cross-chain asset support.
   - The solana entry is **optional** — it is omitted if the user has no Solana wallet.
 - With `--chain`, only the matching entries are returned (hint becomes "N wallet(s) on <chain>.").
 
@@ -258,7 +269,7 @@ Dispenses test tokens. **Testnet/staging only** — the CLI blocks production ba
 kpass faucet drop --recipient <WALLET_ADDRESS> --token <TOKEN_NAME> --output json
 ```
 
-**This is a TESTNET faucet.** It dispenses test tokens for development only. Never tell the user they are receiving real funds.
+**This is a TESTNET faucet.** It dispenses test tokens for development only. Never tell the user they are receiving real funds. Robinhood is not a faucet-supported chain.
 
 ### Arguments
 

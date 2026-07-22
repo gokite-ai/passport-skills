@@ -140,7 +140,7 @@
     {
       "slug": "wallet-send",
       "name": "Wallet Send",
-      "description": "Check a multichain wallet balance, send crypto on a specific chain (base/tempo/solana), look up per-chain wallet addresses, or get test tokens from the faucet (staging/testnet only). Proactively invoke for any task involving token transfers, balance inquiries, \"how much do I have?\", \"what's my address?\", or funding a wallet on testnet. No spending session required -- works directly with the user's wallet. Sends require a passkey approval in the browser.",
+      "description": "Check a multichain wallet balance, send crypto on a specific chain (base/tempo/solana/robinhood), look up per-chain wallet addresses, or get test tokens from the faucet (staging/testnet only). Proactively invoke for any task involving token transfers, balance inquiries, \"how much do I have?\", \"what's my address?\", or funding a wallet on testnet. No spending session required -- works directly with the user's wallet. Sends require a passkey approval in the browser.",
       "path": "wallet-send/SKILL.md",
       "tags": [
         "wallet",
