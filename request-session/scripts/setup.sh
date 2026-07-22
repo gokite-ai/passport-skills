@@ -25,7 +25,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 # not ship — scripts/validate.sh checks in CI that they stay in sync with
 # skills.json, because a drifted fallback silently installs a CLI the skills
 # cannot drive.
-DEFAULT_CLI_VERSION="1.9.1"  # informational ceiling = skills.json max_cli_version
+DEFAULT_CLI_VERSION="1.9.2"  # informational ceiling = skills.json max_cli_version
 DEFAULT_MIN_CLI_VERSION="1.5.0"  # floor = skills.json min_cli_version (pre-release tag dropped)
 
 SKILLS_JSON=""
