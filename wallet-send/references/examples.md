@@ -14,7 +14,7 @@ kpass wallet balance --output json
 Output:
 ```json
 {
-  "total_usd_approx": "1250.50",
+  "total_usd_approx": "1251.50",
   "assets": [
     { "asset": "USDC", "total": "1000.00", "decimals": 6,
       "chains": [
@@ -23,18 +23,20 @@ Output:
         { "chain": "solana", "amount": "0.00", "partial": false }
       ], "partial": false },
     { "asset": "PYUSD", "total": "250.50", "decimals": 6,
-      "chains": [ { "chain": "solana", "amount": "250.50", "partial": false } ], "partial": false }
+      "chains": [ { "chain": "solana", "amount": "250.50", "partial": false } ], "partial": false },
+    { "asset": "USDG", "total": "1.00", "decimals": 6,
+      "chains": [ { "chain": "robinhood", "amount": "1.00", "partial": false } ], "partial": false }
   ],
   "as_of": "2026-06-23T18:00:00Z",
   "_version": "1", "status": "success",
-  "hint": "Total balance ≈ $1250.50 across 2 asset(s).", "next_command": ""
+  "hint": "Total balance ≈ $1251.50 across 3 asset(s).", "next_command": ""
 }
 ```
 
 Display the balance card:
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-💰 Wallet Balance — ≈ $1250.50
+💰 Wallet Balance — ≈ $1251.50
 
 USDC    1000.00
    base     600.00
@@ -42,10 +44,12 @@ USDC    1000.00
    solana   0.00
 PYUSD   250.50
    solana   250.50
+USDG    1.00
+   robinhood 1.00
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
-Then summarize: "You hold **1000.00 USDC** (600 on base, 400 on tempo) and **250.50 PYUSD** on solana — about **$1250.50** total."
+Then summarize: "You hold **1000.00 USDC** (600 on base, 400 on tempo), **250.50 PYUSD** on solana, and **1.00 USDG** on Robinhood — about **$1251.50** total."
 
 ---
 
@@ -127,6 +131,8 @@ Display the Transfer Complete card:
 **If `send-status` times out** (exit 3, `status: "pending"`): tell the user you're still waiting for their approval. When they say they've approved, run `send-status` again (with or without `--wait`).
 **If it returns `rejected`/`expired`** (exit 3) **or `failed`** (exit 1, with `error_code`): tell the user it didn't go through and offer to start a new send.
 
+**Robinhood variation:** first confirm the user has USDG on `robinhood`, then use `kpass wallet send --chain robinhood --to 0x... --amount <N> --asset USDG --output json`. Do not substitute USDC: Robinhood wallet sends support USDG only.
+
 ---
 
 ## Look Up Receive Addresses
@@ -142,10 +148,11 @@ Output:
   "wallets": [
     { "chain": "base", "vm_family": "evm", "address": "0x1234abcd5678ef90..." },
     { "chain": "tempo", "vm_family": "evm", "address": "0x1234abcd5678ef90..." },
+    { "chain": "robinhood", "vm_family": "evm", "address": "0x1234abcd5678ef90..." },
     { "chain": "solana", "vm_family": "solana", "address": "9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin" }
   ],
   "_version": "1", "status": "success",
-  "hint": "3 wallet(s) found.", "next_command": ""
+  "hint": "4 wallet(s) found.", "next_command": ""
 }
 ```
 
@@ -156,13 +163,15 @@ Display the addresses card:
 
 base     0x1234abcd5678ef90...
 tempo    0x1234abcd5678ef90...
+robinhood 0x1234abcd5678ef90...
 solana   9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin
 
-base + tempo share one EVM address.
+base + tempo + robinhood share one EVM address.
+Only send USDG on Robinhood to this address.
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
-To show just one chain: `kpass wallet address --chain solana --output json`.
+To show just one chain: `kpass wallet address --chain robinhood --output json`.
 
 ---
 

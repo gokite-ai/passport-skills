@@ -26,7 +26,7 @@ Output:
 {"error":"payment required","payment":{"accepts":[{"asset":"USDC","amount":"1.00","network":"eip155:8453"}]},"resource":"/v1/forecast"}
 402
 ```
-Parsed: the service requires **1.00 USDC** per request for `/v1/forecast`. (`network` is CAIP-2 — `eip155:8453` is base; an EVM chain is `eip155:<chainId>`, a Solana endpoint advertises `solana:<…>`. You only need `asset` and `amount` to build the delegation; the backend settles on the merchant's chain — base, tempo, or solana — automatically.)
+Parsed: the service requires **1.00 USDC** per request for `/v1/forecast`. (`network` is CAIP-2 — `eip155:8453` is base and `eip155:4663` is Robinhood Chain; an EVM chain is `eip155:<chainId>`, and a Solana endpoint advertises `solana:<…>`. You only need `asset` and `amount` to build the delegation; the backend settles on the merchant's chain — base, tempo, solana, or Robinhood Chain — automatically.)
 
 **Step 4:** Construct the delegation. The user wants to query forecasts. Set per-tx to match the price, total budget for a few queries, scope to the known endpoint.
 

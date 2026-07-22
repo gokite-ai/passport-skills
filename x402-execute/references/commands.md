@@ -8,7 +8,7 @@ Full command reference for the `x402-execute` skill. SKILL.md carries the trigge
 
 Sends an HTTP request through the Passport backend, which handles payment negotiation with the target service.
 
-**Timeout:** This command has a **5-minute timeout**. Payment operations involve on-chain transaction broadcasting and receipt polling, which can take 1-3 minutes. Payment now settles on **base, tempo, or solana** depending on the merchant's advertised network; a **cross-chain routed settlement (or a Solana settlement) can take ~90 seconds, and the whole flow up to ~2 minutes**. The CLI shows a progress spinner with elapsed time in non-JSON mode. Do NOT treat a slow response as a failure — wait for the full timeout before giving up.
+**Timeout:** This command has a **5-minute timeout**. Payment operations involve on-chain transaction broadcasting and receipt polling, which can take 1-3 minutes. Payment now settles on **base, tempo, solana, or Robinhood Chain** depending on the merchant's advertised network; a **cross-chain routed settlement (or a Solana settlement) can take ~90 seconds, and the whole flow up to ~2 minutes**. The CLI shows a progress spinner with elapsed time in non-JSON mode. Do NOT treat a slow response as a failure — wait for the full timeout before giving up.
 
 ```
 kpass agent:session execute --url <URL> --output json
@@ -100,7 +100,7 @@ kpass agent:session execute \
 - `x402.response_body` -- The raw response body from the target service, as a string.
 - `x402.parsed_response_body` -- If the response body is valid JSON, the CLI parses it for you. Use this field for structured data.
 - `x402.wallet_address` -- The wallet address that settled the payment (informational).
-- `x402.chain_id` -- The numeric chain ID of the chain the payment settled on (informational). Settlement happens on **base, tempo, or solana** per the merchant's advertised network; for Solana settlements the field is **omitted** (Solana has no EVM chain ID — treat an absent `chain_id` as Solana, same as the `activity` skill). Intermediate cross-chain routing (any bridge or swap) is **NOT** disclosed in the response — do not promise the user route details.
+- `x402.chain_id` -- The numeric chain ID of the chain the payment settled on (informational). Settlement happens on **base, tempo, solana, or Robinhood Chain** per the merchant's advertised network; for Solana settlements the field is **omitted** (Solana has no EVM chain ID — treat an absent `chain_id` as Solana, same as the `activity` skill). Intermediate cross-chain routing (any bridge or swap) is **NOT** disclosed in the response — do not promise the user route details.
 - `delegation` -- The session's delegation policy (confirms task, payment policy).
 - `usage` -- Current usage tracking: `spent_total` (total spent so far) and `reserved_total` (amount currently reserved for in-flight payments).
 - `payment_requirement` -- The payment that was made for this request: `asset` and `amount`.
@@ -198,7 +198,7 @@ When the payment must move across chains, the backend may run a route (bridge an
 | `route_uneconomical` | 422 | 2 | none moved | No. Bridge cost exceeds the limit for this amount. Fund the destination chain directly, or increase the amount. |
 | `routing_cost_exceeded` | 422 | 2 | none moved | No. Routing cost exceeds the session's `routing_cost_cap_usd_micros`. Create a new session with a higher cap, or fund the destination chain. |
 | `slippage_exceeded` | 422 | 2 | none moved | No. Quoted swap slippage exceeds the cap. |
-| `unsupported_asset` | 422 | 2 | none moved | No. Unsupported chain/asset for routing. Use USDC (base/tempo/solana) or PYUSD (solana). |
+| `unsupported_asset` | 422 | 2 | none moved | No. Unsupported chain/asset for routing. Supported merchant assets are USDC (base/tempo/solana), PYUSD (solana), and USDG (Robinhood Chain). |
 | `provider_unavailable` | 503 | 1 | none moved | **Yes — safe to retry** after a brief pause. |
 | `bridge_failed` | 502 | 1 | **ambiguous** | Do NOT blindly retry. Check the **`activity`** skill first to see whether funds moved. |
 | `swap_failed` | 502 | 1 | **ambiguous** | Do NOT blindly retry. Check the **`activity`** skill first. |
