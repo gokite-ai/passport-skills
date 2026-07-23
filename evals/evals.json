@@ -559,5 +559,18 @@
       "agent_not_same_owner",
       "--output json"
     ]
+  },
+  {
+    "id": 56,
+    "prompt": "What's my Base wallet address? I want to fund it.",
+    "expected_output": "Agent runs kpass wallet address --chain base --output json and, before displaying the address, says that gas is sponsored, only USDC should be sent on Base, and ETH must not be sent.",
+    "assertions": [
+      "kpass wallet address",
+      "--chain base",
+      "--output json",
+      "Gas is sponsored",
+      "USDC only",
+      "do not send ETH"
+    ]
   }
 ]
