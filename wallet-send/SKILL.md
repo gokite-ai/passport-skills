@@ -52,6 +52,8 @@ No agent registration or spending session is required. Wallet commands operate w
 
 **Use `USDC` on base/tempo/solana, `PYUSD` on solana, and `USDG` on robinhood.** Never imply that USDG is supported on base/tempo or that USDC is supported on robinhood. `KITE` is not part of the multichain surface — do not suggest it as a send/receive asset even though the CLI's `--asset` help still lists it as an example.
 
+**Passport sponsors gas on every supported chain.** Users do not need to deposit ETH, SOL, or another native gas token. Whenever you share a receive address, state the supported receive asset(s) and the gas-sponsorship warning **before** the address so crypto-native users do not fund gas out of habit.
+
 ## Defaults (Do Not Ask the User Unless They Specify Otherwise)
 
 | Setting | Default value | Override |
@@ -200,6 +202,13 @@ After a successful **address** lookup:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 📬 Wallet Addresses
 
+⚠️ Gas is sponsored. Do not send native gas tokens.
+
+Supported receive assets:
+base / tempo   USDC only — do not send ETH
+robinhood      USDG only — do not send ETH
+solana         USDC or PYUSD only — do not send SOL
+
 base     {address}
 tempo    {address}
 robinhood {address}
@@ -209,9 +218,7 @@ base + tempo + robinhood share one EVM address.
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
-One line per entry in `wallets[]` (`{chain}` → `{address}`). Show the shared-address note only when two chains report the same address.
-
-When showing the Robinhood address, state clearly: **Only send USDG on Robinhood to this address.** The address may match Base and Tempo, but the supported asset does not.
+The safety notice and supported-assets block are mandatory and must appear **before** the address rows. Show only guidance and address rows for chains present in `wallets[]`. Show the shared-address note only when two chains report the same address. The same EVM address does not imply cross-chain asset support.
 
 ## `faucet drop` — display card
 

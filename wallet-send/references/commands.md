@@ -255,9 +255,21 @@ kpass wallet address --chain solana --output json
 - `wallets[]` — `{ chain, vm_family, address }`.
   - `vm_family` is `"evm"` for base/tempo/robinhood and `"solana"` for solana.
   - **base, tempo, and robinhood share one EVM address** (same `address` value). When rows match, tell the user it is one wallet, not a duplicate.
-  - For robinhood, say **only send USDG on Robinhood to this address**. The same address does not imply cross-chain asset support.
   - The solana entry is **optional** — it is omitted if the user has no Solana wallet.
 - With `--chain`, only the matching entries are returned (hint becomes "N wallet(s) on <chain>.").
+
+### Required Receive-Asset Warning
+
+Before displaying any address, state that Passport sponsors gas and users must not send native gas tokens. Then show the receive rules for each returned chain:
+
+| Chain | Supported receive assets | Explicit warning |
+|-------|--------------------------|------------------|
+| `base` | USDC only | Do not send ETH |
+| `tempo` | USDC only | Do not send unsupported assets |
+| `robinhood` | USDG only | Do not send ETH |
+| `solana` | USDC or PYUSD | Do not send SOL |
+
+Never return a bare wallet address without this guidance. The same EVM address does not imply that an asset supported on one chain is supported on the others.
 
 ---
 
