@@ -161,13 +161,19 @@ Display the addresses card:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 📬 Wallet Addresses
 
+⚠️ Gas is sponsored. Do not send native gas tokens.
+
+Supported receive assets:
+base / tempo   USDC only — do not send ETH
+robinhood      USDG only — do not send ETH
+solana         USDC or PYUSD only — do not send SOL
+
 base     0x1234abcd5678ef90...
 tempo    0x1234abcd5678ef90...
 robinhood 0x1234abcd5678ef90...
 solana   9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin
 
 base + tempo + robinhood share one EVM address.
-Only send USDG on Robinhood to this address.
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
