@@ -14,11 +14,12 @@ kpass wallet balance --output json
 Output:
 ```json
 {
-  "total_usd_approx": "1251.50",
+  "total_usd_approx": "1301.50",
   "assets": [
-    { "asset": "USDC", "total": "1000.00", "decimals": 6,
+    { "asset": "USDC", "total": "1050.00", "decimals": 6,
       "chains": [
         { "chain": "base", "amount": "600.00", "partial": false },
+        { "chain": "polygon", "amount": "50.00", "partial": false },
         { "chain": "tempo", "amount": "400.00", "partial": false },
         { "chain": "solana", "amount": "0.00", "partial": false }
       ], "partial": false },
@@ -29,17 +30,18 @@ Output:
   ],
   "as_of": "2026-06-23T18:00:00Z",
   "_version": "1", "status": "success",
-  "hint": "Total balance ≈ $1251.50 across 3 asset(s).", "next_command": ""
+  "hint": "Total balance ≈ $1301.50 across 3 asset(s).", "next_command": ""
 }
 ```
 
 Display the balance card:
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-💰 Wallet Balance — ≈ $1251.50
+💰 Wallet Balance — ≈ $1301.50
 
-USDC    1000.00
+USDC    1050.00
    base     600.00
+   polygon  50.00
    tempo    400.00
    solana   0.00
 PYUSD   250.50
@@ -49,7 +51,7 @@ USDG    1.00
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
-Then summarize: "You hold **1000.00 USDC** (600 on base, 400 on tempo), **250.50 PYUSD** on solana, and **1.00 USDG** on Robinhood — about **$1251.50** total."
+Then summarize: "You hold **1050.00 USDC** (600 on base, 50 on Polygon, 400 on tempo), **250.50 PYUSD** on solana, and **1.00 USDG** on Robinhood — about **$1301.50** total."
 
 ---
 
@@ -133,6 +135,8 @@ Display the Transfer Complete card:
 
 **Robinhood variation:** first confirm the user has USDG on `robinhood`, then use `kpass wallet send --chain robinhood --to 0x... --amount <N> --asset USDG --output json`. Do not substitute USDC: Robinhood wallet sends support USDG only.
 
+**Polygon variation:** first confirm the user has native USDC on `polygon`, then use `kpass wallet send --chain polygon --to 0x... --amount <N> --asset USDC --output json`. Do not ask the user to fund POL; Passport sponsors gas.
+
 ---
 
 ## Look Up Receive Addresses
@@ -147,12 +151,13 @@ Output:
 {
   "wallets": [
     { "chain": "base", "vm_family": "evm", "address": "0x1234abcd5678ef90..." },
+    { "chain": "polygon", "vm_family": "evm", "address": "0x1234abcd5678ef90..." },
     { "chain": "tempo", "vm_family": "evm", "address": "0x1234abcd5678ef90..." },
     { "chain": "robinhood", "vm_family": "evm", "address": "0x1234abcd5678ef90..." },
     { "chain": "solana", "vm_family": "solana", "address": "9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin" }
   ],
   "_version": "1", "status": "success",
-  "hint": "4 wallet(s) found.", "next_command": ""
+  "hint": "5 wallet(s) found.", "next_command": ""
 }
 ```
 
@@ -164,16 +169,17 @@ Display the addresses card:
 ⚠️ Gas is sponsored. Do not send native gas tokens.
 
 Supported receive assets:
-base / tempo   USDC only — do not send ETH
+base / polygon / tempo   USDC only — do not send native gas tokens
 robinhood      USDG only — do not send ETH
 solana         USDC or PYUSD only — do not send SOL
 
 base     0x1234abcd5678ef90...
+polygon  0x1234abcd5678ef90...
 tempo    0x1234abcd5678ef90...
 robinhood 0x1234abcd5678ef90...
 solana   9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin
 
-base + tempo + robinhood share one EVM address.
+base + polygon + tempo + robinhood share one EVM address.
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
