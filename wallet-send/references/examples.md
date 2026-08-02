@@ -20,6 +20,7 @@ Output:
       "chains": [
         { "chain": "base", "amount": "600.00", "partial": false },
         { "chain": "polygon", "amount": "50.00", "partial": false },
+        { "chain": "avalanche", "amount": "25.00", "partial": false },
         { "chain": "tempo", "amount": "400.00", "partial": false },
         { "chain": "solana", "amount": "0.00", "partial": false }
       ], "partial": false },
@@ -41,7 +42,8 @@ Display the balance card:
 
 USDC    1050.00
    base     600.00
-   polygon  50.00
+   polygon    50.00
+   avalanche  25.00
    tempo    400.00
    solana   0.00
 PYUSD   250.50
@@ -51,7 +53,7 @@ USDG    1.00
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
-Then summarize: "You hold **1050.00 USDC** (600 on base, 50 on Polygon, 400 on tempo), **250.50 PYUSD** on solana, and **1.00 USDG** on Robinhood — about **$1301.50** total."
+Then summarize: "You hold **1075.00 USDC** (600 on base, 50 on Polygon, 25 on Avalanche, 400 on tempo), **250.50 PYUSD** on solana, and **1.00 USDG** on Robinhood — about **$1326.50** total."
 
 ---
 
@@ -137,6 +139,8 @@ Display the Transfer Complete card:
 
 **Polygon variation:** first confirm the user has native USDC on `polygon`, then use `kpass wallet send --chain polygon --to 0x... --amount <N> --asset USDC --output json`. Do not ask the user to fund POL; Passport sponsors gas.
 
+**Avalanche variation:** first confirm the user has native USDC on `avalanche`, then use `kpass wallet send --chain avalanche --to 0x... --amount <N> --asset USDC --output json`. Do not ask the user to fund AVAX; Passport sponsors gas.
+
 ---
 
 ## Look Up Receive Addresses
@@ -152,6 +156,7 @@ Output:
   "wallets": [
     { "chain": "base", "vm_family": "evm", "address": "0x1234abcd5678ef90..." },
     { "chain": "polygon", "vm_family": "evm", "address": "0x1234abcd5678ef90..." },
+    { "chain": "avalanche", "vm_family": "evm", "address": "0x1234abcd5678ef90..." },
     { "chain": "tempo", "vm_family": "evm", "address": "0x1234abcd5678ef90..." },
     { "chain": "robinhood", "vm_family": "evm", "address": "0x1234abcd5678ef90..." },
     { "chain": "solana", "vm_family": "solana", "address": "9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin" }
@@ -169,17 +174,18 @@ Display the addresses card:
 ⚠️ Gas is sponsored. Do not send native gas tokens.
 
 Supported receive assets:
-base / polygon / tempo   USDC only — do not send native gas tokens
+base / polygon / avalanche / tempo   USDC only — do not send native gas tokens
 robinhood      USDG only — do not send ETH
 solana         USDC or PYUSD only — do not send SOL
 
 base     0x1234abcd5678ef90...
-polygon  0x1234abcd5678ef90...
+polygon    0x1234abcd5678ef90...
+avalanche  0x1234abcd5678ef90...
 tempo    0x1234abcd5678ef90...
 robinhood 0x1234abcd5678ef90...
 solana   9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin
 
-base + polygon + tempo + robinhood share one EVM address.
+base + polygon + avalanche + tempo + robinhood share one EVM address.
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
