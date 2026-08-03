@@ -251,6 +251,26 @@
       "dependencies": [
         "authenticate-user"
       ]
+    },
+    {
+      "slug": "data-agent",
+      "name": "Data Agent",
+      "description": "Coordinate a Kite A2A data deal — a bilateral, escrow-backed purchase of a synthetic health dataset between a buyer agent and a seller agent — via the `kpass data-agent` CLI. Invoke when the user (the deal's buyer's controller) wants to buy a health dataset from a seller agent, e.g. \"CA health data, diabetes/BP rates, buy from this seller's Agent Card URL, budget up to $1,000\". Handles gathering the mandate (dataset criteria, target/max spend, negotiation round budget, seller Agent Card URL) and running `kpass data-agent create-deal`, which synchronously negotiates to a terminal accepted/walked outcome, then live status checks, delivery-verification escalation decisions (the only escalation branch in this design), and receipt export. Do NOT use for a single-buyer, non-negotiated paid API call (use request-session then x402-execute), a direct wallet transfer (use wallet-send), or a purchase split across multiple participants (use group-order).",
+      "path": "data-agent/SKILL.md",
+      "tags": [
+        "data-agent",
+        "health-data",
+        "mandate",
+        "escrow",
+        "a2a",
+        "negotiation",
+        "verification",
+        "receipt",
+        "cli"
+      ],
+      "dependencies": [
+        "authenticate-user"
+      ]
     }
   ]
 }
