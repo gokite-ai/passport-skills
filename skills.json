@@ -3,9 +3,9 @@
   "name": "kskills",
   "display_name": "Kite Passport Skills",
   "description": "Skills that teach AI agents how to authenticate users, manage spending sessions, execute payments, and transfer tokens using the kpass CLI.",
-  "version": "1.7.1",
+  "version": "1.8.1",
   "min_cli_version": "1.5.0-rc.1",
-  "max_cli_version": "1.9.2",
+  "max_cli_version": "1.10.1",
   "min_ksearch_version": "1.0.2",
   "max_ksearch_version": "1.0.10",
   "setup_script": "scripts/setup.sh",
@@ -140,7 +140,7 @@
     {
       "slug": "wallet-send",
       "name": "Wallet Send",
-      "description": "Check a multichain wallet balance, send crypto on a specific chain (base/tempo/solana/robinhood), look up per-chain wallet addresses, or get test tokens from the faucet (staging/testnet only). Proactively invoke for any task involving token transfers, balance inquiries, \"how much do I have?\", \"what's my address?\", or funding a wallet on testnet. No spending session required -- works directly with the user's wallet. Sends require a passkey approval in the browser.",
+      "description": "Check a multichain wallet balance, send crypto on a specific chain (base/polygon/avalanche/tempo/solana/robinhood), look up per-chain wallet addresses, or get test tokens from the faucet (staging/testnet only). Proactively invoke for any task involving token transfers, balance inquiries, \"how much do I have?\", \"what's my address?\", or funding a wallet on testnet. No spending session required -- works directly with the user's wallet. Sends require a passkey approval in the browser.",
       "path": "wallet-send/SKILL.md",
       "tags": [
         "wallet",
