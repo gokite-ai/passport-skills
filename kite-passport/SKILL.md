@@ -61,7 +61,7 @@ web search for product research when a direct product-search command exists.
 | Find available APIs or paid services | `kite-discovery` |
 | Send an email, deliver a message via a paid provider | `kite-discovery` (then `request-session` → `x402-execute`) |
 | Call a paid API or access a gated endpoint | `x402-execute` (after `request-session`) |
-| Send crypto, transfer tokens to an address | `wallet-send` |
+| Send crypto, transfer tokens to an address | `wallet-send` (chain set is environment-specific — dev serves arc testnet only, with no direct sends) |
 | Check wallet balance, see how much money is available | `wallet-send` |
 | Get test tokens on testnet | `wallet-send` (staging/testnet only) |
 | Sign up, log in, authenticate | `authenticate-user` |
