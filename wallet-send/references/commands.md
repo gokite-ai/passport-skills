@@ -108,7 +108,7 @@ kpass wallet send --chain <base|polygon|avalanche|tempo|solana|robinhood|arc> --
 
 | Argument | Flag | Required | Source | Validation |
 |----------|------|----------|--------|------------|
-| Chain | `--chain` | **Yes** | Ask the user | One of `base`, `polygon`, `avalanche`, `tempo`, `solana`, `robinhood`, `arc`. No default. `kite` and anything else are rejected (exit 2). The backend additionally rejects chains its environment does not serve — on dev only `arc` exists, and dev does not support direct sends at all. |
+| Chain | `--chain` | **Yes** | Ask the user | One of `base`, `polygon`, `avalanche`, `tempo`, `solana`, `robinhood`, `arc`. No default. `kite` and anything else are rejected (exit 2). The backend additionally rejects chains its environment does not serve. **`arc` is balance/receive-only, never a send target** — dev (the only environment serving arc) has no direct sends; a2a escrow funding uses `kpass agent:session fund-agreement`. |
 | Recipient address | `--to` | Yes | Ask the user | Validated **for the chosen chain**: base/polygon/avalanche/tempo/robinhood/arc = EVM `0x` + 40 hex (EIP-55 checksum enforced when mixed-case); solana = base58 decoding to 32 bytes. Invalid → exit 2 before any network call. |
 | Amount | `--amount` | Yes | Ask the user | Positive decimal string (e.g. `"25"`, `"0.50"`). |
 | Asset symbol | `--asset` | Yes | Ask the user | Token symbol: `USDC` on base/polygon/avalanche/tempo/solana, `PYUSD` on solana, `USDG` on robinhood. |
@@ -233,7 +233,7 @@ kpass wallet address --chain solana --output json
 
 | Argument | Flag | Required | Source | Validation |
 |----------|------|----------|--------|------------|
-| Chain filter | `--chain` | No | Pass to show one chain | One of `base`, `polygon`, `avalanche`, `tempo`, `solana`, `robinhood`. Omit for all. Invalid → exit 2. |
+| Chain filter | `--chain` | No | Pass to show one chain | One of `base`, `polygon`, `avalanche`, `tempo`, `solana`, `robinhood`, `arc`. Omit for all. Invalid → exit 2. (Filtering on a chain the environment does not serve just returns zero rows.) |
 | Output format | `--output json` | Yes | Always pass | Literal value `json` |
 
 ### Success Output (exit code 0)

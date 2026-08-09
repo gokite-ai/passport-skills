@@ -3,7 +3,8 @@ name: wallet-send
 description: >-
   Check a multichain wallet balance, send crypto on a specific chain
   (base/polygon/avalanche/tempo/solana/robinhood on mainnet; the dev
-  environment serves arc testnet only), look up per-chain wallet addresses, or get test tokens
+  environment serves arc testnet only — balance and address lookups, no
+  direct sends and no faucet there), look up per-chain wallet addresses, or get test tokens
   from the faucet (staging/testnet only). Proactively invoke for any task
   involving token transfers, balance inquiries, "how much do I have?",
   "what's my address?", or funding a wallet on testnet. No spending session
@@ -52,7 +53,7 @@ No agent registration or spending session is required. Wallet commands operate w
 | `tempo` | `evm` (`0x…`) | USDC | physically USDC.e (surfaced as USDC); ~0.01 USDC is reserved for gas — the `amount` the CLI shows is already the spendable figure |
 | `solana` | `solana` (base58) | USDC, PYUSD | separate Solana address; optional (omitted if the user has no Solana wallet) |
 | `robinhood` | `evm` (`0x…`) | USDG | **USDG only**; same EVM address as base/polygon/avalanche/tempo; no faucet |
-| `arc` | `evm` (`0x…`) | USDC | **dev environment only** — Arc testnet (chainId 5042002), the a2a escrow settlement chain. Circle USDC doubles as Arc's gas token, so there is no separate native token to avoid. Balance/address only: **no direct sends, no faucet, no routing** on dev. |
+| `arc` | `evm` (`0x…`) | USDC | **dev environment only** — Arc testnet (chainId 5042002), the a2a escrow settlement chain. Circle USDC doubles as Arc's gas token, so there is no separate native token to avoid. Balance/address only: **no direct sends, no faucet, no routing** on dev — a2a escrow funding flows through `kpass agent:session fund-agreement`. |
 
 The mainnet rows above are what staging/prod serve; **on dev, `arc` is the ONLY chain** — never offer the mainnet chains there.
 
