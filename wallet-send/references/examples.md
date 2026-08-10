@@ -59,6 +59,8 @@ Then summarize: "You hold **1075.00 USDC** (600 on base, 50 on Polygon, 25 on Av
 
 ## Send Tokens (with passkey approval)
 
+> **Mainnet/staging example.** Direct sends exist only where the environment serves sendable chains. On **dev** the only chain is `arc` and direct sends are **unavailable** — a2a escrow funding goes through `kpass agent:session fund-agreement` instead (see the dev note after the variations below).
+
 **Context:** The user says "Send 25 USDC to `0x9876fedc5432ba10...` on base."
 
 **Step 1 — Confirm funds on the target chain.** From the balance above, base USDC is 600.00 ≥ 25 → proceed. (A balance on a *different* chain would not qualify — funds must be on `base`.)
@@ -141,6 +143,8 @@ Display the Transfer Complete card:
 
 **Avalanche variation:** first confirm the user has native USDC on `avalanche`, then use `kpass wallet send --chain avalanche --to 0x... --amount <N> --asset USDC --output json`. Do not ask the user to fund AVAX; Passport sponsors gas.
 
+**Dev environment (arc):** the dev backend serves only Arc testnet, and it does **not** support direct wallet sends — a2a escrow funding flows through `kpass agent:session fund-agreement` instead. If a user on dev asks to "send", explain that dev is balance/receive-only on arc; do not offer the mainnet chains.
+
 ---
 
 ## Look Up Receive Addresses
@@ -186,6 +190,7 @@ robinhood 0x1234abcd5678ef90...
 solana   9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin
 
 base + polygon + avalanche + tempo + robinhood share one EVM address.
+(On dev, this card shows a single arc row — same EVM address format.)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 

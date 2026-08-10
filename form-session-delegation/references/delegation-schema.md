@@ -195,9 +195,9 @@ When the preflight clearly identifies a single endpoint (you know the host, path
 
 Infer the poll path prefix from the 402 schema's example (`pollUrl`, `statusUrl`, etc.) or other reliable endpoint metadata. If you cannot determine the poll path, omit `execution_constraints` entirely rather than guessing — a wrong guessed prefix still fails polling, and an overly broad one authorizes endpoints beyond what the task needs.
 
-### 7. Cross-chain routing (optional, advanced)
+### 7. Cross-chain routing (optional, advanced — mainnet only)
 
-These are **top-level** delegation fields (siblings of `task`/`payment_policy`), not nested under `payment_policy`.
+These are **top-level** delegation fields (siblings of `task`/`payment_policy`), not nested under `payment_policy`. Routing exists only on the multichain (mainnet) deployment; the **dev environment serves a single chain (Arc testnet) with no routing provider**, so this whole section does not apply there.
 
 A payment always settles on the merchant's advertised chain. If the user's funds are on a **different** chain, whether the backend auto-bridges/swaps to get there is governed by `routing_enabled`:
 

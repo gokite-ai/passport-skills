@@ -15,7 +15,7 @@ allowed-tools:
 
 # x402 Execute
 
-Execute HTTP requests through an approved Kite Passport spending session. The Passport backend handles x402 payment negotiation transparently -- you specify the target URL and the backend negotiates payment with the remote service on your behalf. Execution has a **5-minute timeout**: payment settles on **base, Polygon, Avalanche, tempo, solana, or Robinhood Chain** depending on the merchant's advertised network, and a cross-chain routed (or Solana) settlement can take up to ~2 minutes -- a slow response is not a failure until the full timeout is reached.
+Execute HTTP requests through an approved Kite Passport spending session. The Passport backend handles x402 payment negotiation transparently -- you specify the target URL and the backend negotiates payment with the remote service on your behalf. Execution has a **5-minute timeout**: payment settles on the merchant's advertised network -- on mainnet **base, Polygon, Avalanche, tempo, solana, or Robinhood Chain** -- and a cross-chain routed (or Solana) settlement can take up to ~2 minutes -- a slow response is not a failure until the full timeout is reached. On the **dev environment** the only settlement chain is **Arc testnet** (`eip155:5042002`, Circle USDC) and there is **no cross-chain routing** -- routed-settlement latency and the routing error codes below do not apply there.
 
 > **Reference files** (read when you need exact detail):
 > - `@references/commands.md` — full command reference: every flag, the full JSON output shape, and every error code/message for `agent:session execute`.

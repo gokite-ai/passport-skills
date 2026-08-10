@@ -101,15 +101,15 @@ Display the balance card (SKILL.md). Before a send, confirm the user has enough 
 Transfers tokens from the user's wallet on a specific chain to a recipient address. A send normally requires a passkey approval in the browser (step-up); this command starts that flow.
 
 ```
-kpass wallet send --chain <base|polygon|avalanche|tempo|solana|robinhood> --to <RECIPIENT_ADDRESS> --amount <N> --asset <SYMBOL> --output json
+kpass wallet send --chain <base|polygon|avalanche|tempo|solana|robinhood|arc> --to <RECIPIENT_ADDRESS> --amount <N> --asset <SYMBOL> --output json
 ```
 
 ### Arguments
 
 | Argument | Flag | Required | Source | Validation |
 |----------|------|----------|--------|------------|
-| Chain | `--chain` | **Yes** | Ask the user | One of `base`, `polygon`, `avalanche`, `tempo`, `solana`, `robinhood`. No default. `kite` and anything else are rejected (exit 2). |
-| Recipient address | `--to` | Yes | Ask the user | Validated **for the chosen chain**: base/polygon/avalanche/tempo/robinhood = EVM `0x` + 40 hex (EIP-55 checksum enforced when mixed-case); solana = base58 decoding to 32 bytes. Invalid → exit 2 before any network call. |
+| Chain | `--chain` | **Yes** | Ask the user | One of `base`, `polygon`, `avalanche`, `tempo`, `solana`, `robinhood`, `arc`. No default. `kite` and anything else are rejected (exit 2). The backend additionally rejects chains its environment does not serve. **`arc` is balance/receive-only, never a send target** — dev (the only environment serving arc) has no direct sends; a2a escrow funding uses `kpass agent:session fund-agreement`. |
+| Recipient address | `--to` | Yes | Ask the user | Validated **for the chosen chain**: base/polygon/avalanche/tempo/robinhood/arc = EVM `0x` + 40 hex (EIP-55 checksum enforced when mixed-case); solana = base58 decoding to 32 bytes. Invalid → exit 2 before any network call. |
 | Amount | `--amount` | Yes | Ask the user | Positive decimal string (e.g. `"25"`, `"0.50"`). |
 | Asset symbol | `--asset` | Yes | Ask the user | Token symbol: `USDC` on base/polygon/avalanche/tempo/solana, `PYUSD` on solana, `USDG` on robinhood. |
 | Idempotency key | `--idempotency-key` | No | Omit | Forwarded as the `Idempotency-Key` header; auto-generated when omitted. **The backend accepts but does not yet de-duplicate on it — treat it as reserved; do not rely on it to make retries safe.** |
@@ -159,10 +159,10 @@ kpass wallet send --chain <base|polygon|avalanche|tempo|solana|robinhood> --to <
 ### Validation Errors (exit code 2)
 
 ```json
-{ "_version": "1", "status": "error", "error": "Missing --chain flag. Usage: kpass wallet send --chain <base|polygon|avalanche|tempo|solana|robinhood> --to <RECIPIENT_ADDRESS> --amount <N> --asset <SYMBOL> --output json", "hint": "", "next_command": "" }
+{ "_version": "1", "status": "error", "error": "Missing --chain flag. Usage: kpass wallet send --chain <base|polygon|avalanche|tempo|solana|robinhood|arc> --to <RECIPIENT_ADDRESS> --amount <N> --asset <SYMBOL> --output json", "hint": "", "next_command": "" }
 ```
 
-Other exit-2 messages: `--chain must be one of base|polygon|avalanche|tempo|solana|robinhood (got: "...")`; `--to is not a valid <chain> address: EVM address must be 0x + 40 hex chars (got N)` / `EVM address fails EIP-55 checksum (possible typo)` / `Solana address must decode to 32 bytes (got N)`; `--amount must be a positive number (got: "...")`; `Missing --to flag`; `Missing --asset flag`.
+Other exit-2 messages: `--chain must be one of base|polygon|avalanche|tempo|solana|robinhood|arc (got: "...")`; `--to is not a valid <chain> address: EVM address must be 0x + 40 hex chars (got N)` / `EVM address fails EIP-55 checksum (possible typo)` / `Solana address must decode to 32 bytes (got N)`; `--amount must be a positive number (got: "...")`; `Missing --to flag`; `Missing --asset flag`.
 
 ---
 
@@ -233,7 +233,7 @@ kpass wallet address --chain solana --output json
 
 | Argument | Flag | Required | Source | Validation |
 |----------|------|----------|--------|------------|
-| Chain filter | `--chain` | No | Pass to show one chain | One of `base`, `polygon`, `avalanche`, `tempo`, `solana`, `robinhood`. Omit for all. Invalid → exit 2. |
+| Chain filter | `--chain` | No | Pass to show one chain | One of `base`, `polygon`, `avalanche`, `tempo`, `solana`, `robinhood`, `arc`. Omit for all. Invalid → exit 2. (Filtering on a chain the environment does not serve just returns zero rows.) |
 | Output format | `--output json` | Yes | Always pass | Literal value `json` |
 
 ### Success Output (exit code 0)
@@ -256,9 +256,9 @@ kpass wallet address --chain solana --output json
 ```
 
 **Key fields:**
-- `wallets[]` — `{ chain, vm_family, address }`.
-  - `vm_family` is `"evm"` for base/polygon/avalanche/tempo/robinhood and `"solana"` for solana.
-  - **base, polygon, avalanche, tempo, and robinhood share one EVM address** (same `address` value). When rows match, tell the user it is one wallet, not a duplicate.
+- `wallets[]` — `{ chain, vm_family, address }`. The rows reflect the chains the environment's asset registry serves — mainnet returns the six chains below; **dev returns a single `arc` row**.
+  - `vm_family` is `"evm"` for base/polygon/avalanche/tempo/robinhood/arc and `"solana"` for solana.
+  - **All EVM chains share one EVM address** (same `address` value). When rows match, tell the user it is one wallet, not a duplicate.
   - The solana entry is **optional** — it is omitted if the user has no Solana wallet.
 - With `--chain`, only the matching entries are returned (hint becomes "N wallet(s) on <chain>.").
 
@@ -274,6 +274,7 @@ Before displaying any address, state that Passport sponsors gas and users must n
 | `tempo` | USDC only | Do not send unsupported assets |
 | `robinhood` | USDG only | Do not send ETH |
 | `solana` | USDC or PYUSD | Do not send SOL |
+| `arc` (dev only) | USDC only | Circle USDC doubles as Arc's gas token — deposit USDC and nothing else |
 
 Never return a bare wallet address without this guidance. The same EVM address does not imply that an asset supported on one chain is supported on the others.
 
@@ -287,7 +288,7 @@ Dispenses test tokens. **Testnet/staging only** — the CLI blocks production ba
 kpass faucet drop --recipient <WALLET_ADDRESS> --token <TOKEN_NAME> --output json
 ```
 
-**This is a TESTNET faucet.** It dispenses test tokens for development only. Never tell the user they are receiving real funds. Robinhood is not a faucet-supported chain.
+**This is a TESTNET faucet.** It dispenses test tokens for development only. Never tell the user they are receiving real funds. Robinhood is not a faucet-supported chain. **The faucet does not fund Arc testnet either** — on dev, Arc USDC for the a2a escrow flow is provisioned out-of-band; do not promise `faucet drop` will top up an arc balance.
 
 ### Arguments
 
