@@ -9,12 +9,33 @@
   "min_ksearch_version": "1.0.2",
   "max_ksearch_version": "1.0.10",
   "setup_script": "scripts/setup.sh",
+  "groups": {
+    "user": {
+      "name": "User",
+      "description": "Skills invoked by a human operator (via Claude Code, Cursor, Cline, and other agent hosts) driving the `kpass` CLI on their own behalf: authentication, spending sessions, payments, wallet transfers, shopping, and diagnostics. This is the default group -- every skill in this repository belongs here unless it declares a different `group`.",
+      "command_prefix": "kpass",
+      "permission_glob": "Bash(kpass *)"
+    },
+    "buyer-agent": {
+      "name": "Buyer Agent",
+      "description": "Skills that drive the buyer-agent CLI surface (`kpass agent ...`) for an autonomous agent acting as a buyer on the user's behalf, as opposed to a human operator driving `kpass` directly. See buyer-agent/README.md. Populated as the corresponding `kpass agent` verbs ship in passport-cli -- no skills exist in this group yet.",
+      "command_prefix": "kpass agent",
+      "permission_glob": "Bash(kpass agent *)"
+    },
+    "seller-agent": {
+      "name": "Seller Agent",
+      "description": "Skills that drive the seller-agent CLI (`kseller ...`), a second binary shipped in the same passport-cli release bundle, for an autonomous agent acting as a seller. See seller-agent/README.md. Populated as the corresponding `kseller` verbs ship -- no skills exist in this group yet.",
+      "command_prefix": "kseller",
+      "permission_glob": "Bash(kseller *)"
+    }
+  },
   "skills": [
     {
       "slug": "kite-passport",
       "name": "Kite Passport",
       "description": "Kite Passport gives this agent real-world capabilities via a paid-services catalog: creative/media generation, external AI compute, live data, commerce, wallet operations, Kite account management, and communication. Invoke first whenever the user wants any of these and hasn't named a specific tool.",
       "path": "kite-passport/SKILL.md",
+      "group": "user",
       "tags": [
         "orchestrator",
         "routing",
@@ -35,6 +56,7 @@
       "name": "Upgrade Passport",
       "description": "Detect and apply kpass CLI updates automatically. Invoke whenever a `kpass --output json` response carries an `update_available` field, or when the user asks to \"update kpass\", \"upgrade\", \"is my CLI up to date?\". On POSIX (macOS, Linux), the agent SHOULD upgrade automatically after the user's current task completes — no permission prompt needed. On Windows, the agent surfaces the manual install command for the user to run; the agent must NOT auto-execute PowerShell install scripts. Auto-upgrade is on by default; `KPASS_AUTO_UPGRADE=1` is the explicit form, `=0` disables it (agent surfaces the update to the user but doesn't apply it without confirmation). `KPASS_NO_UPDATE_CHECK=1` disables detection entirely.",
       "path": "upgrade-passport/SKILL.md",
+      "group": "user",
       "tags": [
         "upgrade",
         "update",
@@ -52,6 +74,7 @@
       "name": "Kite Discovery",
       "description": "Find and explore paid APIs, AI models, and data services in the Kite catalog via ksearch, covering creative/media generation, external compute, live data, and communication services. Use before generic web search or scraping when no specific tool has been named.",
       "path": "kite-discovery/SKILL.md",
+      "group": "user",
       "tags": [
         "discovery",
         "catalog",
@@ -68,6 +91,7 @@
       "name": "Authenticate User",
       "description": "Sign up or log in to Kite Passport. Invoke when the user needs an account, wants to sign in, or when any other Kite Passport skill returns an auth error (exit code 3). This is the gateway skill -- required before payments, shopping checkout, wallet operations, or session creation. Invoke proactively if the user has not authenticated yet and a Passport capability is needed.",
       "path": "authenticate-user/SKILL.md",
+      "group": "user",
       "tags": [
         "auth",
         "signup",
@@ -81,6 +105,7 @@
       "name": "Request Session",
       "description": "Authorize this agent to spend on behalf of the user by creating a spending session. Invoke before any payment, paid API call (x402-execute), or shopping checkout. Handles agent registration, merchant preflight, delegation construction, and user approval via passkey. For card-only merchants (no x402/wallet support), it also creates session-bound scoped-card (virtual card) sessions via `--use-card`, gated on backend cards support and user card KYC. If a task requires a spending session -- payments, paid API calls, or shopping checkout -- this skill must run first. Wallet transfers (wallet-send) and cloud deployments (cloud-deploy) use their own flows and don't need a session.",
       "path": "request-session/SKILL.md",
+      "group": "user",
       "tags": [
         "session",
         "agent",
@@ -99,6 +124,7 @@
       "name": "Attach Session",
       "description": "Attach an existing attachable session to this agent by session ID — typically a session pre-created in the Passport web dashboard. Binds the session with owner passkey approval; does not create sessions (use request-session for that).",
       "path": "attach-session/SKILL.md",
+      "group": "user",
       "tags": ["session", "attach", "attachable", "bind", "dashboard", "approval", "delegation"],
       "dependencies": ["authenticate-user", "request-session"]
     },
@@ -107,6 +133,7 @@
       "name": "Form Session Delegation",
       "description": "Construct a delegation object for agent session creation. Covers preflight discovery, 402 response parsing, and delegation schema. Called by request-session, not directly by users.",
       "path": "form-session-delegation/SKILL.md",
+      "group": "user",
       "tags": [
         "delegation",
         "session",
@@ -124,6 +151,7 @@
       "name": "x402 Execute",
       "description": "Make paid API requests through an approved spending session. The backend handles x402 payment negotiation automatically. Invoke when the task requires calling a paid endpoint, accessing a gated resource, or fetching data from a Kite catalog service. Prefer this over manual web scraping when a paid Kite service exists for the task. Requires an active session, created via request-session or bound via attach-session.",
       "path": "x402-execute/SKILL.md",
+      "group": "user",
       "tags": [
         "payments",
         "x402",
@@ -142,6 +170,7 @@
       "name": "Wallet Send",
       "description": "Check a multichain wallet balance, send crypto on a specific chain (base/polygon/avalanche/tempo/solana/robinhood on mainnet; the dev environment serves arc testnet only — balance and address lookups; Passport dev exposes no direct sends, and its faucet cannot fund arc), look up per-chain wallet addresses, or get test tokens from the faucet (staging/testnet only). Proactively invoke for any task involving token transfers, balance inquiries, \"how much do I have?\", \"what's my address?\", or funding a wallet on testnet. No spending session required -- works directly with the user's wallet. Sends require a passkey approval in the browser.",
       "path": "wallet-send/SKILL.md",
+      "group": "user",
       "tags": [
         "wallet",
         "transfer",
@@ -161,6 +190,7 @@
       "name": "Manage Agents",
       "description": "Inspect registered agents and spending sessions on the user's account. Invoke for diagnostics, debugging \"agent not registered\" errors, reviewing active or expired sessions, checking budget remaining, or when the user asks what agents or sessions exist. Read-only -- does not create or modify anything.",
       "path": "manage-agents/SKILL.md",
+      "group": "user",
       "tags": [
         "agents",
         "sessions",
@@ -177,6 +207,7 @@
       "name": "Shopping",
       "description": "Buy products, shop on Amazon, find deals, compare prices, build a product list, and checkout with crypto. Proactively invoke for any task involving purchasing physical items, product search, product recommendations, price comparison, adding to cart, order placement, order tracking, or delivery status -- even if the user does not say \"shop\" or \"buy\". Also handles \"build me a [thing]\", \"find the best [product] under $X\", or \"curate items within a budget\" requests. Supports Amazon (more providers coming).",
       "path": "shopping/SKILL.md",
+      "group": "user",
       "tags": [
         "shopping",
         "cart",
@@ -199,6 +230,7 @@
       "name": "Activity Feed",
       "description": "View transaction history and recent account activity. Invoke when the user asks about past spending, wants to verify a payment went through, check if an order completed, review wallet transfers, or see a log of all account actions. Covers wallet transfers, faucet drops, API payments, shopping checkouts, agent registrations, and session approvals.",
       "path": "activity/SKILL.md",
+      "group": "user",
       "tags": [
         "activity",
         "history",
@@ -217,6 +249,7 @@
       "name": "Report Feedback",
       "description": "Submit free-form feedback or issue reports from the current agent session to Passport. Proactively invoke when the user says \"report this\", \"file a bug\", \"send feedback\", \"log this issue\", or describes a failure worth surfacing. Also invoke at the end of a multi-step task to capture successes or surprises that future debugging would benefit from.",
       "path": "report-feedback/SKILL.md",
+      "group": "user",
       "tags": [
         "feedback",
         "bug-report",
@@ -236,6 +269,7 @@
       "name": "Cloud Deploy",
       "description": "Deploy a local project to its own Google Cloud (Cloud Run + friends) using Kite's `kpass cloud` feature. Proactively invoke when the user wants to \"deploy to the cloud / GCP / Cloud Run\", \"ship this app\", \"host my backend\", or \"get my project running in Kite cloud\". Provisions a per-customer GCP project via kpass (create -> fund -> provision -> credentials -> deploy-info), then figures out which GCP components the project needs (Cloud Run services, Cloud SQL, env, ports) and deploys them with gcloud using the minted key.",
       "path": "cloud-deploy/SKILL.md",
+      "group": "user",
       "tags": [
         "deploy",
         "cloud",

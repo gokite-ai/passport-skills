@@ -95,7 +95,63 @@ if ! node "$REPO_ROOT/scripts/check-skill-content.js"; then
   ERRORS=$((ERRORS + 1))
 fi
 
-# ---- Check 6: setup.sh fallback version pins match skills.json ----
+# ---- Check 6: skill groups are consistent ----
+# skills.json's top-level "groups" map declares the known skill groups
+# (user, buyer-agent, seller-agent, ...). Every skill's "group" field
+# (skills predating this field default to "user") must reference a group
+# that actually exists, and every non-"user" group must have a backing
+# directory -- the group's README.md lives there even before any skill
+# does, so an agent researching "what does the buyer-agent group drive"
+# always finds real documentation, not a 404.
+GROUP_ERRORS=$(node -e "
+  const s = JSON.parse(require('fs').readFileSync('$SKILLS_JSON', 'utf8'));
+  const groups = s.groups || {};
+  const groupNames = new Set(Object.keys(groups));
+  const lines = [];
+  if (!groupNames.has('user')) {
+    lines.push('groups map is missing the required \"user\" group');
+  }
+  s.skills.forEach(sk => {
+    const group = sk.group || 'user';
+    if (!groupNames.has(group)) {
+      lines.push('Skill \'' + sk.slug + '\' references unknown group: ' + group);
+    }
+  });
+  console.log(lines.join('\n'));
+")
+
+if [[ -n "$GROUP_ERRORS" ]]; then
+  echo ""
+  while IFS= read -r line; do
+    echo "  FAIL: $line"
+    ERRORS=$((ERRORS + 1))
+  done <<< "$GROUP_ERRORS"
+fi
+
+GROUP_DIRS=$(node -e "
+  const s = JSON.parse(require('fs').readFileSync('$SKILLS_JSON', 'utf8'));
+  Object.keys(s.groups || {})
+    .filter(name => name !== 'user')
+    .forEach(name => console.log(name));
+")
+
+while IFS= read -r group; do
+  [[ -z "$group" ]] && continue
+  GROUP_DIR="$REPO_ROOT/$group"
+  if [[ ! -d "$GROUP_DIR" ]]; then
+    echo "  FAIL: group '$group' has no backing directory: $group/"
+    ERRORS=$((ERRORS + 1))
+  elif [[ ! -f "$GROUP_DIR/README.md" ]]; then
+    echo "  FAIL: group '$group' directory is missing README.md: $group/README.md"
+    ERRORS=$((ERRORS + 1))
+  else
+    echo "  [OK] group '$group' -> $group/README.md"
+  fi
+done <<< "$GROUP_DIRS"
+
+echo "  [OK] skill groups are consistent"
+
+# ---- Check 7: setup.sh fallback version pins match skills.json ----
 # Skill-local setup.sh copies embed DEFAULT_CLI_VERSION / DEFAULT_MIN_CLI_VERSION
 # as fallbacks for standalone installs where skills.json does not ship. A
 # drifted fallback silently installs a CLI the skills cannot drive.

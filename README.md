@@ -36,6 +36,19 @@ Each skill is a `SKILL.md` file that gets injected into an AI agent's context at
 | **report-feedback** | `report-feedback/` | File an issue report, bug, or freeform feedback from the current agent session. |
 | **cloud-deploy** | `cloud-deploy/` | Deploy a local project to its own Google Cloud (Cloud Run + Cloud SQL etc.) via `kpass cloud`: provision a per-customer GCP project, then detect the project's GCP components and deploy them with `gcloud`. |
 
+## Skill Groups
+
+Skills are organized into groups by who drives the CLI surface they teach.
+Every skill declares a `group` in `skills.json` (existing skills default to
+`user`); `skills.json`'s top-level `groups` map records each group's CLI
+prefix and the permission glob a host should scope that group's skills to.
+
+| Group | Drives | Permission glob |
+|-------|--------|------------------|
+| **user** | A human operator driving `kpass ...` directly (via Claude Code, Cursor, Cline, etc.) -- every skill in this repository today. | `Bash(kpass *)` |
+| **buyer-agent** | An autonomous agent acting as a buyer, via `kpass agent ...`. No skills yet -- see [`buyer-agent/README.md`](buyer-agent/README.md); populated as the corresponding CLI verbs ship. | `Bash(kpass agent *)` |
+| **seller-agent** | An autonomous agent acting as a seller, via the `kseller` binary (a second executable shipped in the same passport-cli release bundle). No skills yet -- see [`seller-agent/README.md`](seller-agent/README.md); populated as the corresponding CLI verbs ship. | `Bash(kseller *)` |
+
 ## Skill Dependency Graph
 
 ```
@@ -180,6 +193,10 @@ passport-skills/
     SKILL.md                     File issue reports / bugs / freeform feedback from the agent session
   cloud-deploy/
     SKILL.md                     Deploy a local project to its own GCP project via kpass cloud + gcloud
+  buyer-agent/
+    README.md                    Buyer-agent group: purpose, kpass agent CLI surface, permission glob -- no skills yet
+  seller-agent/
+    README.md                    Seller-agent group: purpose, kseller CLI surface, permission glob -- no skills yet
   scripts/
     setup.sh                     Bootstrap: verify Node.js >= 18, verify kpass CLI
     setup-ksearch.sh             Bootstrap: locate and verify bundled ksearch CLI
