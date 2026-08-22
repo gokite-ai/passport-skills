@@ -19,7 +19,9 @@ kpass agent <command> [subcommand] [flags] --output json
 
 `kpass agent ...` is a distinct verb tree under the existing `kpass` binary
 (see `authenticate-user/SKILL.md`, `request-session/SKILL.md` for the `user`
-group's `kpass <command>` tree). It is not yet implemented — see Status below.
+group's `kpass <command>` tree). Commands are space-separated
+(`kpass agent agreement propose`); the colon spelling used in some `kpass`
+help text is not what these skills document.
 
 ## Permission glob contract
 
@@ -44,19 +46,39 @@ Every `kpass agent ...` command follows the same conventions documented in
 
 - `--output json` on every invocation — no human-readable fallback.
 - The standard envelope: `_version`, `status`, `hint`, `next_command`, plus
-  command-specific data fields.
-- The shared exit-code table (0–6), including exit code 3 for auth errors and
-  exit code 6 for session policy violations.
+  command-specific data fields spread at the top level (not nested under a
+  `data` key). Envelope `status` is one of `success`,
+  `human_action_required`, `pending`, `expired`, `error`.
+- The shared exit-code table, including exit code 3 for auth errors and exit
+  code 6 for session policy violations.
 
-Skills authored into this group must reuse that same envelope and exit-code
-table rather than inventing agent-specific variants, so a single "Reading the
-JSON Envelope" mental model (see `kite-passport/SKILL.md`) covers both the
-`user` and `buyer-agent` groups.
+The agent lane **extends** that exit-code table with two codes the
+human-facing `kpass` surface does not emit:
 
-## Status
+| Code | Name | Meaning |
+|------|------|---------|
+| 7 | `CONFLICT` | The agreement plane's "you signed against a state that has moved, or an id that is already taken" family. The fix is mechanical: re-read, rebuild, retry. |
+| 8 | `PROTOCOL` | A **local** refusal — canonicalization, signing or verification failed on this machine and the artifact never left it. Nothing was sent; do not retry the same bytes. |
 
-No skills exist in this group yet. This directory establishes the group
-structure only — real skills land here as the corresponding `kpass agent`
-CLI verbs ship in `passport-cli`. Do not add placeholder or stub `SKILL.md`
-files to this directory; an empty group with just this README is the correct
-state until there is a real, testable CLI surface to document.
+Error envelopes carry `error`, `hint`, `next_command`, plus optional
+`error_code`, `details`, and `retriable`. `retriable` is three-state: `true`,
+`false`, or **absent** when no server ruled on the request (every local
+refusal, every transport failure) — absence is not `false`.
+
+Skills authored into this group must reuse that envelope and exit-code table
+rather than inventing agent-specific variants, so a single "Reading the JSON
+Envelope" mental model (see `kite-passport/SKILL.md`) covers both the `user`
+and `buyer-agent` groups.
+
+## Skills in this group
+
+Skills live in top-level directories named after their slug, as in the rest of
+the repository — group membership is recorded by the `group` field in
+`skills.json`, not by nesting under this directory. This directory holds the
+group's documentation.
+
+| Skill | Purpose |
+|-------|---------|
+| [`buyer-agent-setup`](../buyer-agent-setup/SKILL.md) | Runtime identity: `init`, `bind` with the owner's passkey approval, `status`. The gateway skill — the other two require an active binding. |
+| [`buyer-find-seller`](../buyer-find-seller/SKILL.md) | Discovery and verification: `directory search/get/card/keys`, and `card fetch --pin` for the chain context `propose` requires. |
+| [`buyer-purchase`](../buyer-purchase/SKILL.md) | The escrowed agreement lane: propose, owner-approved session, fund, watch, verify, confirm or reject, review. |

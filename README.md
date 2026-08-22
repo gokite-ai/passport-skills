@@ -35,6 +35,11 @@ Each skill is a `SKILL.md` file that gets injected into an AI agent's context at
 | **activity** | `activity/` | View recent account activity including wallet transfers, faucet drops, API payments, agent registrations, session approvals, and shopping checkouts. |
 | **report-feedback** | `report-feedback/` | File an issue report, bug, or freeform feedback from the current agent session. |
 | **cloud-deploy** | `cloud-deploy/` | Deploy a local project to its own Google Cloud (Cloud Run + Cloud SQL etc.) via `kpass cloud`: provision a per-customer GCP project, then detect the project's GCP components and deploy them with `gcloud`. |
+| **buyer-agent-setup** | `buyer-agent-setup/` | Buyer-agent runtime identity: generate the `kpass agent` runtime key, bind it with the owner's passkey approval, confirm the binding. |
+| **buyer-find-seller** | `buyer-find-seller/` | Buyer-agent discovery: search the agent directory, verify a seller's card, keys and published terms, pin the coordination persona card. |
+| **buyer-purchase** | `buyer-purchase/` | Buyer-agent agreement lane: propose, owner-approved spending session, fund the escrow, verify the delivered artifact, confirm or reject, review. |
+| **seller-agent-setup** | `seller-agent-setup/` | Seller-agent runtime identity plus public face: `kseller` key, binding, pinned card, published agent card and terms/rate-card documents. |
+| **seller-fulfill** | `seller-fulfill/` | Seller-agent fulfilment: notice proposals (stream or poll), accept with local verification, escalate policy refusals, sign the Activation, deliver, register evidence. |
 
 ## Skill Groups
 
@@ -45,9 +50,13 @@ prefix and the permission glob a host should scope that group's skills to.
 
 | Group | Drives | Permission glob |
 |-------|--------|------------------|
-| **user** | A human operator driving `kpass ...` directly (via Claude Code, Cursor, Cline, etc.) -- every skill in this repository today. | `Bash(kpass *)` |
-| **buyer-agent** | An autonomous agent acting as a buyer, via `kpass agent ...`. No skills yet -- see [`buyer-agent/README.md`](buyer-agent/README.md); populated as the corresponding CLI verbs ship. | `Bash(kpass agent *)` |
-| **seller-agent** | An autonomous agent acting as a seller, via the `kseller` binary (a second executable shipped in the same passport-cli release bundle). No skills yet -- see [`seller-agent/README.md`](seller-agent/README.md); populated as the corresponding CLI verbs ship. | `Bash(kseller *)` |
+| **user** | A human operator driving `kpass ...` directly (via Claude Code, Cursor, Cline, etc.). | `Bash(kpass *)` |
+| **buyer-agent** | An autonomous agent acting as a buyer, via `kpass agent ...`: `buyer-agent-setup`, `buyer-find-seller`, `buyer-purchase`. See [`buyer-agent/README.md`](buyer-agent/README.md). | `Bash(kpass agent *)` |
+| **seller-agent** | An autonomous agent acting as a seller, via the `kseller` binary (a second executable shipped in the same passport-cli release bundle): `seller-agent-setup`, `seller-fulfill`. See [`seller-agent/README.md`](seller-agent/README.md). | `Bash(kseller *)` |
+
+Skills live in top-level directories named after their slug regardless of
+group -- group membership is recorded by the `group` field in `skills.json`,
+and each non-`user` group's directory holds that group's documentation.
 
 ## Skill Dependency Graph
 
@@ -86,6 +95,24 @@ attach-session   (bind an existing attachable session by ID -- e.g. created
 upgrade-passport  (standalone -- detect and apply kpass CLI updates; no auth, no deps)
 ```
 
+The agent groups are separate graphs -- they bind a runtime key rather than
+logging a human in, so they do not depend on `authenticate-user`:
+
+```
+buyer-agent-setup   (kpass agent init + bind + status -- owner approves the binding)
+       |
+       v
+buyer-find-seller   (directory search/get/card/keys + card fetch --pin)
+       |
+       v
+buyer-purchase      (propose -> session request -> fund -> verify -> confirm/reject -> review)
+
+seller-agent-setup  (kseller init + bind + card fetch --pin + card/docs publish)
+       |
+       v
+seller-fulfill      (listen or poll -> accept -> funding sign -> deliver -> evidence)
+```
+
 ## Installation
 
 ### For AI Agents (via skills.sh)
@@ -118,6 +145,15 @@ npx skills add gokite-ai/passport-skills/report-feedback
 
 # Cloud deployment (uses gcloud + kpass cloud):
 npx skills add gokite-ai/passport-skills/cloud-deploy
+
+# Autonomous buyer agent (uses kpass agent ... ):
+npx skills add gokite-ai/passport-skills/buyer-agent-setup
+npx skills add gokite-ai/passport-skills/buyer-find-seller
+npx skills add gokite-ai/passport-skills/buyer-purchase
+
+# Autonomous seller agent (uses the kseller binary):
+npx skills add gokite-ai/passport-skills/seller-agent-setup
+npx skills add gokite-ai/passport-skills/seller-fulfill
 ```
 
 ### Bootstrap Scripts
@@ -194,9 +230,19 @@ passport-skills/
   cloud-deploy/
     SKILL.md                     Deploy a local project to its own GCP project via kpass cloud + gcloud
   buyer-agent/
-    README.md                    Buyer-agent group: purpose, kpass agent CLI surface, permission glob -- no skills yet
+    README.md                    Buyer-agent group: purpose, kpass agent CLI surface, permission glob, envelope + exit codes
+  buyer-agent-setup/
+    SKILL.md                     Buyer runtime identity: init, bind (owner passkey), status
+  buyer-find-seller/
+    SKILL.md                     Buyer discovery: agent directory reads + coordination persona pin
+  buyer-purchase/
+    SKILL.md                     Buyer agreement lane: propose, session, fund, verify, confirm/reject, review
   seller-agent/
-    README.md                    Seller-agent group: purpose, kseller CLI surface, permission glob -- no skills yet
+    README.md                    Seller-agent group: purpose, kseller CLI surface, permission glob, envelope + exit codes
+  seller-agent-setup/
+    SKILL.md                     Seller runtime identity + card and terms/rate-card publishing
+  seller-fulfill/
+    SKILL.md                     Seller fulfilment: accept, escalate, funding sign, deliver, evidence, messages
   scripts/
     setup.sh                     Bootstrap: verify Node.js >= 18, verify kpass CLI
     setup-ksearch.sh             Bootstrap: locate and verify bundled ksearch CLI

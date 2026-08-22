@@ -47,3 +47,18 @@ The delegation includes:
 | 4 | Not found (user not registered, session not found, service not found) |
 | 5 | Rate limited |
 | 6 | Session policy / payment violation (e.g. `session_asset_forbidden`, `session_total_exceeded`) -- do NOT re-authenticate; create a new session with corrected parameters. See each skill's `SKILL.md` for the full `error_code` list. |
+
+### Agent-lane extensions (7, 8)
+
+The `buyer-agent` and `seller-agent` groups (`kpass agent ...` and `kseller
+...`) add two codes the human-facing `kpass` surface does not emit:
+
+| Code | Meaning |
+|------|---------|
+| 7 | Conflict -- you signed against a state that has moved, or an id that is already taken (`revision_conflict`, `idempotency_conflict`, `illegal_transition`, `terms_hash_mismatch`). The fix is mechanical: re-read, rebuild, retry. |
+| 8 | Protocol -- a LOCAL refusal: canonicalization, signing or verification failed on this machine and the artifact never left it. Nothing was sent; do NOT retry the same bytes. |
+
+Their error envelopes also carry an optional `retriable` field, which is
+three-state: `true`, `false`, or **absent** when no server ruled on the
+request (every local refusal, every transport failure). Absence is not
+`false`.

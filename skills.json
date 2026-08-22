@@ -18,13 +18,13 @@
     },
     "buyer-agent": {
       "name": "Buyer Agent",
-      "description": "Skills that drive the buyer-agent CLI surface (`kpass agent ...`) for an autonomous agent acting as a buyer on the user's behalf, as opposed to a human operator driving `kpass` directly. See buyer-agent/README.md. Populated as the corresponding `kpass agent` verbs ship in passport-cli -- no skills exist in this group yet.",
+      "description": "Skills that drive the buyer-agent CLI surface (`kpass agent ...`) for an autonomous agent acting as a buyer on the user's behalf, as opposed to a human operator driving `kpass` directly. See buyer-agent/README.md. Covers runtime identity (buyer-agent-setup), counterparty discovery (buyer-find-seller), and the escrowed agreement lane (buyer-purchase).",
       "command_prefix": "kpass agent",
       "permission_glob": "Bash(kpass agent *)"
     },
     "seller-agent": {
       "name": "Seller Agent",
-      "description": "Skills that drive the seller-agent CLI (`kseller ...`), a second binary shipped in the same passport-cli release bundle, for an autonomous agent acting as a seller. See seller-agent/README.md. Populated as the corresponding `kseller` verbs ship -- no skills exist in this group yet.",
+      "description": "Skills that drive the seller-agent CLI (`kseller ...`), a second binary shipped in the same passport-cli release bundle, for an autonomous agent acting as a seller. See seller-agent/README.md. Covers runtime identity, card and document publishing (seller-agent-setup), and serving incoming agreements (seller-fulfill).",
       "command_prefix": "kseller",
       "permission_glob": "Bash(kseller *)"
     }
@@ -284,6 +284,106 @@
       ],
       "dependencies": [
         "authenticate-user"
+      ]
+    },
+    {
+      "slug": "buyer-agent-setup",
+      "name": "Buyer Agent Setup",
+      "description": "Give this agent its own signing identity as an autonomous buyer on Kite Passport: generate a secp256k1 runtime key, bind it to an agent record with the owner's passkey approval, and confirm the binding is active. Invoke before any other `kpass agent ...` command, and whenever a buyer-lane command fails with exit code 3 or `kpass agent status` reports anything other than an active binding.",
+      "path": "buyer-agent-setup/SKILL.md",
+      "group": "buyer-agent",
+      "tags": [
+        "agent",
+        "identity",
+        "runtime-key",
+        "bind",
+        "buyer",
+        "bootstrap",
+        "setup"
+      ],
+      "dependencies": []
+    },
+    {
+      "slug": "buyer-find-seller",
+      "name": "Buyer Find Seller",
+      "description": "Find a counterparty agent to buy from and verify what it publishes before committing to a deal: search the Passport agent directory, read a candidate's agent card, terms and rate card, check which signing keys it can sign with, and pin the coordination persona card this agent needs before it can propose. Invoke when this agent needs a seller for a task, or when `agreement propose` refuses with \"no pinned card\".",
+      "path": "buyer-find-seller/SKILL.md",
+      "group": "buyer-agent",
+      "tags": [
+        "agent",
+        "discovery",
+        "directory",
+        "agent-card",
+        "buyer",
+        "seller",
+        "terms",
+        "rate-card"
+      ],
+      "dependencies": [
+        "buyer-agent-setup"
+      ]
+    },
+    {
+      "slug": "buyer-purchase",
+      "name": "Buyer Purchase",
+      "description": "Buy from another agent under a signed, escrowed agreement: propose terms to a seller, get the owner's passkey approval for a spending session scoped to that agreement, fund the escrow, wait for delivery, verify the artifact against the signed delivery hash, then confirm or reject and leave a review. Invoke whenever this agent needs to pay another agent for a deliverable rather than call a paid HTTP endpoint, and whenever an existing agreement needs advancing or recovering after a refusal.",
+      "path": "buyer-purchase/SKILL.md",
+      "group": "buyer-agent",
+      "tags": [
+        "agent",
+        "agreement",
+        "escrow",
+        "session",
+        "funding",
+        "buyer",
+        "purchase",
+        "settlement",
+        "proofs"
+      ],
+      "dependencies": [
+        "buyer-agent-setup",
+        "buyer-find-seller"
+      ]
+    },
+    {
+      "slug": "seller-agent-setup",
+      "name": "Seller Agent Setup",
+      "description": "Stand up an autonomous seller on Kite Passport: generate the `kseller` runtime key, bind it to the agent record with the owner's passkey approval, pin the coordination persona card, publish the agent card, and publish the terms and rate-card documents buyers read before proposing. Invoke before any other `kseller` command, and whenever the card or a published document needs updating.",
+      "path": "seller-agent-setup/SKILL.md",
+      "group": "seller-agent",
+      "tags": [
+        "agent",
+        "identity",
+        "runtime-key",
+        "bind",
+        "seller",
+        "kseller",
+        "agent-card",
+        "documents",
+        "bootstrap"
+      ],
+      "dependencies": []
+    },
+    {
+      "slug": "seller-fulfill",
+      "name": "Seller Fulfill",
+      "description": "Serve incoming agreements as an autonomous seller: notice a proposal (by streaming notifications with `kseller listen --forward` or by polling `kseller agreement list`), verify the buyer's formation signatures and accept, escalate to the owner when the acceptance policy refuses a deal, sign the Activation, deliver the artifact once the escrow is funded, register evidence, and answer buyer questions.",
+      "path": "seller-fulfill/SKILL.md",
+      "group": "seller-agent",
+      "tags": [
+        "agent",
+        "agreement",
+        "seller",
+        "kseller",
+        "accept",
+        "deliver",
+        "evidence",
+        "escalation",
+        "listen",
+        "fulfillment"
+      ],
+      "dependencies": [
+        "seller-agent-setup"
       ]
     }
   ]
