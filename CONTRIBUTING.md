@@ -28,7 +28,7 @@ Thanks for your interest in contributing! This guide covers how to add new skill
 
 2. Write the `SKILL.md` following the conventions below.
 
-3. Register the skill in `skills.json` — add an entry to the `skills` array with `slug`, `name`, `description`, `path`, `tags`, and `dependencies`.
+3. Register the skill in `skills.json` — add an entry to the `skills` array with `slug`, `name`, `description`, `path`, `tags`, and `dependencies`. Also set `group` to the skill's group (see `skills.json`'s top-level `groups` map): `user` for a skill a human operator invokes by driving `kpass` directly (the default -- omit the field or set it explicitly), `buyer-agent` for a skill that drives `kpass agent ...` on behalf of an autonomous buyer, or `seller-agent` for a skill that drives `kagent ...` on behalf of an autonomous seller. Each non-`user` group's directory (e.g. `buyer-agent/README.md`) documents that group's CLI surface and permission glob contract in more detail.
 
 4. Run validation:
 
