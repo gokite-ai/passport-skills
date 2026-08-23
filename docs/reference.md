@@ -50,7 +50,7 @@ The delegation includes:
 
 ### Agent-lane extensions (7, 8)
 
-The `buyer-agent` and `seller-agent` groups (`kpass agent ...` and `kseller
+The `buyer-agent` and `seller-agent` groups (`kpass agent ...` and `kagent
 ...`) add two codes the human-facing `kpass` surface does not emit:
 
 | Code | Meaning |

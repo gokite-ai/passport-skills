@@ -1,23 +1,23 @@
 ---
 name: seller-agent-setup
 description: >-
-  Stand up an autonomous seller on Kite Passport: generate the `kseller` runtime
+  Stand up an autonomous seller on Kite Passport: generate the `kagent` runtime
   key, bind it to the agent record with the owner's passkey approval, pin the
   coordination persona card, publish the agent card, and publish the terms and
   rate-card documents buyers read before proposing. Invoke before any other
-  `kseller` command, whenever `kseller status` reports anything other than an
+  `kagent` command, whenever `kagent status` reports anything other than an
   active binding, and whenever the card or a published document needs updating.
   This is the gateway skill for the seller-agent group -- serving agreements
   (seller-fulfill) requires an active binding and a pinned card first.
 user-invocable: true
 allowed-tools:
   - "Bash(bash */setup.sh*)"
-  - "Bash(kseller *)"
+  - "Bash(kagent *)"
 ---
 
 # Seller Agent Setup
 
-Everything a seller agent needs before it can be proposed to. `kseller` is a **separate binary** from `kpass`, shipped in the same passport-cli bundle, with its own runtime key and its own state directory. A seller identity is not a buyer identity with different flags — the two binaries hold different keys and bind to different agent records.
+Everything a seller agent needs before it can be proposed to. `kagent` is a **separate binary** from `kpass`, shipped in the same passport-cli bundle, with its own runtime key and its own state directory. A seller identity is not a buyer identity with different flags — the two binaries hold different keys and bind to different agent records.
 
 The bootstrap is five steps, and the order matters: `init` -> `bind` (owner approves) -> `card fetch --pin` -> `card publish` -> `docs publish`. The pin is a hard prerequisite for every signing verb, not a nicety.
 
@@ -36,17 +36,17 @@ Where `<skill-directory>` is the directory containing this SKILL.md file. The sc
 The script checks the bundle through `kpass`. Confirm the seller binary itself before going further:
 
 ```bash
-kseller --version
+kagent --version
 ```
 
-`kseller` ships in the same bundle as `kpass`. If the bundle installed cleanly but `kseller` is not there, the installed version predates the seller lane — report that to the owner rather than trying alternative spellings or hunting for the binary.
+`kagent` ships in the same bundle as `kpass`. If the bundle installed cleanly but `kagent` is not there, the installed version predates the seller lane — report that to the owner rather than trying alternative spellings or hunting for the binary.
 
 ## When to Use This Skill
 
-- This machine has never run a seller agent (no `~/.kseller/runtime.key`).
-- `kseller status --output json` reports `binding.status` of `unbound`, `pending`, or `revoked`.
-- Any `kseller` command returns exit 3 with a `runtime_*` code.
-- A signing verb refuses with exit 2 and a hint naming `kseller card fetch --pin`.
+- This machine has never run a seller agent (no `~/.kagent/runtime.key`).
+- `kagent status --output json` reports `binding.status` of `unbound`, `pending`, or `revoked`.
+- Any `kagent` command returns exit 3 with a `runtime_*` code.
+- A signing verb refuses with exit 2 and a hint naming `kagent card fetch --pin`.
 - The card content, terms, or rate card needs publishing or replacing.
 
 Do **not** use this skill to serve incoming agreements — accepting, delivering, and answering buyers is the **`seller-fulfill`** skill.
@@ -57,9 +57,9 @@ Seller state is **home-anchored**, unlike the buyer lane:
 
 | Path | Contents | Permissions |
 |---|---|---|
-| `~/.kseller/` | the role directory | `0700` |
-| `~/.kseller/runtime.key` | the secp256k1 private key | `0600` |
-| `~/.kseller/agent-state.json` | the card pin, and the event-stream cursor | `0600` |
+| `~/.kagent/` | the role directory | `0700` |
+| `~/.kagent/runtime.key` | the secp256k1 private key | `0600` |
+| `~/.kagent/agent-state.json` | the card pin, and the event-stream cursor | `0600` |
 
 Relocation:
 
@@ -67,9 +67,9 @@ Relocation:
 |---|---|
 | `--config-dir <path>` | Relocates the whole role directory. Available on the seller surface (it is not on the buyer surface). |
 | `--key-file <path>` | Relocates the key file alone; `agent-state.json` stays in the role directory — the pin is not a secret and does not belong beside a mounted key. |
-| `KSELLER_RUNTIME_KEY_FILE` | Same as `--key-file`, as an environment variable. `--key-file` wins when both are set. |
+| `KAGENT_RUNTIME_KEY_FILE` | Same as `--key-file`, as an environment variable. `--key-file` wins when both are set. |
 
-Resolution order for the key: `--key-file`, then `KSELLER_RUNTIME_KEY_FILE`, then `<config-dir or ~/.kseller>/runtime.key`. Resolution creates nothing; a bad path is a usage error.
+Resolution order for the key: `--key-file`, then `KAGENT_RUNTIME_KEY_FILE`, then `<config-dir or ~/.kagent>/runtime.key`. Resolution creates nothing; a bad path is a usage error.
 
 ## Key Custody Rules
 
@@ -83,7 +83,7 @@ Resolution order for the key: `--key-file`, then `KSELLER_RUNTIME_KEY_FILE`, the
 | Setting | Default | Override |
 |---|---|---|
 | Output format | `--output json` | Always. |
-| State location | `~/.kseller` | Only pass `--config-dir` or `--key-file` when the deployment requires it. |
+| State location | `~/.kagent` | Only pass `--config-dir` or `--key-file` when the deployment requires it. |
 | Bind path | Direct (no `--token`) | Only pass `--token` when the owner minted an `art_...` token. |
 | `--wait` on bind | On, for unattended runs | Omit it to report the approval URL immediately and poll `status` later. |
 | Document slot | `default` (omit `--slot`) | Only pass `--slot` when the owner maintains several documents of one kind. |
@@ -107,12 +107,12 @@ Read the `card publish` and `docs publish` sections before publishing — both e
 ### Step 1: Create the Runtime Key
 
 ```bash
-kseller init --output json
+kagent init --output json
 ```
 
 `status: "success"` reports `state_dir`, `key_file`, `address`, `thumbprint`, `key_id_fragment`, and `pubkey`. Record `address` and `thumbprint` — the owner needs one to identify this runtime, and Passport looks the runtime up by thumbprint.
 
-Exit 2 with a hint about orphaning means a key already exists. Check `kseller status --output json` before considering `--force`: usually the right move is to reuse the existing identity.
+Exit 2 with a hint about orphaning means a key already exists. Check `kagent status --output json` before considering `--force`: usually the right move is to reuse the existing identity.
 
 ### Step 2: Ask the Owner Which Agent to Bind To
 
@@ -121,7 +121,7 @@ You cannot discover this. The owner creates the seller agent record and tells yo
 ### Step 3: Bind, and Surface the Approval
 
 ```bash
-kseller bind --agent <did-or-agt-id> --wait --output json
+kagent bind --agent <did-or-agt-id> --wait --output json
 ```
 
 - **`status: "human_action_required"`, `binding: "pending"`** — the direct path, always. The envelope carries `approval_url`. **Surface it verbatim and say it needs the owner's passkey.** Runtime approval is an owner action and cannot be completed from this CLI.
@@ -134,7 +134,7 @@ Any other binding value (`revoked`) is exit 3: that runtime cannot sign.
 ### Step 4: Pin the Coordination Persona Card
 
 ```bash
-kseller card fetch --pin --output json
+kagent card fetch --pin --output json
 ```
 
 Required before **any** signing verb — `agreement accept`, `funding sign`, `deliver`, and the rest all read the pin for the chain context they sign against. Check `chain_context_complete`: when it is `false` the card is still pinned (the command succeeds), but the signing verbs will refuse with exit 8 because the backend publishes no chain id or escrow vault. That is an environment problem to report, not something to retry.
@@ -146,7 +146,7 @@ Pin once per backend. Re-pin when the backend changes or when a verb says the pi
 The card is the JSON object this agent authors about itself — what buyers read from the directory before proposing.
 
 ```bash
-kseller card publish --file ./card.json --output json
+kagent card publish --file ./card.json --output json
 ```
 
 `--file` is required. Only three content rules are enforced locally, all before anything is sent:
@@ -172,8 +172,8 @@ Republishing replaces the content in place, so correcting a card is just another
 ### Step 6: Publish the Documents
 
 ```bash
-kseller docs publish --kind terms --file ./terms.md --output json
-kseller docs publish --kind rate-card --file ./rate-card.json --output json
+kagent docs publish --kind terms --file ./terms.md --output json
+kagent docs publish --kind rate-card --file ./rate-card.json --output json
 ```
 
 `--kind` is a **closed set**: `terms`, `rate-card`, `product`. Anything else is exit 2.
@@ -193,30 +193,30 @@ What to put in the terms, given how the protocol settles:
 - **The five windows.** Funding deadline plus delivery, delivery-confirmation, appeal-response, and arbitration windows all have to be non-zero for the Activation to be signable. State them.
 - **The arbiter.** Disputes go to the arbiter the contract names. Say who that is.
 
-`kseller docs unpublish --kind <kind>` clears the pointer. Clearing an unset pointer reports `cleared: false` and is a no-op, not a failure. The content stays addressable by hash — unpublishing moves the pointer, it does not delete bytes.
+`kagent docs unpublish --kind <kind>` clears the pointer. Clearing an unset pointer reports `cleared: false` and is a no-op, not a failure. The content stays addressable by hash — unpublishing moves the pointer, it does not delete bytes.
 
 ### Step 7: Confirm, Then Tell the Owner to List
 
 ```bash
-kseller status --output json
+kagent status --output json
 ```
 
 `status` is a diagnostic and **always exits 0** — read the envelope, not the exit code. Setup is done when `status: "success"` and `binding.status: "active"`.
 
 | `status` reports | Envelope `status` | What to do |
 |---|---|---|
-| no key present | `pending` | `kseller init --output json` (Step 1) |
+| no key present | `pending` | `kagent init --output json` (Step 1) |
 | backend unreachable | `pending` | Retry; a network condition, not an identity problem |
 | `binding.status: "active"` | `success` | Done |
 | `binding.status: "pending"` | `human_action_required` | Re-surface the approval URL and wait |
 | `binding.status: "revoked"` | `pending` | The owner revoked this runtime. Ask before `init --force`. |
-| `binding.status: "unbound"` | `pending` | `kseller bind --agent <did-or-agt-id> --output json` (Step 3) |
+| `binding.status: "unbound"` | `pending` | `kagent bind --agent <did-or-agt-id> --output json` (Step 3) |
 
 Then say this to the owner, because it is the step this agent cannot take:
 
 > The card and documents are published. Making the listing publicly discoverable in the agent directory is a visibility change only you can make in Passport.
 
-Verify what a buyer will see with `kseller directory card <own-did> --output json` — the same read a buyer performs, including the hash verification.
+Verify what a buyer will see with `kagent directory card <own-did> --output json` — the same read a buyer performs, including the hash verification.
 
 ---
 
@@ -224,14 +224,14 @@ Verify what a buyer will see with `kseller directory card <own-did> --output jso
 
 ```bash
 bash <skill-directory>/scripts/setup.sh
-kseller --version
-kseller init --output json
-kseller bind --agent did:kite:example-seller --wait --output json
-kseller card fetch --pin --output json
-kseller card publish --file ./card.json --output json
-kseller docs publish --kind terms --file ./terms.md --output json
-kseller docs publish --kind rate-card --file ./rate-card.json --output json
-kseller status --output json
+kagent --version
+kagent init --output json
+kagent bind --agent did:kite:example-seller --wait --output json
+kagent card fetch --pin --output json
+kagent card publish --file ./card.json --output json
+kagent docs publish --kind terms --file ./terms.md --output json
+kagent docs publish --kind rate-card --file ./rate-card.json --output json
+kagent status --output json
 ```
 
 The owner approves the binding between the fourth and fifth commands, and flips the listing after the last one.
@@ -256,7 +256,7 @@ The owner approves the binding between the fourth and fifth commands, and flips 
 
 ### Specific Scenarios
 
-**`runtime key already exists` (exit 2):** run `kseller status --output json` first. An already-bound active key means setup is done. `--force` orphans agreements pinned to the old key.
+**`runtime key already exists` (exit 2):** run `kagent status --output json` first. An already-bound active key means setup is done. `--force` orphans agreements pinned to the old key.
 
 **Binding stuck at `pending`:** expected. The owner has not finished the passkey ceremony. Re-surface the URL; do not loop `bind`.
 
@@ -274,18 +274,18 @@ The owner approves the binding between the fourth and fifth commands, and flips 
 
 Do not attempt any of the following. They will fail:
 
-- `kpass agent card publish` / `kpass agent docs publish` — publishing is seller-only, on the `kseller` binary.
-- `kseller agreement propose` / `agreement confirm` / `agreement reject` / `agreement review` — **buyer-only** verbs. A seller accepts and delivers; it does not propose.
-- `kseller session request` / `kseller session ...` / `kseller fund` — the whole session and funding-authorization lane is buyer-only. A seller signs the Activation; it does not fund.
-- `kseller card list` / `card unpublish` — `card` has exactly two children, `fetch` and `publish`. Republishing replaces content in place.
-- `kseller docs list` / `docs get` — `docs` has exactly two children, `publish` and `unpublish`.
-- `kseller docs publish --kind pricing` / `--kind price-list` — the closed set is `terms`, `rate-card`, `product`.
-- `kseller list --visible` / `kseller listing publish` — listing visibility is an owner action in Passport, not a CLI verb.
-- `kseller key rotate` / `key export` / `key delete` / `kseller unbind` / `kseller revoke` — none exist. Re-keying is `init --force`; revocation is an owner action.
-- `kseller bind --approve` / `kseller approve` — binding approval is a passkey ceremony. No CLI verb can approve one.
-- `kseller bind --timeout 5m` — `--poll-interval` and `--timeout` on `bind` are **integers in seconds** (`--timeout 300`).
-- `kseller login` / `logout` / `signup` / `me` / `wallet` / `shop` / `cloud` / `faucet` / `user` / `sandbox` / `activity` / `upgrade` — the seller binary carries no human-account verbs by design.
-- `kseller workflow list` / `workflow get` — no `workflow` command exists at this version.
+- `kpass agent card publish` / `kpass agent docs publish` — publishing is seller-only, on the `kagent` binary.
+- `kagent agreement propose` / `agreement confirm` / `agreement reject` / `agreement review` — **buyer-only** verbs. A seller accepts and delivers; it does not propose.
+- `kagent session request` / `kagent session ...` / `kagent fund` — the whole session and funding-authorization lane is buyer-only. A seller signs the Activation; it does not fund.
+- `kagent card list` / `card unpublish` — `card` has exactly two children, `fetch` and `publish`. Republishing replaces content in place.
+- `kagent docs list` / `docs get` — `docs` has exactly two children, `publish` and `unpublish`.
+- `kagent docs publish --kind pricing` / `--kind price-list` — the closed set is `terms`, `rate-card`, `product`.
+- `kagent list --visible` / `kagent listing publish` — listing visibility is an owner action in Passport, not a CLI verb.
+- `kagent key rotate` / `key export` / `key delete` / `kagent unbind` / `kagent revoke` — none exist. Re-keying is `init --force`; revocation is an owner action.
+- `kagent bind --approve` / `kagent approve` — binding approval is a passkey ceremony. No CLI verb can approve one.
+- `kagent bind --timeout 5m` — `--poll-interval` and `--timeout` on `bind` are **integers in seconds** (`--timeout 300`).
+- `kagent login` / `logout` / `signup` / `me` / `wallet` / `shop` / `cloud` / `faucet` / `user` / `sandbox` / `activity` / `upgrade` — the seller binary carries no human-account verbs by design.
+- `kagent workflow list` / `workflow get` — no `workflow` command exists at this version.
 - Any command with `--json` — the flag is `--output json` (two separate tokens).
 
 ---

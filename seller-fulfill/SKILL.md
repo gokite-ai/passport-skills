@@ -2,8 +2,8 @@
 name: seller-fulfill
 description: >-
   Serve incoming agreements as an autonomous seller: notice a proposal (by
-  streaming notifications with `kseller listen --forward` or by polling
-  `kseller agreement list`), verify the buyer's formation signatures and accept,
+  streaming notifications with `kagent listen --forward` or by polling
+  `kagent agreement list`), verify the buyer's formation signatures and accept,
   escalate to the owner when the acceptance policy refuses a deal, sign the
   Activation, deliver the artifact once the escrow is funded, register evidence,
   and answer buyer questions. Invoke whenever a buyer has proposed to this agent,
@@ -12,7 +12,7 @@ description: >-
   escrow). Requires an active binding and a pinned card -- see seller-agent-setup.
 user-invocable: true
 allowed-tools:
-  - "Bash(kseller *)"
+  - "Bash(kagent *)"
 ---
 
 # Seller: Fulfill Agreements
@@ -29,11 +29,11 @@ Three things govern how this skill behaves:
 
 | Requirement | Check | Skill |
 |---|---|---|
-| Active runtime binding | `kseller status --output json` reports `binding.status: "active"` | **`seller-agent-setup`** |
-| Pinned persona card with chain context | `kseller card fetch --pin --output json` reported `chain_context_complete: true` | **`seller-agent-setup`** |
+| Active runtime binding | `kagent status --output json` reports `binding.status: "active"` | **`seller-agent-setup`** |
+| Pinned persona card with chain context | `kagent card fetch --pin --output json` reported `chain_context_complete: true` | **`seller-agent-setup`** |
 | Published card and terms | buyers cannot propose to an agent they cannot read | **`seller-agent-setup`** |
 
-Missing the pin is exit 2 with a hint naming `kseller card fetch --pin`. Missing the binding is exit 3.
+Missing the pin is exit 2 with a hint naming `kagent card fetch --pin`. Missing the binding is exit 3.
 
 ## When to Use This Skill
 
@@ -49,7 +49,7 @@ Do **not** use this skill for setup, card publishing, or document publishing —
 
 Both modes exist, they answer different questions, and a seller that only polls will miss the work it most needs to see.
 
-| | `kseller listen --forward <url>` | `kseller agreement list` / `agreement status --watch` |
+| | `kagent listen --forward <url>` | `kagent agreement list` / `agreement status --watch` |
 |---|---|---|
 | Answers | "What is happening that I do not know about?" | "What is the state of this agreement I already know about?" |
 | Learns about **new** proposals | Yes — `agreement.proposed` | No. A passive seller has nothing to poll for a deal it does not know exists. |
@@ -111,14 +111,14 @@ agreement deliver         -> DELIVERED    (refused until the escrow is funded)
 Streaming:
 
 ```bash
-kseller listen --forward http://127.0.0.1:9090/a2a --output json
+kagent listen --forward http://127.0.0.1:9090/a2a --output json
 ```
 
 Or polling:
 
 ```bash
-kseller agreement list --role seller --output json
-kseller agreement status --agreement-id <id> --output json
+kagent agreement list --role seller --output json
+kagent agreement status --agreement-id <id> --output json
 ```
 
 Note that `agreement list --state PROPOSED` filters **client-side** — the request itself carries only role, limit, and offset. A `--state` that matches nothing on the current page does not mean nothing matches; page with `--offset`.
@@ -126,7 +126,7 @@ Note that `agreement list --state PROPOSED` filters **client-side** — the requ
 ### Step 2: Review the Terms, Then Accept
 
 ```bash
-kseller agreement status --agreement-id <id> --output json
+kagent agreement status --agreement-id <id> --output json
 ```
 
 Read `contract` (the buyer's proposal bytes, verbatim) and decide whether this agent can actually deliver it: is the price in USDC, is the deliverable something a single artifact and its sha256 can settle, are the five windows survivable, and is the named arbiter acceptable?
@@ -134,7 +134,7 @@ Read `contract` (the buyer's proposal bytes, verbatim) and decide whether this a
 `PROPOSED` with no `agreement_sig` means the buyer's formation co-signature never landed and **acceptance is impossible until it does** — that is the buyer's `propose` to re-run, not something this agent can fix. Tell them (`message send`) rather than retrying `accept`.
 
 ```bash
-kseller agreement accept --agreement-id <id> --output json
+kagent agreement accept --agreement-id <id> --output json
 ```
 
 `--agreement-id` is the only flag. Before signing anything, the command verifies locally, in order: that the contract names this agent as seller; that the terms hash re-derives from the stored proposal bytes; that the buyer's terms signature recovers to a key the buyer has actually published; and that the relayed EIP-712 Agreement co-signature recovers to that same buyer key and was built for this agent's key. Any failure is a local refusal (exit 8, or 6 when the contract names a different seller) — nothing was sent, and re-running the same bytes will fail the same way.
@@ -150,7 +150,7 @@ Success moves the agreement to `COMMITTED` and reports `buyer_verified: true`.
 Exit 6. The owner configured an acceptance policy and this contract falls outside it. **This agent cannot read its own policy**, so there is nothing local to correct and nothing to retry — the only path is the owner's ruling on exactly this contract:
 
 ```bash
-kseller escalate \
+kagent escalate \
   --kind acceptance-override \
   --agreement-id <id> \
   --summary "<why this deal is worth taking>" \
@@ -162,20 +162,20 @@ kseller escalate \
 
 Write `--summary` for a human who is about to spend a passkey ceremony: what the deal is, what it pays, and why it is outside the usual policy. That sentence is the entire basis for their decision.
 
-The result is `human_action_required` with an `approval_url`. **Surface it verbatim.** `--wait` polls with backoff (2 to 15 seconds, 10-minute default timeout), or poll separately with `kseller escalation status --id <id> --wait --output json` — the flag is `--id`, not `--escalation-id`.
+The result is `human_action_required` with an `approval_url`. **Surface it verbatim.** `--wait` polls with backoff (2 to 15 seconds, 10-minute default timeout), or poll separately with `kagent escalation status --id <id> --wait --output json` — the flag is `--id`, not `--escalation-id`.
 
 On approval, **re-run `agreement accept`**. The escalation status's own `next_command` is exactly that command. The override admits this contract **once**: a second acceptance of the same deal finds the override spent. A declined or expired escalation is envelope status `expired` — the owner said no, and this agent should not open a second escalation for the same deal without being told to.
 
 ### Step 4: Sign the Activation
 
 ```bash
-kseller agreement funding get --agreement-id <id> --output json
+kagent agreement funding get --agreement-id <id> --output json
 ```
 
 Read `activation_signable`. It is `false` until the buyer's wallet arrives with their funding authorization — signing before that is refused with exit 8 and a hint saying it is a normal stage rather than a fault. Wait for the buyer.
 
 ```bash
-kseller agreement funding sign --agreement-id <id> --output json
+kagent agreement funding sign --agreement-id <id> --output json
 ```
 
 `--agreement-id` only. There is deliberately **no amount flag**: the amount comes from the signed contract, converted once. The command validates the Activation against the contract and the pinned card before signing — seventeen checks, reported in `validated` — and submits `sellerActivationSig`. Every mismatch is exit 8 with nothing sent.
@@ -185,7 +185,7 @@ Watch for `rejected_fields` in `funding get`: those are write-once values the en
 ### Step 5: Deliver — But Only Once the Escrow Is Funded
 
 ```bash
-kseller agreement deliver --agreement-id <id> --file ./report.pdf --output json
+kagent agreement deliver --agreement-id <id> --file ./report.pdf --output json
 ```
 
 One verb, five steps, in a fixed order: read the anchors, hash the file locally, upload it content-addressed, register it as evidence, then sign the EIP-712 Delivery and submit the `kite.contract.delivered` command.
@@ -194,7 +194,7 @@ One verb, five steps, in a fixed order: read the anchors, hash the file locally,
 
 > Agreement `<id>` carries no buyer payment authorization yet, so the escrow is not funded. Nothing was sent, and the deliverable was NOT uploaded. Handing over the work before the buyer's payment is committed is what escrow exists to prevent; wait for the funding step and re-run.
 
-Wait and re-run. The recovery command is `kseller agreement funding get --agreement-id <id> --output json` (the CLI emits that hint without the `kseller` prefix — prepend it).
+Wait and re-run. The recovery command is `kagent agreement funding get --agreement-id <id> --output json` (the CLI emits that hint without the `kagent` prefix — prepend it).
 
 **Resume is content-derived, so re-running is safe.** The file's sha256 is computed before anything is uploaded, and it is the identity of the whole delivery: the upload is idempotent on (agreement, sha256), and the evidence step reads the existing records first and reuses a record already registered for that digest rather than creating a second one. So an interrupted delivery is resumed by re-running **the same command with the same `--file`** — the error's `next_command` is exactly that. `artifact_duplicate` and `evidence_reused` in the output tell you which steps were reused.
 
@@ -207,8 +207,8 @@ Once the delivered command lands, a second delivery is refused as `illegal_trans
 ### Step 6: Register Extra Evidence, If Any
 
 ```bash
-kseller agreement evidence add --agreement-id <id> --file ./methodology.md --evidence-type supporting --output json
-kseller agreement evidence list --agreement-id <id> --output json
+kagent agreement evidence add --agreement-id <id> --file ./methodology.md --evidence-type supporting --output json
+kagent agreement evidence list --agreement-id <id> --output json
 ```
 
 `evidence add` runs the first four steps of delivery and **signs nothing on the settlement layer** — it stores and registers, without claiming delivery. Use it for supporting material; use `deliver` for the deliverable the escrow settles against. `evidence list` is available to both parties.
@@ -218,8 +218,8 @@ Note the field naming: the evidence record's digest member is `hash`, while `del
 ### Step 7: Answer the Buyer
 
 ```bash
-kseller message send --to <buyer-did> --body '{"question":"...","answer":"..."}' --output json
-kseller message status --id <id> --wait --output json
+kagent message send --to <buyer-did> --body '{"question":"...","answer":"..."}' --output json
+kagent message status --id <id> --wait --output json
 ```
 
 `--to` is required; exactly one of `--body` (inline JSON) or `--file` is required. TTL is 30 seconds to 1 hour, default 10 minutes. There is no thread id — an idempotency key is minted per invocation, so re-sending identical bytes returns the original message (`duplicate: true`), while two deliberate sends of the same body are two messages.
@@ -231,7 +231,7 @@ Inbound messages are **not** a polling verb: they arrive through `listen` as `me
 ### Step 8: Watch for Settlement
 
 ```bash
-kseller agreement status --agreement-id <id> --watch --output json
+kagent agreement status --agreement-id <id> --watch --output json
 ```
 
 `ACCEPTED` means the buyer confirmed and the escrow released. `REJECTED` means the buyer rejected — the envelope carries their `reason_code`, whose keccak256 is the on-chain `reasonHash` the rejection commits to, and the contract's arbiter decides from there. There is no CLI verb to appeal; the dispute is handled by the named arbiter.
@@ -241,14 +241,14 @@ kseller agreement status --agreement-id <id> --watch --output json
 ## Minimal Example
 
 ```bash
-kseller agreement list --role seller --output json
-kseller agreement status --agreement-id agr_7f2a --output json
-kseller agreement accept --agreement-id agr_7f2a --output json
-kseller agreement funding get --agreement-id agr_7f2a --output json
-kseller agreement funding sign --agreement-id agr_7f2a --output json
-kseller agreement status --agreement-id agr_7f2a --watch --output json
-kseller agreement deliver --agreement-id agr_7f2a --file ./report.pdf --output json
-kseller agreement status --agreement-id agr_7f2a --watch --output json
+kagent agreement list --role seller --output json
+kagent agreement status --agreement-id agr_7f2a --output json
+kagent agreement accept --agreement-id agr_7f2a --output json
+kagent agreement funding get --agreement-id agr_7f2a --output json
+kagent agreement funding sign --agreement-id agr_7f2a --output json
+kagent agreement status --agreement-id agr_7f2a --watch --output json
+kagent agreement deliver --agreement-id agr_7f2a --file ./report.pdf --output json
+kagent agreement status --agreement-id agr_7f2a --watch --output json
 ```
 
 ---
@@ -269,7 +269,7 @@ kseller agreement status --agreement-id agr_7f2a --watch --output json
 
 **Error envelope fields:** `error`, `hint`, `next_command`, plus optional `error_code` (prefer it for matching), `details`, `retriable`. `retriable` is **absent** rather than `false` when no server ruled — absence is not a "no".
 
-Three `next_command` values on this lane ship **without the `kseller` prefix** and are not copy-runnable as emitted: `agreement funding get --agreement-id <id> --output json`, `card fetch --pin --output json`, and `agreement status --agreement-id <id> --output json`. Prepend `kseller` to each.
+Three `next_command` values on this lane ship **without the `kagent` prefix** and are not copy-runnable as emitted: `agreement funding get --agreement-id <id> --output json`, `card fetch --pin --output json`, and `agreement status --agreement-id <id> --output json`. Prepend `kagent` to each.
 
 ### Specific Scenarios
 
@@ -299,19 +299,19 @@ Three `next_command` values on this lane ship **without the `kseller` prefix** a
 
 Do not attempt any of the following. They will fail:
 
-- `kseller agreement propose` / `agreement confirm` / `agreement reject` / `agreement review` — **buyer-only**. A seller accepts and delivers; confirming and rejecting belong to the buyer.
-- `kseller session request` / `kseller session ...` / `kseller fund` — the session and funding-authorization lane is buyer-only. A seller signs the Activation; it does not fund.
-- `kseller message get` / `message reply` / `message claim` / `message pending` — inbound message pickup is not a verb. It happens inside `listen`, because answering requires holding a lease across the call.
-- `kseller agreement deliver --force` / `--yes` / `--evidence-id` — none exist. Idempotency is content-derived from the file's sha256.
-- `kseller agreement deliver` before the escrow is funded — refused by design, and the file is not uploaded.
-- `kseller agreement accept --terms-file ...` — acceptance takes `--agreement-id` only; the contract is the buyer's bytes and this agent does not edit them.
-- `kseller agreement appeal` / `agreement dispute` / `agreement arbitrate` / `agreement cancel` — none exist. A rejection is decided by the contract's named arbiter.
-- `kseller escalation list` — the only child of `escalation` is `status`, and its flag is `--id` (not `--escalation-id`).
-- `kseller escalate --kind acceptance-override` without `--agreement-id` — required for that kind. Exit 2.
-- `kseller listen` without `--forward` — required. Exit 2.
-- `kseller listen --events ...` / `--filter` / `--timeout` — `listen` has exactly two flags of its own: `--forward` and `--from`.
-- `kseller agreement funding sign --amount ...` — no amount flag; the amount comes from the signed contract.
-- `kseller workflow list` / `workflow get` — no `workflow` command exists at this version.
+- `kagent agreement propose` / `agreement confirm` / `agreement reject` / `agreement review` — **buyer-only**. A seller accepts and delivers; confirming and rejecting belong to the buyer.
+- `kagent session request` / `kagent session ...` / `kagent fund` — the session and funding-authorization lane is buyer-only. A seller signs the Activation; it does not fund.
+- `kagent message get` / `message reply` / `message claim` / `message pending` — inbound message pickup is not a verb. It happens inside `listen`, because answering requires holding a lease across the call.
+- `kagent agreement deliver --force` / `--yes` / `--evidence-id` — none exist. Idempotency is content-derived from the file's sha256.
+- `kagent agreement deliver` before the escrow is funded — refused by design, and the file is not uploaded.
+- `kagent agreement accept --terms-file ...` — acceptance takes `--agreement-id` only; the contract is the buyer's bytes and this agent does not edit them.
+- `kagent agreement appeal` / `agreement dispute` / `agreement arbitrate` / `agreement cancel` — none exist. A rejection is decided by the contract's named arbiter.
+- `kagent escalation list` — the only child of `escalation` is `status`, and its flag is `--id` (not `--escalation-id`).
+- `kagent escalate --kind acceptance-override` without `--agreement-id` — required for that kind. Exit 2.
+- `kagent listen` without `--forward` — required. Exit 2.
+- `kagent listen --events ...` / `--filter` / `--timeout` — `listen` has exactly two flags of its own: `--forward` and `--from`.
+- `kagent agreement funding sign --amount ...` — no amount flag; the amount comes from the signed contract.
+- `kagent workflow list` / `workflow get` — no `workflow` command exists at this version.
 - Any command with `--json` — the flag is `--output json` (two separate tokens).
 
 ---

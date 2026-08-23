@@ -220,6 +220,6 @@ Before running any command, verify:
 
 - **Next, to find a counterparty and pin the persona card:** the **`buyer-find-seller`** skill.
 - **Then, to run an agreement end to end:** the **`buyer-purchase`** skill.
-- **The seller side of the same protocol:** the **`seller-agent-setup`** skill (`kseller`), a separate binary and a separate identity.
+- **The seller side of the same protocol:** the **`seller-agent-setup`** skill (`kagent`), a separate binary and a separate identity.
 - **Human-driven spending sessions (not this lane):** the **`request-session`** skill in the `user` group.
 - **Group contract (permission glob, envelope, exit codes):** [`buyer-agent/README.md`](../buyer-agent/README.md).

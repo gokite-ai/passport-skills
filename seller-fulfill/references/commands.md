@@ -1,12 +1,12 @@
 # Seller: Fulfill — Command Reference
 
-Every command takes `--output json`. All flags are long-form. `--base-url`, `--output`, and `--no-interactive` are persistent root flags; `--key-file` (overriding `KSELLER_RUNTIME_KEY_FILE`) and `--config-dir` (default `~/.kseller`) are registered on every command in this file.
+Every command takes `--output json`. All flags are long-form. `--base-url`, `--output`, and `--no-interactive` are persistent root flags; `--key-file` (overriding `KAGENT_RUNTIME_KEY_FILE`) and `--config-dir` (default `~/.kagent`) are registered on every command in this file.
 
-Colon-separated paths are aliases: `kseller agreement:funding:sign` equals `kseller agreement funding sign`.
+Colon-separated paths are aliases: `kagent agreement:funding:sign` equals `kagent agreement funding sign`.
 
 ---
 
-## `kseller agreement list`
+## `kagent agreement list`
 
 | Flag | Type | Default | Notes |
 |---|---|---|---|
@@ -31,7 +31,7 @@ Because `--state` filters after the page is fetched, an empty result does not me
 
 ---
 
-## `kseller agreement status`
+## `kagent agreement status`
 
 | Flag | Type | Default | Required |
 |---|---|---|---|
@@ -47,7 +47,7 @@ Terminal states: `ACCEPTED`, `RESOLVED`, `CANCELLED`, `DEFAULTED`, `EXPIRED`. An
 
 ---
 
-## `kseller agreement accept`
+## `kagent agreement accept`
 
 | Flag | Type | Default | Required |
 |---|---|---|---|
@@ -55,7 +55,7 @@ Terminal states: `ACCEPTED`, `RESOLVED`, `CANCELLED`, `DEFAULTED`, `EXPIRED`. An
 
 Nothing else. This agent does not edit the buyer's contract; it verifies and countersigns it.
 
-Preconditions: the runtime key resolves and its binding is `active` (else exit 3), and a card is pinned (else exit 2 with `next_command: "kseller card fetch --pin --output json"`; a pin with `chain_id == 0` or an empty escrow vault is exit 8).
+Preconditions: the runtime key resolves and its binding is `active` (else exit 3), and a card is pinned (else exit 2 with `next_command: "kagent card fetch --pin --output json"`; a pin with `chain_id == 0` or an empty escrow vault is exit 8).
 
 ### Local verification, in order
 
@@ -65,9 +65,9 @@ Preconditions: the runtime key resolves and its binding is `active` (else exit 3
 | 2 | The contract names **this agent** as seller | Exit **6** — `Agreement <id> names seller <did>, not this agent (<did>).` |
 | 3 | The terms hash **re-derives** from the verbatim proposal bytes and matches what the runtime reports | Exit **8** — the runtime reports one hash, the stored contract derives another |
 | 4 | A buyer signature entry exists for the buyer agent id | Exit **8** |
-| 5 | The buyer's `keyId` is in the buyer's **published** key set | Exit **8**, `error_code: "unknown_key"`, `next_command: "kseller directory keys <ref> --output json"` |
+| 5 | The buyer's `keyId` is in the buyer's **published** key set | Exit **8**, `error_code: "unknown_key"`, `next_command: "kagent directory keys <ref> --output json"` |
 | 6 | The buyer's terms signature recovers to that key's address | Exit **8** |
-| 7 | The relayed EIP-712 Agreement co-signature is present | Exit **1**, `next_command: "kseller agreement status --agreement-id <id> --watch --output json"` |
+| 7 | The relayed EIP-712 Agreement co-signature is present | Exit **1**, `next_command: "kagent agreement status --agreement-id <id> --watch --output json"` |
 | 8 | The co-signature names **this agent's** key, not a sibling | Exit **8** |
 | 9 | The co-signature recovers to the buyer's address under the escrow domain | Exit **8** |
 
@@ -76,7 +76,7 @@ Every one of these is a local refusal: nothing was sent, and the same bytes will
 Then this agent signs the terms hash and the EIP-712 Agreement, appends its signature entry alongside the buyer's, re-validates the contract against the schema, and asserts the terms anchor did not move.
 
 ```bash
-kseller agreement accept --agreement-id agr_7f2a --output json
+kagent agreement accept --agreement-id agr_7f2a --output json
 ```
 
 ```
@@ -94,7 +94,7 @@ kseller agreement accept --agreement-id agr_7f2a --output json
   "buyer_verified": true,
   "receipt": { ... },
   "hint": "Committed. The funding context opens next, and both parties' Activation signatures are due before the escrow can be funded.",
-  "next_command": "kseller agreement funding get --agreement-id agr_7f2a --output json"
+  "next_command": "kagent agreement funding get --agreement-id agr_7f2a --output json"
 }
 ```
 
@@ -105,12 +105,12 @@ Exit **6**, `error_code: "acceptance_policy_violation"`. The owner configured an
 The error's `next_command` is the recovery, already filled in:
 
 ```bash
-kseller escalate --kind acceptance-override --agreement-id <id> --summary "<why this deal>" --wait --output json
+kagent escalate --kind acceptance-override --agreement-id <id> --summary "<why this deal>" --wait --output json
 ```
 
 ---
 
-## `kseller escalate`
+## `kagent escalate`
 
 | Flag | Type | Default | Required | Notes |
 |---|---|---|---|---|
@@ -139,7 +139,7 @@ Create envelope — always `human_action_required`:
   "approval_expires_at": "...",
   "summary": "...",
   "agreement_id": "agr_7f2a",
-  "next_command": "kseller escalation status --id esc_... --wait --output json"
+  "next_command": "kagent escalation status --id esc_... --wait --output json"
 }
 ```
 
@@ -147,7 +147,7 @@ Create envelope — always `human_action_required`:
 
 ---
 
-## `kseller escalation status`
+## `kagent escalation status`
 
 | Flag | Type | Default | Required | Notes |
 |---|---|---|---|---|
@@ -171,7 +171,7 @@ Create envelope — always `human_action_required`:
 
 | Condition | Envelope `status` | `next_command` |
 |---|---|---|
-| decided, approved, enforced, with an agreement id | `success` | **`kseller agreement accept --agreement-id <id> --output json`** |
+| decided, approved, enforced, with an agreement id | `success` | **`kagent agreement accept --agreement-id <id> --output json`** |
 | decided, approved, otherwise | `success` | `""` |
 | decided, **declined** | `expired` | `""` |
 | `expired` | `expired` | `""` |
@@ -183,7 +183,7 @@ A declined escalation is envelope status `expired`. The owner said no.
 
 ---
 
-## `kseller agreement funding get`
+## `kagent agreement funding get`
 
 Flags: `--agreement-id` (required).
 
@@ -216,7 +216,7 @@ Flags: `--agreement-id` (required).
 
 ---
 
-## `kseller agreement funding sign`
+## `kagent agreement funding sign`
 
 Flags: `--agreement-id` (required). **No amount flag** — the amount comes from the signed contract, converted once, never from a flag and never twice.
 
@@ -248,7 +248,7 @@ The blank-buyer-wallet refusal comes with a hint saying it is a normal stage rat
     "buyer wallet and all five deadline windows are present"
   ],
   "hint": "Activation validated against the signed terms and signed. The escrow can be funded once both parties' signatures and the buyer's authorization are recorded.",
-  "next_command": "kseller agreement funding get --agreement-id <id> --output json"
+  "next_command": "kagent agreement funding get --agreement-id <id> --output json"
 }
 ```
 
@@ -256,7 +256,7 @@ The submission is schema-gated per role, so a seller cannot write buyer fields e
 
 ---
 
-## `kseller agreement deliver`
+## `kagent agreement deliver`
 
 | Flag | Type | Default | Required | Notes |
 |---|---|---|---|---|
@@ -283,7 +283,7 @@ There is no `--force`, no `--yes`, and no `--evidence-id`.
 
 > Agreement `<id>` carries no buyer payment authorization yet, so the escrow is not funded.
 > Hint: Nothing was sent, and the deliverable was NOT uploaded. Handing over the work before the buyer's payment is committed is what escrow exists to prevent; wait for the funding step and re-run.
-> Next: `agreement funding get --agreement-id <id> --output json` (prepend `kseller`)
+> Next: `agreement funding get --agreement-id <id> --output json` (prepend `kagent`)
 
 **Domain and anchors.** Exit 8 when the funding context's chain id or vault address disagrees with the pinned card, or when the vault deal id, the terms hash, or the latest proof hash is missing from the agreement.
 
@@ -304,7 +304,7 @@ Any failed step annotates the error **in place** rather than re-classifying it, 
 **After the delivered command lands, a second is refused as `illegal_transition` (exit 7)** — the correct answer, not a bug to work around.
 
 ```bash
-kseller agreement deliver --agreement-id agr_7f2a --file ./report.pdf --output json
+kagent agreement deliver --agreement-id agr_7f2a --file ./report.pdf --output json
 ```
 
 ```
@@ -333,7 +333,7 @@ kseller agreement deliver --agreement-id agr_7f2a --file ./report.pdf --output j
   "terms_hash": "...",
   "receipt": { ... },
   "hint": "Delivered. The buyer's own check is what settles this: it downloads the artifact, recomputes sha256, and compares it against the deliveryHash inside this signed command -- so keep the local file until the escrow releases.",
-  "next_command": "kseller agreement status --agreement-id agr_7f2a --watch --output json"
+  "next_command": "kagent agreement status --agreement-id agr_7f2a --watch --output json"
 }
 ```
 
@@ -341,7 +341,7 @@ The signed command's payload carries `evidenceId`, `deliveryHash`, `sellerDelive
 
 ---
 
-## `kseller agreement evidence add`
+## `kagent agreement evidence add`
 
 Same flags as `deliver`: `--agreement-id`, `--file`, `--content-type`, `--evidence-type`.
 
@@ -361,7 +361,7 @@ Runs steps 1–4 only — it stores and registers, and **signs nothing on the se
   "content_type": "text/markdown",
   "content_file": "./methodology.md",
   "terms_hash": "...",
-  "next_command": "kseller agreement deliver --agreement-id <id> --file <path> --output json"
+  "next_command": "kagent agreement deliver --agreement-id <id> --file <path> --output json"
 }
 ```
 
@@ -369,7 +369,7 @@ Note the field name: `hash` here, `delivery_hash` in `deliver`. Same value, two 
 
 ---
 
-## `kseller agreement evidence list`
+## `kagent agreement evidence list`
 
 Flags: `--agreement-id` (required). Available to both roles.
 
@@ -387,7 +387,7 @@ Flags: `--agreement-id` (required). Available to both roles.
 
 ---
 
-## `kseller message send` / `kseller message status`
+## `kagent message send` / `kagent message status`
 
 `message send`:
 
@@ -420,7 +420,7 @@ On this lane a 409 is exit 7 and a 410 is exit **2** (the TTL elapsed — not an
 
 ---
 
-## `kseller listen`
+## `kagent listen`
 
 | Flag | Type | Default | Required | Notes |
 |---|---|---|---|---|
@@ -480,7 +480,7 @@ SIGINT/SIGTERM flushes the cursor and exits 0. Progress lines go to **stderr** p
   "messages_claimed": 2, "messages_replied": 2,
   "resyncs": 0, "reconnects": 1, "stream_mints": 2,
   "hint": "Stopped cleanly at cursor 1841. A restart resumes after the last acknowledged notification, ...",
-  "next_command": "kseller listen --forward <url> --output json"
+  "next_command": "kagent listen --forward <url> --output json"
 }
 ```
 
@@ -505,7 +505,7 @@ A fatal error emits an error envelope with no data members and the classified ex
 
 `error_code`, `details`, and `retriable` are omitted when absent. `retriable` is three-state: `true`, `false`, or **absent** when nobody ruled — every local refusal, every transport failure.
 
-Three `next_command` values on this lane are emitted **without the `kseller` prefix** and need it prepended: `agreement funding get --agreement-id <id> --output json`, `card fetch --pin --output json`, and `agreement status --agreement-id <id> --output json`.
+Three `next_command` values on this lane are emitted **without the `kagent` prefix** and need it prepended: `agreement funding get --agreement-id <id> --output json`, `card fetch --pin --output json`, and `agreement status --agreement-id <id> --output json`.
 
 ### Exit codes
 
@@ -521,7 +521,7 @@ Three `next_command` values on this lane are emitted **without the `kseller` pre
 | 7 | CONFLICT | You signed against a state that moved, or an id already taken. Re-read, rebuild, retry |
 | 8 | PROTOCOL | A **local** refusal — verification, canonicalization, or signing failed here and nothing was sent |
 
-There is no exit code 9, and code 10 is unreachable from `kseller`.
+There is no exit code 9, and code 10 is unreachable from `kagent`.
 
 ### `error_code` to exit code
 

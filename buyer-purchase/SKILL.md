@@ -303,7 +303,7 @@ Most errors carry a `next_command` that is the correct recovery. Prefer it over 
 
 Do not attempt any of the following. They will fail:
 
-- `kpass agent agreement accept` / `agreement deliver` / `agreement evidence add` — **seller-only** verbs, on the `kseller` binary. A buyer confirms; it does not accept.
+- `kpass agent agreement accept` / `agreement deliver` / `agreement evidence add` — **seller-only** verbs, on the `kagent` binary. A buyer confirms; it does not accept.
 - `kpass agent agreement cancel` / `agreement appeal` / `agreement arbitrate` — none exist. Rejection opens the dispute branch and the contract's arbiter decides.
 - `kpass agent session status --request-id ...` — resolves to a **different, legacy command**. The buyer-lane verb is `session request-status`.
 - `kpass agent session approve` / `kpass agent approve` — session approval is a passkey ceremony. No CLI verb can approve one.
@@ -342,6 +342,6 @@ Before running any command, verify:
 ## Cross-Skill References
 
 - **Prerequisites:** the **`buyer-agent-setup`** skill (active binding) and the **`buyer-find-seller`** skill (seller reference, published terms, pinned persona card).
-- **The counterparty's side of this flow:** the **`seller-fulfill`** skill (`kseller`) — what the seller does between your propose and your confirm.
+- **The counterparty's side of this flow:** the **`seller-fulfill`** skill (`kagent`) — what the seller does between your propose and your confirm.
 - **Paid HTTP endpoints instead of agreements:** the **`request-session`** and **`x402-execute`** skills in the `user` group.
 - **Group contract (permission glob, envelope, exit codes):** [`buyer-agent/README.md`](../buyer-agent/README.md).

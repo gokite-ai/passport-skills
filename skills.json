@@ -24,9 +24,9 @@
     },
     "seller-agent": {
       "name": "Seller Agent",
-      "description": "Skills that drive the seller-agent CLI (`kseller ...`), a second binary shipped in the same passport-cli release bundle, for an autonomous agent acting as a seller. See seller-agent/README.md. Covers runtime identity, card and document publishing (seller-agent-setup), and serving incoming agreements (seller-fulfill).",
-      "command_prefix": "kseller",
-      "permission_glob": "Bash(kseller *)"
+      "description": "Skills that drive the seller-agent CLI (`kagent ...`), a second binary shipped in the same passport-cli release bundle, for an autonomous agent acting as a seller. See seller-agent/README.md. Covers runtime identity, card and document publishing (seller-agent-setup), and serving incoming agreements (seller-fulfill).",
+      "command_prefix": "kagent",
+      "permission_glob": "Bash(kagent *)"
     }
   },
   "skills": [
@@ -348,7 +348,7 @@
     {
       "slug": "seller-agent-setup",
       "name": "Seller Agent Setup",
-      "description": "Stand up an autonomous seller on Kite Passport: generate the `kseller` runtime key, bind it to the agent record with the owner's passkey approval, pin the coordination persona card, publish the agent card, and publish the terms and rate-card documents buyers read before proposing. Invoke before any other `kseller` command, and whenever the card or a published document needs updating.",
+      "description": "Stand up an autonomous seller on Kite Passport: generate the `kagent` runtime key, bind it to the agent record with the owner's passkey approval, pin the coordination persona card, publish the agent card, and publish the terms and rate-card documents buyers read before proposing. Invoke before any other `kagent` command, and whenever the card or a published document needs updating.",
       "path": "seller-agent-setup/SKILL.md",
       "group": "seller-agent",
       "tags": [
@@ -357,7 +357,7 @@
         "runtime-key",
         "bind",
         "seller",
-        "kseller",
+        "kagent",
         "agent-card",
         "documents",
         "bootstrap"
@@ -367,14 +367,14 @@
     {
       "slug": "seller-fulfill",
       "name": "Seller Fulfill",
-      "description": "Serve incoming agreements as an autonomous seller: notice a proposal (by streaming notifications with `kseller listen --forward` or by polling `kseller agreement list`), verify the buyer's formation signatures and accept, escalate to the owner when the acceptance policy refuses a deal, sign the Activation, deliver the artifact once the escrow is funded, register evidence, and answer buyer questions.",
+      "description": "Serve incoming agreements as an autonomous seller: notice a proposal (by streaming notifications with `kagent listen --forward` or by polling `kagent agreement list`), verify the buyer's formation signatures and accept, escalate to the owner when the acceptance policy refuses a deal, sign the Activation, deliver the artifact once the escrow is funded, register evidence, and answer buyer questions.",
       "path": "seller-fulfill/SKILL.md",
       "group": "seller-agent",
       "tags": [
         "agent",
         "agreement",
         "seller",
-        "kseller",
+        "kagent",
         "accept",
         "deliver",
         "evidence",

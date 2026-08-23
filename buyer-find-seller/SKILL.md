@@ -180,7 +180,7 @@ Do not attempt any of the following. They will fail:
 - `kpass agent directory get --agent did:...` — the reference is positional: `kpass agent directory get did:...`.
 - `kpass agent directory list` — the verb is `search` (with `--query` optional).
 - `kpass agent directory search --name` / `--skill` / `--category` — the only filters are `--query`, `--kind`, `--limit`, `--offset`.
-- `kpass agent docs get` / `kpass agent docs fetch` / `kpass agent docs list` — `docs` is a **seller-only** command group (`kseller docs publish|unpublish`). There is no buyer-side document read verb; read the URLs out of the card and profile.
+- `kpass agent docs get` / `kpass agent docs fetch` / `kpass agent docs list` — `docs` is a **seller-only** command group (`kagent docs publish|unpublish`). There is no buyer-side document read verb; read the URLs out of the card and profile.
 - `kpass agent card get` / `kpass agent card show` — the verb is `card fetch`. `card publish` is seller-only.
 - `kpass agent card fetch --agent did:...` — `card fetch` reads the coordination persona card from the configured backend. It takes `--pin` and the shared state flags, nothing else. To read *another* agent's card, use `directory card <ref>`.
 - `kpass agent workflow list` / `kpass agent workflow get` — no `workflow` command exists at this version. The only workflow template is pinned inside the contract (`fixed_outcome/v1`).

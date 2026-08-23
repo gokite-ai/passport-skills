@@ -38,7 +38,7 @@ Each skill is a `SKILL.md` file that gets injected into an AI agent's context at
 | **buyer-agent-setup** | `buyer-agent-setup/` | Buyer-agent runtime identity: generate the `kpass agent` runtime key, bind it with the owner's passkey approval, confirm the binding. |
 | **buyer-find-seller** | `buyer-find-seller/` | Buyer-agent discovery: search the agent directory, verify a seller's card, keys and published terms, pin the coordination persona card. |
 | **buyer-purchase** | `buyer-purchase/` | Buyer-agent agreement lane: propose, owner-approved spending session, fund the escrow, verify the delivered artifact, confirm or reject, review. |
-| **seller-agent-setup** | `seller-agent-setup/` | Seller-agent runtime identity plus public face: `kseller` key, binding, pinned card, published agent card and terms/rate-card documents. |
+| **seller-agent-setup** | `seller-agent-setup/` | Seller-agent runtime identity plus public face: `kagent` key, binding, pinned card, published agent card and terms/rate-card documents. |
 | **seller-fulfill** | `seller-fulfill/` | Seller-agent fulfilment: notice proposals (stream or poll), accept with local verification, escalate policy refusals, sign the Activation, deliver, register evidence. |
 
 ## Skill Groups
@@ -52,7 +52,7 @@ prefix and the permission glob a host should scope that group's skills to.
 |-------|--------|------------------|
 | **user** | A human operator driving `kpass ...` directly (via Claude Code, Cursor, Cline, etc.). | `Bash(kpass *)` |
 | **buyer-agent** | An autonomous agent acting as a buyer, via `kpass agent ...`: `buyer-agent-setup`, `buyer-find-seller`, `buyer-purchase`. See [`buyer-agent/README.md`](buyer-agent/README.md). | `Bash(kpass agent *)` |
-| **seller-agent** | An autonomous agent acting as a seller, via the `kseller` binary (a second executable shipped in the same passport-cli release bundle): `seller-agent-setup`, `seller-fulfill`. See [`seller-agent/README.md`](seller-agent/README.md). | `Bash(kseller *)` |
+| **seller-agent** | An autonomous agent acting as a seller, via the `kagent` binary (a second executable shipped in the same passport-cli release bundle): `seller-agent-setup`, `seller-fulfill`. See [`seller-agent/README.md`](seller-agent/README.md). | `Bash(kagent *)` |
 
 Skills live in top-level directories named after their slug regardless of
 group -- group membership is recorded by the `group` field in `skills.json`,
@@ -107,7 +107,7 @@ buyer-find-seller   (directory search/get/card/keys + card fetch --pin)
        v
 buyer-purchase      (propose -> session request -> fund -> verify -> confirm/reject -> review)
 
-seller-agent-setup  (kseller init + bind + card fetch --pin + card/docs publish)
+seller-agent-setup  (kagent init + bind + card fetch --pin + card/docs publish)
        |
        v
 seller-fulfill      (listen or poll -> accept -> funding sign -> deliver -> evidence)
@@ -151,7 +151,7 @@ npx skills add gokite-ai/passport-skills/buyer-agent-setup
 npx skills add gokite-ai/passport-skills/buyer-find-seller
 npx skills add gokite-ai/passport-skills/buyer-purchase
 
-# Autonomous seller agent (uses the kseller binary):
+# Autonomous seller agent (uses the kagent binary):
 npx skills add gokite-ai/passport-skills/seller-agent-setup
 npx skills add gokite-ai/passport-skills/seller-fulfill
 ```
@@ -238,7 +238,7 @@ passport-skills/
   buyer-purchase/
     SKILL.md                     Buyer agreement lane: propose, session, fund, verify, confirm/reject, review
   seller-agent/
-    README.md                    Seller-agent group: purpose, kseller CLI surface, permission glob, envelope + exit codes
+    README.md                    Seller-agent group: purpose, kagent CLI surface, permission glob, envelope + exit codes
   seller-agent-setup/
     SKILL.md                     Seller runtime identity + card and terms/rate-card publishing
   seller-fulfill/

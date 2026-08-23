@@ -1,6 +1,6 @@
 # Seller Agent Setup — Command Reference
 
-Every command takes `--output json`. All flags are long-form; `--version` / `-V` on the root is the only shorthand anywhere in the `kseller` tree.
+Every command takes `--output json`. All flags are long-form; `--version` / `-V` on the root is the only shorthand anywhere in the `kagent` tree.
 
 ## Shared Flags
 
@@ -9,16 +9,16 @@ Every command takes `--output json`. All flags are long-form; `--version` / `-V`
 | `--output json` | string | (human text) | Required. `--output=json` also works. |
 | `--base-url <url>` | string | `https://passport.prod.gokite.ai` | Persistent root flag; overridden by `KITE_PASSPORT_BASE_URL`. |
 | `--no-interactive` | bool | `false` | Never prompt; fail if a required flag is missing. Pass it in unattended runs. |
-| `--key-file <path>` | string | `<role-dir>/runtime.key` | Overrides `KSELLER_RUNTIME_KEY_FILE`. Relocates the key alone. |
-| `--config-dir <path>` | string | `~/.kseller` | Relocates the whole role directory. Seller-only — the buyer surface does not have it. |
+| `--key-file <path>` | string | `<role-dir>/runtime.key` | Overrides `KAGENT_RUNTIME_KEY_FILE`. Relocates the key alone. |
+| `--config-dir <path>` | string | `~/.kagent` | Relocates the whole role directory. Seller-only — the buyer surface does not have it. |
 
-Key resolution order: `--key-file`, then `KSELLER_RUNTIME_KEY_FILE`, then `<config-dir or ~/.kseller>/runtime.key`. Resolution creates nothing; a bad path is exit 2.
+Key resolution order: `--key-file`, then `KAGENT_RUNTIME_KEY_FILE`, then `<config-dir or ~/.kagent>/runtime.key`. Resolution creates nothing; a bad path is exit 2.
 
-Colon-separated command paths work as aliases: `kseller agreement:funding:sign` is the same command as `kseller agreement funding sign`. The space-separated form is used throughout these skills.
+Colon-separated command paths work as aliases: `kagent agreement:funding:sign` is the same command as `kagent agreement funding sign`. The space-separated form is used throughout these skills.
 
 ---
 
-## `kseller init`
+## `kagent init`
 
 | Flag | Type | Default | Required | Notes |
 |---|---|---|---|---|
@@ -26,7 +26,7 @@ Colon-separated command paths work as aliases: `kseller agreement:funding:sign` 
 | `--force` | bool | `false` | no | Overwrite an existing runtime key. Destructive. |
 
 ```bash
-kseller init --output json
+kagent init --output json
 ```
 
 ```
@@ -34,8 +34,8 @@ kseller init --output json
   "_version": "1",
   "status": "success",
   "role": "seller",
-  "state_dir": "/Users/you/.kseller",
-  "key_file": "/Users/you/.kseller/runtime.key",
+  "state_dir": "/Users/you/.kagent",
+  "key_file": "/Users/you/.kagent/runtime.key",
   "imported": false,
   "address": "0x...",
   "thumbprint": "...",
@@ -43,17 +43,17 @@ kseller init --output json
   "pubkey": "...",
   "key_file_override": false,
   "hint": "Runtime key ready. Bind it to an agent so Passport recognizes this runtime.",
-  "next_command": "kseller bind --agent <did-or-agt-id> --output json"
+  "next_command": "kagent bind --agent <did-or-agt-id> --output json"
 }
 ```
 
-An existing key without `--force` is exit 2, hint `Replacing a bound key orphans every agreement pinned to it. Pass --force only if that is intended.`, `next_command: "kseller key show --output json"`. Bad key material is also exit 2.
+An existing key without `--force` is exit 2, hint `Replacing a bound key orphans every agreement pinned to it. Pass --force only if that is intended.`, `next_command: "kagent key show --output json"`. Bad key material is also exit 2.
 
 File mechanics: the key and the state file are both written through an exclusive temp file that is chmod'd to `0600` **before** any bytes are written, then renamed into place — a pre-placed file or symlink at the target is never reused. The directory is `0700`. The key is stored as hex plus a newline. `agent-state.json` stays in the role directory even when `--key-file` moves the key.
 
 ---
 
-## `kseller key show`
+## `kagent key show`
 
 No flags beyond the shared ones. Offline — it does not reach the backend.
 
@@ -65,10 +65,10 @@ No flags beyond the shared ones. Offline — it does not reach the backend.
   "key_id_fragment": "...",
   "thumbprint": "...",
   "pubkey": "...",
-  "key_file": "/Users/you/.kseller/runtime.key",
+  "key_file": "/Users/you/.kagent/runtime.key",
   "role": "seller",
   "hint": "keyId is <agent DID>#<fragment>; the DID is filled in once this key is bound to an agent.",
-  "next_command": "kseller status --output json"
+  "next_command": "kagent status --output json"
 }
 ```
 
@@ -76,7 +76,7 @@ No flags beyond the shared ones. Offline — it does not reach the backend.
 
 ---
 
-## `kseller bind`
+## `kagent bind`
 
 | Flag | Type | Default | Required | Notes |
 |---|---|---|---|---|
@@ -84,7 +84,7 @@ No flags beyond the shared ones. Offline — it does not reach the backend.
 | `--token <art_...>` | string | `""` | no | Owner-minted bind token; its presence selects the token path. |
 | `--wait` | bool | `false` | no | Poll until the binding becomes active. |
 | `--env <label>` | string | `""` | no | Environment label recorded on the binding. |
-| `--software <id>` | string | `kseller/<version> on <hostname>` | no | Software identifier recorded on the binding. |
+| `--software <id>` | string | `kagent/<version> on <hostname>` | no | Software identifier recorded on the binding. |
 | `--device <text>` | string | `""` | no | Device description recorded on the binding. |
 | `--poll-interval <seconds>` | **int** | `3` | no | Values below 1 are coerced to the default. |
 | `--timeout <seconds>` | **int** | `300` | no | Values below 1 are coerced to the default. |
@@ -114,7 +114,7 @@ The reference is resolved to its `agt_...` storage id before the proof is built,
   "pubkey": "...",
   "approval_url": "https://.../approve/...",
   "hint": "The binding is pending the agent owner's approval in their Passport. Runtime approval is an owner action and cannot be completed from this CLI. Approve at: https://...",
-  "next_command": "kseller status --output json"
+  "next_command": "kagent status --output json"
 }
 ```
 
@@ -130,7 +130,7 @@ The reference is resolved to its `agt_...` storage id before the proof is built,
 
 ---
 
-## `kseller status`
+## `kagent status`
 
 No flags beyond the shared ones. **Always exits 0** — the verdict is the envelope `status` plus `next_command`.
 
@@ -144,7 +144,7 @@ No flags beyond the shared ones. **Always exits 0** — the verdict is the envel
   "binding": { "bound": true, "status": "active", "agent_id": "agt_...", "agent_did": "did:kite:...",
                "agent_name": "...", "verified_tier": "...", "agent_address": "0x...",
                "runtime_id": "...", "bind_method": "direct", "key_id": "did:kite:...#<fragment>" },
-  "state_dir": "/Users/you/.kseller",
+  "state_dir": "/Users/you/.kagent",
   "hint": "...",
   "next_command": ""
 }
@@ -156,16 +156,16 @@ Verdict mapping, checked in this order — an unreachable backend masks the bind
 
 | Condition | Envelope `status` | `next_command` |
 |---|---|---|
-| No key present | `pending` | `kseller init --output json` |
-| Backend unreachable | `pending` | `kseller status --output json` |
+| No key present | `pending` | `kagent init --output json` |
+| Backend unreachable | `pending` | `kagent status --output json` |
 | `active` | `success` | `""` |
-| `pending` | `human_action_required` | `kseller status --output json` |
-| `revoked` | `pending` | `kseller init --force --output json` |
-| Otherwise (unbound) | `pending` | `kseller bind --agent <did-or-agt-id> --output json` |
+| `pending` | `human_action_required` | `kagent status --output json` |
+| `revoked` | `pending` | `kagent init --force --output json` |
+| Otherwise (unbound) | `pending` | `kagent bind --agent <did-or-agt-id> --output json` |
 
 ---
 
-## `kseller card fetch`
+## `kagent card fetch`
 
 | Flag | Type | Default | Notes |
 |---|---|---|---|
@@ -189,8 +189,8 @@ Fetches the coordination persona card from `<base-url>/.well-known/agent-card.js
   "chain_id": 8453,
   "templates": [ "fixed_outcome/v1" ],
   "signature_profiles": [ ... ],
-  "pin_file": "/Users/you/.kseller/agent-state.json",
-  "next_command": "kseller status --output json"
+  "pin_file": "/Users/you/.kagent/agent-state.json",
+  "next_command": "kagent status --output json"
 }
 ```
 
@@ -198,11 +198,11 @@ The hash is computed over the RFC 8785 canonical form, never the raw bytes. A ca
 
 `chain_context_complete` is `chain_id != 0 && escrow_vault != ""`. An incomplete context is **pinned, not refused**: the command succeeds with an appended hint that the card publishes no chainId/escrowVault and so does not conform. The refusal comes later, from the signing verbs (exit 8).
 
-This is the platform's persona card, not this agent's own card and not a buyer's. To read another agent's published card, use `kseller directory card <ref>`.
+This is the platform's persona card, not this agent's own card and not a buyer's. To read another agent's published card, use `kagent directory card <ref>`.
 
 ---
 
-## `kseller card publish`
+## `kagent card publish`
 
 | Flag | Type | Default | Required | Notes |
 |---|---|---|---|---|
@@ -219,7 +219,7 @@ Content rules, all exit 2 and all before anything is sent:
 Nothing else is validated or reshaped. An empty `--file` is exit 2 with the hint `The card is a JSON object this agent authors: a name at minimum, plus whatever description and skills it declares.`
 
 ```bash
-kseller card publish --file ./card.json --output json
+kagent card publish --file ./card.json --output json
 ```
 
 ```
@@ -235,7 +235,7 @@ kseller card publish --file ./card.json --output json
   "card_hash_recomputed": "...",
   "served_card": { ... },
   "hint": "...",
-  "next_command": "kseller directory card <did> --output json"
+  "next_command": "kagent directory card <did> --output json"
 }
 ```
 
@@ -251,7 +251,7 @@ Republishing replaces the content in place. Any active runtime key of the agent 
 
 ---
 
-## `kseller docs publish`
+## `kagent docs publish`
 
 | Flag | Type | Default | Required | Notes |
 |---|---|---|---|---|
@@ -280,7 +280,7 @@ Validations, all exit 2, all before signing:
 `rate-card` is the only kind whose bytes are parsed locally.
 
 ```bash
-kseller docs publish --kind rate-card --file ./rate-card.json --output json
+kagent docs publish --kind rate-card --file ./rate-card.json --output json
 ```
 
 ```
@@ -313,7 +313,7 @@ Two fields to read every time:
 
 ---
 
-## `kseller docs unpublish`
+## `kagent docs unpublish`
 
 | Flag | Type | Default | Required |
 |---|---|---|---|
@@ -328,7 +328,7 @@ Clearing an unset pointer reports `cleared: false` and is a **no-op, not a failu
 
 ---
 
-## `kseller directory card <ref>` — verifying what buyers see
+## `kagent directory card <ref>` — verifying what buyers see
 
 Positional reference, no flags of its own. The same read a buyer performs, including hash verification: the envelope carries `card_hash`, `card_hash_recomputed`, and `card_hash_verified`, and **a mismatch is exit 8** with both hashes in `details`.
 
@@ -371,4 +371,4 @@ In non-JSON mode the message goes to stderr with `Hint: ...` on a second line. A
 | 7 | CONFLICT | Agreement-plane state moved, or an id is already taken |
 | 8 | PROTOCOL | A **local** refusal — nothing was sent, do not retry the same bytes |
 
-There is no exit code 9. Code 10 (`BEHIND`) exists in the shared table but is unreachable from `kseller`, which has no `upgrade` verb.
+There is no exit code 9. Code 10 (`BEHIND`) exists in the shared table but is unreachable from `kagent`, which has no `upgrade` verb.

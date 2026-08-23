@@ -11,7 +11,7 @@ Both assume `seller-agent-setup` left an active binding, a pinned card with a co
 ### 1. Notice the proposal
 
 ```bash
-kseller agreement list --role seller --output json
+kagent agreement list --role seller --output json
 ```
 
 ```
@@ -25,12 +25,12 @@ kseller agreement list --role seller --output json
 }
 ```
 
-A service seller would have learned this from `kseller listen --forward ...` as an `agreement.proposed` notification instead — polling only finds it here because something already told this agent to look.
+A service seller would have learned this from `kagent listen --forward ...` as an `agreement.proposed` notification instead — polling only finds it here because something already told this agent to look.
 
 ### 2. Read the contract before deciding
 
 ```bash
-kseller agreement status --agreement-id agr_7f2a --output json
+kagent agreement status --agreement-id agr_7f2a --output json
 ```
 
 ```
@@ -62,7 +62,7 @@ Four things to check before accepting:
 ### 3. Accept
 
 ```bash
-kseller agreement accept --agreement-id agr_7f2a --output json
+kagent agreement accept --agreement-id agr_7f2a --output json
 ```
 
 ```
@@ -76,7 +76,7 @@ kseller agreement accept --agreement-id agr_7f2a --output json
   "amount_base_units": "25000000",
   "buyer_verified": true,
   "hint": "Committed. The funding context opens next, and both parties' Activation signatures are due before the escrow can be funded.",
-  "next_command": "kseller agreement funding get --agreement-id agr_7f2a --output json"
+  "next_command": "kagent agreement funding get --agreement-id agr_7f2a --output json"
 }
 ```
 
@@ -85,7 +85,7 @@ kseller agreement accept --agreement-id agr_7f2a --output json
 ### 4. Wait for the buyer to fund, then sign the Activation
 
 ```bash
-kseller agreement funding get --agreement-id agr_7f2a --output json
+kagent agreement funding get --agreement-id agr_7f2a --output json
 ```
 
 ```
@@ -102,8 +102,8 @@ kseller agreement funding get --agreement-id agr_7f2a --output json
 `activation_signable: false` because the buyer's wallet has not arrived. Signing now returns exit 8 with a hint saying it is a normal stage rather than a fault. Wait:
 
 ```bash
-kseller agreement status --agreement-id agr_7f2a --watch --output json
-kseller agreement funding get --agreement-id agr_7f2a --output json
+kagent agreement status --agreement-id agr_7f2a --watch --output json
+kagent agreement funding get --agreement-id agr_7f2a --output json
 ```
 
 ```
@@ -114,12 +114,12 @@ kseller agreement funding get --agreement-id agr_7f2a --output json
   "have_auth_3009": true,
   "activation": { "buyer": "0x9c...", ... },
   "activation_signable": true,
-  "next_command": "kseller agreement funding sign --agreement-id agr_7f2a --output json"
+  "next_command": "kagent agreement funding sign --agreement-id agr_7f2a --output json"
 }
 ```
 
 ```bash
-kseller agreement funding sign --agreement-id agr_7f2a --output json
+kagent agreement funding sign --agreement-id agr_7f2a --output json
 ```
 
 ```
@@ -145,7 +145,7 @@ kseller agreement funding sign --agreement-id agr_7f2a --output json
 ### 5. Wait for the escrow, then deliver
 
 ```bash
-kseller agreement status --agreement-id agr_7f2a --watch --output json
+kagent agreement status --agreement-id agr_7f2a --watch --output json
 ```
 
 ```
@@ -155,7 +155,7 @@ kseller agreement status --agreement-id agr_7f2a --watch --output json
 `FULFILLING` means the escrow is funded. Now — and only now — deliver:
 
 ```bash
-kseller agreement deliver --agreement-id agr_7f2a --file ./report.pdf --output json
+kagent agreement deliver --agreement-id agr_7f2a --file ./report.pdf --output json
 ```
 
 ```
@@ -175,7 +175,7 @@ kseller agreement deliver --agreement-id agr_7f2a --file ./report.pdf --output j
   "content_type": "application/pdf",
   "content_file": "./report.pdf",
   "hint": "Delivered. The buyer's own check is what settles this: it downloads the artifact, recomputes sha256, and compares it against the deliveryHash inside this signed command -- so keep the local file until the escrow releases.",
-  "next_command": "kseller agreement status --agreement-id agr_7f2a --watch --output json"
+  "next_command": "kagent agreement status --agreement-id agr_7f2a --watch --output json"
 }
 ```
 
@@ -184,7 +184,7 @@ kseller agreement deliver --agreement-id agr_7f2a --file ./report.pdf --output j
 ### 6. Watch for settlement
 
 ```bash
-kseller agreement status --agreement-id agr_7f2a --watch --output json
+kagent agreement status --agreement-id agr_7f2a --watch --output json
 ```
 
 ```
@@ -200,7 +200,7 @@ kseller agreement status --agreement-id agr_7f2a --watch --output json
 ### The policy refusal
 
 ```bash
-kseller agreement accept --agreement-id agr_91c4 --output json
+kagent agreement accept --agreement-id agr_91c4 --output json
 ```
 
 ```
@@ -209,7 +209,7 @@ kseller agreement accept --agreement-id agr_91c4 --output json
   "error_code": "acceptance_policy_violation",
   "error": "...",
   "hint": "The contract falls outside the owner's acceptance policy. Obtain the owner's approval for exactly this contract through the escalation flow, then retry.",
-  "next_command": "kseller escalate --kind acceptance-override --agreement-id agr_91c4 --summary <why this deal> --wait --output json"
+  "next_command": "kagent escalate --kind acceptance-override --agreement-id agr_91c4 --summary <why this deal> --wait --output json"
 }
 ```
 
@@ -224,7 +224,7 @@ The wrong reactions:
 Escalate, with a summary written for the person who will read it:
 
 ```bash
-kseller escalate \
+kagent escalate \
   --kind acceptance-override \
   --agreement-id agr_91c4 \
   --summary "Buyer did:kite:example-buyer proposes 25 USDC for a battery-storage market report, due in 48h. Above the usual per-deal ceiling but the buyer has two prior ACCEPTED agreements with us and the deliverable is a standard PDF report." \
@@ -242,7 +242,7 @@ kseller escalate \
   "approval_url": "https://passport.prod.gokite.ai/approve/esc_4a7",
   "approval_expires_at": "2026-08-22T10:15:00Z",
   "agreement_id": "agr_91c4",
-  "next_command": "kseller escalation status --id esc_4a7 --wait --output json"
+  "next_command": "kagent escalation status --id esc_4a7 --wait --output json"
 }
 ```
 
@@ -257,7 +257,7 @@ Surface the URL:
 Then:
 
 ```bash
-kseller escalation status --id esc_4a7 --wait --output json
+kagent escalation status --id esc_4a7 --wait --output json
 ```
 
 ```
@@ -267,14 +267,14 @@ kseller escalation status --id esc_4a7 --wait --output json
   "decision": { "decision": "approved", "decided_at": "...", "terms_hash": "0xcd..." },
   "decided": "approved",
   "hint": "Approved, and bound to this agreement's terms hash. The acceptance gate will admit exactly this contract once -- a second acceptance of the same deal finds the override spent.",
-  "next_command": "kseller agreement accept --agreement-id agr_91c4 --output json"
+  "next_command": "kagent agreement accept --agreement-id agr_91c4 --output json"
 }
 ```
 
 Re-run `accept`, exactly as the `next_command` says:
 
 ```bash
-kseller agreement accept --agreement-id agr_91c4 --output json
+kagent agreement accept --agreement-id agr_91c4 --output json
 ```
 
 ```
@@ -290,7 +290,7 @@ Had the owner declined, the envelope would be `status: "expired"` with an empty 
 The escrow is funded and delivery starts, but the network drops mid-way:
 
 ```bash
-kseller agreement deliver --agreement-id agr_91c4 --file ./report.pdf --output json
+kagent agreement deliver --agreement-id agr_91c4 --file ./report.pdf --output json
 ```
 
 ```
@@ -298,14 +298,14 @@ kseller agreement deliver --agreement-id agr_91c4 --file ./report.pdf --output j
   "status": "error",
   "error": "network error: ...",
   "hint": "... Delivery stopped with the artifact is stored (art_5c1) and registered as evidence ev_2b7. Re-run the same command with the same --file: the upload is idempotent on content and the evidence step reuses the record already registered for this hash, so a retry resumes rather than duplicating.",
-  "next_command": "kseller agreement deliver --agreement-id agr_91c4 --file ./report.pdf --output json"
+  "next_command": "kagent agreement deliver --agreement-id agr_91c4 --file ./report.pdf --output json"
 }
 ```
 
 The hint says exactly how far it got: the artifact is uploaded and the evidence record exists; only the signed command did not land. Re-run the identical command:
 
 ```bash
-kseller agreement deliver --agreement-id agr_91c4 --file ./report.pdf --output json
+kagent agreement deliver --agreement-id agr_91c4 --file ./report.pdf --output json
 ```
 
 ```
@@ -327,7 +327,7 @@ kseller agreement deliver --agreement-id agr_91c4 --file ./report.pdf --output j
 ### And if the escrow was not funded
 
 ```bash
-kseller agreement deliver --agreement-id agr_91c4 --file ./report.pdf --output json
+kagent agreement deliver --agreement-id agr_91c4 --file ./report.pdf --output json
 ```
 
 ```
@@ -339,10 +339,10 @@ kseller agreement deliver --agreement-id agr_91c4 --file ./report.pdf --output j
 }
 ```
 
-Exit 8, and the important part is in the hint: **the file was not uploaded.** The guard runs before step 3, so no work has been handed over. Note the `next_command` is missing the `kseller` prefix — prepend it:
+Exit 8, and the important part is in the hint: **the file was not uploaded.** The guard runs before step 3, so no work has been handed over. Note the `next_command` is missing the `kagent` prefix — prepend it:
 
 ```bash
-kseller agreement funding get --agreement-id agr_91c4 --output json
+kagent agreement funding get --agreement-id agr_91c4 --output json
 ```
 
 Wait for the buyer, then re-run the deliver.
@@ -350,7 +350,7 @@ Wait for the buyer, then re-run the deliver.
 ### A second delivery after the first succeeded
 
 ```bash
-kseller agreement deliver --agreement-id agr_91c4 --file ./report-v2.pdf --output json
+kagent agreement deliver --agreement-id agr_91c4 --file ./report-v2.pdf --output json
 ```
 
 ```

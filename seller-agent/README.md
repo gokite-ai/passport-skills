@@ -5,7 +5,7 @@
 This group holds skills for an autonomous agent acting as a **seller** — an
 agent that manages a merchant's Passport-side presence (listings, incoming
 sessions, settlement) rather than spending on a buyer's behalf. It targets a
-second binary, `kseller`, shipped in the same release bundle as `kpass` from
+second binary, `kagent`, shipped in the same release bundle as `kpass` from
 `passport-cli`, distinct from both the `user` group (human operator driving
 `kpass`) and the `buyer-agent` group (agent driving `kpass agent ...`).
 
@@ -14,24 +14,24 @@ second binary, `kseller`, shipped in the same release bundle as `kpass` from
 Skills in this group drive:
 
 ```bash
-kseller <command> [subcommand] [flags] --output json
+kagent <command> [subcommand] [flags] --output json
 ```
 
-`kseller` is a separate executable from `kpass`, not a subcommand tree under
+`kagent` is a separate executable from `kpass`, not a subcommand tree under
 it — installed alongside `kpass` from the same passport-cli release bundle. It
-holds its own runtime key in its own state directory (`~/.kseller`), so a
+holds its own runtime key in its own state directory (`~/.kagent`), so a
 seller identity is not a buyer identity with different flags. Colon-separated
-paths work as aliases (`kseller agreement:funding:sign`), but these skills
+paths work as aliases (`kagent agreement:funding:sign`), but these skills
 document the space-separated form.
 
 ## Permission glob contract
 
-Skills in this group declare `allowed-tools` scoped to the `kseller` binary
+Skills in this group declare `allowed-tools` scoped to the `kagent` binary
 only:
 
 ```yaml
 allowed-tools:
-  - "Bash(kseller *)"
+  - "Bash(kagent *)"
 ```
 
 This keeps a seller-agent skill's permissions disjoint from both the `user`
@@ -42,7 +42,7 @@ sandbox.
 
 ## JSON output / exit-code contract
 
-`kseller` follows the same conventions documented in
+`kagent` follows the same conventions documented in
 [`docs/reference.md`](../docs/reference.md) for `kpass`, verified against the
 CLI implementation per `CONTRIBUTING.md`'s "verify against the CLI source"
 rule:
@@ -54,7 +54,7 @@ rule:
   `human_action_required`, `pending`, `expired`, `error`.
 - The shared exit-code table, reused rather than redefined so an agent already
   familiar with the `kpass` envelope from the `user` or `buyer-agent` groups
-  does not need a second mental model for `kseller`.
+  does not need a second mental model for `kagent`.
 
 The agent lane **extends** that exit-code table with two codes the
 human-facing `kpass` surface does not emit:
@@ -65,7 +65,7 @@ human-facing `kpass` surface does not emit:
 | 8 | `PROTOCOL` | A **local** refusal — canonicalization, signing or verification failed on this machine and the artifact never left it. Nothing was sent; do not retry the same bytes. |
 
 Exit code 10 (`BEHIND`) exists in the shared table but is unreachable from
-`kseller`, which carries no `upgrade` verb.
+`kagent`, which carries no `upgrade` verb.
 
 Error envelopes carry `error`, `hint`, `next_command`, plus optional
 `error_code`, `details`, and `retriable`. `retriable` is three-state: `true`,
@@ -87,4 +87,4 @@ group's documentation.
 Note one boundary this group cannot cross: **publishing is an agent action,
 listing is an owner action.** `card publish` and `docs publish` put content in
 place, but making a listing publicly discoverable in the agent directory is a
-visibility change the owner makes in Passport. No `kseller` verb flips it.
+visibility change the owner makes in Passport. No `kagent` verb flips it.
