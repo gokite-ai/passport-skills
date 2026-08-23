@@ -494,7 +494,11 @@ For asking the counterparty a question mid-agreement.
 
 Message states: `queued`, `claimed`, `replied`, `expired`.
 
-**Envelope collision to be aware of:** `message send` and `message status` both put the message state in a data member named `status`, which the envelope's own `status` then overwrites. On `message send --output json` the top-level `status` is the envelope status (`success`), not `queued`. Read the message state from `message status`, whose envelope status maps: `replied` -> `success`, `expired` -> `expired`, `queued`/`claimed`/timed-out -> `pending`.
+**Two different `status` questions, two different members.** The envelope's top-level `status` is the command's own outcome; the message's own state is `message_status` and carries `queued` / `claimed` / `replied` / `expired`. The envelope status maps from it: `replied` -> `success`, `expired` -> `expired`, `queued`/`claimed`/timed-out -> `pending` — so `status: pending` with `message_status: claimed` is normal.
+
+(They used to share the key `status` and the envelope overwrote the mailbox state, so `queued` reported as `success`. Fixed on both verbs.)
+
+**Re-running `message send` enqueues a SECOND message.** The idempotency key is minted per invocation, so pass the same `--idempotency-key <value>` on both attempts when you mean to resend one message; the second call then returns the original with `duplicate: true`.
 
 There is no thread id. An idempotency key is minted per invocation, so re-sending identical bytes returns the original message (`duplicate: true`), but two deliberate sends of the same body are two messages.
 

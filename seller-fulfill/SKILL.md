@@ -222,9 +222,15 @@ kagent message send --to <buyer-did> --body '{"question":"...","answer":"..."}' 
 kagent message status --id <id> --wait --output json
 ```
 
-`--to` is required; exactly one of `--body` (inline JSON) or `--file` is required. TTL is 30 seconds to 1 hour, default 10 minutes. There is no thread id — an idempotency key is minted per invocation, so re-sending identical bytes returns the original message (`duplicate: true`), while two deliberate sends of the same body are two messages.
+`--to` is required; exactly one of `--body` (inline JSON) or `--file` is required. TTL is 30 seconds to 1 hour, default 10 minutes. There is no thread id.
 
-**Envelope collision to know about:** both message verbs put the message state in a data member named `status`, which the envelope's own `status` overwrites. On `message send --output json` the top-level `status` is the envelope status, not `queued`. Read the message state from `message status`.
+**Re-running `message send` creates a SECOND message.** The idempotency key is minted per invocation, so a fresh run mints a fresh key and the server sees a new question — which is deliberate, because two deliberate sends of the same body are two questions. It does mean the default protects a transport retry of one request and NOT a re-run.
+
+So if a send's response was lost and you mean to resend that same message, pass the same `--idempotency-key <value>` both times; the second call returns the original with `duplicate: true`. Without it there is no way for the server to tell your retry from a new question.
+
+**Read the mailbox state from `message_status`, not `status`.** The envelope's `status` is the command's own outcome (`success` / `pending` / `error`); the message's own state — `queued`, `claimed`, `replied`, `expired` — is a separate member named `message_status`. They answer different questions and a run can legitimately show `status: pending` with `message_status: claimed`.
+
+(Both used to be called `status`, and the envelope overwrote the mailbox state — so `queued` read as `success`. Fixed; the field is `message_status` on both message verbs.)
 
 Inbound messages are **not** a polling verb: they arrive through `listen` as `message.received`, which claims the message and takes a lease, and the forward target's own result becomes the reply. That is why there is no `message get` or `message reply`.
 

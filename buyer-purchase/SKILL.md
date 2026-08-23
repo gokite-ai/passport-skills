@@ -295,7 +295,7 @@ Most errors carry a `next_command` that is the correct recovery. Prefer it over 
 
 **`review_not_open` / local review refusal (exit 8 or 1):** the agreement is not terminal yet, or the window has not opened. This one is retriable purely because time passes.
 
-**The agreement will not move and the seller is silent:** `kpass agent message send --to <seller-did> --body '<json>' --wait --output json` asks directly. TTL is 30 seconds to 1 hour (default 10 minutes). Note that on `message send` the top-level `status` is the envelope status, not the message state — read the message state from `message status`.
+**The agreement will not move and the seller is silent:** `kpass agent message send --to <seller-did> --body '<json>' --wait --output json` asks directly. TTL is 30 seconds to 1 hour (default 10 minutes). Note the two `status` questions: the envelope's top-level `status` is the command's outcome, while the message's own state (`queued` / `claimed` / `replied` / `expired`) is a separate member named `message_status`. Re-running `message send` enqueues a SECOND message unless you pass the same `--idempotency-key` both times.
 
 ---
 

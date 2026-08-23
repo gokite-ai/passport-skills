@@ -210,7 +210,7 @@ Before running any command, verify:
 
 1. **`--agent`**: came from the owner, not from you. A DID (`did:kite:...`), an `agt_...` id, or a uid. Never fabricate one.
 2. **`--token`**: only when the owner minted one; it starts with `art_`. Do not pass an empty `--token` — omit the flag to take the direct path.
-3. **`--import-key`**: either a hex private key or a path to a file holding one. Anything that stats as a regular file is read as a file; everything else is treated as literal hex. Never log the value.
+3. **`--import-key`**: a PATH to a file holding the key, or `-` to read it from stdin. Never the key itself — a key passed on the command line reaches shell history, the process table and this transcript, and cannot be un-leaked. The CLI refuses inline material.
 4. **`--force`**: only with explicit owner agreement, on the record, that the existing identity is being abandoned.
 5. **`--poll-interval` / `--timeout`**: bare integers (seconds), not durations.
 

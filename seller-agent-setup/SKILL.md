@@ -296,7 +296,7 @@ Before running any command, verify:
 
 1. **`--agent`**: came from the owner. A DID, `agt_` id, or uid. Never fabricated.
 2. **`--token`**: only when the owner minted one; starts with `art_`. Omit the flag for the direct path rather than passing it empty.
-3. **`--import-key`**: a hex private key or a path to a file holding one. Never logged.
+3. **`--import-key`**: a PATH to a file holding the key, or `-` to read it from stdin. Never the key itself — a key passed on the command line reaches shell history, the process table and this transcript, and cannot be un-leaked. The CLI refuses inline material.
 4. **`--force`**: only with explicit owner agreement that the identity is being abandoned.
 5. **`--poll-interval` / `--timeout` on bind**: bare integers (seconds), not durations.
 6. **Card file**: a JSON **object** with a non-empty `name`, containing no key material.

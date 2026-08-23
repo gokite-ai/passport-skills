@@ -23,7 +23,7 @@ Generate (or import) the secp256k1 runtime key.
 
 | Flag | Type | Default | Required | Notes |
 |---|---|---|---|---|
-| `--import-key <hex-or-path>` | string | `""` | no | Import instead of generating. A value that stats as a regular file is read as a file; anything else is treated as literal hex. |
+| `--import-key <file\|->` | string | `""` | no | Import instead of generating. A PATH to a file holding the key, or `-` for stdin. Inline key material is REFUSED: argv reaches shell history, the process table and agent transcripts. |
 | `--force` | bool | `false` | no | Overwrite an existing runtime key. Destructive — see below. |
 
 ```bash

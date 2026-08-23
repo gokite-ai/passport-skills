@@ -22,7 +22,7 @@ Colon-separated command paths work as aliases: `kagent agreement:funding:sign` i
 
 | Flag | Type | Default | Required | Notes |
 |---|---|---|---|---|
-| `--import-key <hex-or-path>` | string | `""` | no | A value that stats as a regular file is read as a file; anything else is treated as literal hex. |
+| `--import-key <file\|->` | string | `""` | no | A PATH to a file holding the key, or `-` for stdin. Inline key material is REFUSED: argv reaches shell history, the process table and agent transcripts. |
 | `--force` | bool | `false` | no | Overwrite an existing runtime key. Destructive. |
 
 ```bash

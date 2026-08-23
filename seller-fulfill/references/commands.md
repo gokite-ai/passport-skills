@@ -399,6 +399,7 @@ Flags: `--agreement-id` (required). Available to both roles.
 | `--skill <name>` | string | `""` | no | An unvalidated routing hint. |
 | `--ttl <duration>` | duration | `0` (server default 10m) | no | Between `30s` and `1h` when non-zero; outside that is exit 2. |
 | `--wait` | bool | `false` | no | Poll until the recipient replies or the TTL elapses. No `--timeout`. |
+| `--idempotency-key <value>` | string | `""` (fresh per invocation) | no | Reuse the SAME value to resend one message: the second call returns the original with `duplicate: true`. Without it a re-run mints a new key and enqueues a second message — the default protects a transport retry, not a re-run. |
 
 Validation, all exit 2: `--to is required.`; `--body and --file cannot both be given.`; `A message body is required: pass --body or --file.`; `The message body is not valid JSON.`
 
@@ -412,7 +413,9 @@ Message states: `queued`, `claimed`, `replied`, `expired`.
 | `expired` | `expired` |
 | `queued`, `claimed`, or a timed-out wait | `pending` |
 
-**Envelope collision:** both verbs put the message state in a data member named `status`, which the envelope's own `status` overwrites. On `message send --output json` the top-level `status` is the envelope status, not `queued`.
+**Two different `status` questions, two different members.** The envelope's `status` is the table above — the command's own outcome. The message's own state is `message_status`, and it is the one carrying `queued` / `claimed` / `replied` / `expired`. A reply of `status: pending` with `message_status: claimed` is normal and means "still working on it".
+
+(They used to share the key `status`, and the envelope overwrote the mailbox state, so `queued` reported as `success`. Fixed on both verbs.)
 
 No thread id exists. An idempotency key is minted per invocation, so identical bytes resent return the original message (`duplicate: true`), while two deliberate sends of the same body are two messages.
 
