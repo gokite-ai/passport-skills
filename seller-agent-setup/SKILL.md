@@ -12,6 +12,7 @@ description: >-
 user-invocable: true
 allowed-tools:
   - "Bash(bash */setup.sh*)"
+  - "Bash(bash */setup-kagent.sh*)"
   - "Bash(kagent *)"
 ---
 
@@ -26,6 +27,12 @@ One boundary to be clear about up front: **this agent publishes; the owner lists
 ## Step 0: Ensure the CLI Bundle Is Installed — MANDATORY
 
 ```bash
+# 1. Make sure kagent itself is present. setup.sh ensures kpass, which this
+#    skill does not drive — the seller agent's binary is kagent, it arrived in
+#    CLI 1.11.0, and an older bundle installs kpass without it.
+bash <skill-directory>/scripts/setup-kagent.sh
+
+# 2. Then the shared CLI floor.
 bash <skill-directory>/scripts/setup.sh
 ```
 
