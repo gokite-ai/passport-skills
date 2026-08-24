@@ -152,7 +152,7 @@ done <<< "$GROUP_DIRS"
 echo "  [OK] skill groups are consistent"
 
 # ---- Check 7: setup.sh fallback version pins match skills.json ----
-# Skill-local setup.sh copies embed DEFAULT_MIN_CLI_VERSION as the fallback for
+# Skill-local setup.sh copies embed DEFAULT_MIN_KPASS_VERSION as the fallback for
 # standalone installs where skills.json does not ship. A drifted fallback
 # silently accepts a CLI older than the skills can drive.
 #
@@ -161,16 +161,16 @@ echo "  [OK] skill groups are consistent"
 # notice — one line of --help text — while costing a seven-way duplication that
 # had to be raised for every CLI release, and a hard upper-bound gate in
 # passport-release that failed the bundle when it was not.
-MIN_CLI=$(node -e "console.log(JSON.parse(require('fs').readFileSync('$SKILLS_JSON','utf8')).min_cli_version.split('-')[0])")
+MIN_KPASS=$(node -e "console.log(JSON.parse(require('fs').readFileSync('$SKILLS_JSON','utf8')).min_kpass_version.split('-')[0])")
 
 while IFS= read -r script; do
-  s_min=$(grep -oE '^DEFAULT_MIN_CLI_VERSION="[^"]*"' "$script" | cut -d'"' -f2 || true)
+  s_min=$(grep -oE '^DEFAULT_MIN_KPASS_VERSION="[^"]*"' "$script" | cut -d'"' -f2 || true)
   rel="${script#"$REPO_ROOT"/}"
   if [[ -z "$s_min" ]]; then
-    echo "  FAIL: $rel — missing DEFAULT_MIN_CLI_VERSION pin"
+    echo "  FAIL: $rel — missing DEFAULT_MIN_KPASS_VERSION pin"
     ERRORS=$((ERRORS + 1))
-  elif [[ "$s_min" != "$MIN_CLI" ]]; then
-    echo "  FAIL: $rel — fallback floor ($s_min) drifted from skills.json ($MIN_CLI)"
+  elif [[ "$s_min" != "$MIN_KPASS" ]]; then
+    echo "  FAIL: $rel — fallback floor ($s_min) drifted from skills.json ($MIN_KPASS)"
     ERRORS=$((ERRORS + 1))
   else
     echo "  [OK] $rel fallback floor matches skills.json"
