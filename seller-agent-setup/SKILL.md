@@ -20,7 +20,7 @@ allowed-tools:
 
 Everything a seller agent needs before it can be proposed to. `kagent` is a **separate binary** from `kpass`, shipped in the same passport-cli bundle, with its own runtime key and its own state directory. A seller identity is not a buyer identity with different flags — the two binaries hold different keys and bind to different agent records.
 
-The bootstrap is five steps, and the order matters: `init` -> `bind` (owner approves) -> `card fetch --pin` -> `card publish` -> `docs publish`. The pin is a hard prerequisite for every signing verb, not a nicety.
+The bootstrap is five steps, and the order matters: `init` -> `bind` (owner approves) -> `card fetch --pin` -> `card publish` -> `docs publish`. A seller that serves its card at its own https origin adds `card set-url` beside the publish, which flips precedence to that origin. The pin is a hard prerequisite for every signing verb, not a nicety.
 
 One boundary to be clear about up front: **this agent publishes; the owner lists.** Making a published card publicly discoverable in the agent directory is a visibility change the owner makes in Passport. `card publish` puts the content in place; it does not flip the listing.
 
@@ -125,6 +125,14 @@ Exit 2 with a hint about orphaning means a key already exists. Check `kagent sta
 
 You cannot discover this. The owner creates the seller agent record and tells you which one this runtime represents — a `did:kite:...` DID, an `agt_...` id, or a uid. A reference that does not resolve is exit 4, not something to retry with guesses.
 
+What they run is either the Passport dashboard or, with their own login:
+
+```bash
+kpass agent create --uid <slug> --kind seller --output json
+```
+
+That is the owner's command, not yours: it authenticates with their JWT, and the `uid` becomes the tail of the DID permanently — neither can be changed afterwards, only replaced by a new agent. (The display name IS editable later; the uid is not.) A seller created without a `--url` starts **unlisted**, which is correct at this point: it has no card yet for a buyer to read.
+
 ### Step 3: Bind, and Surface the Approval
 
 ```bash
@@ -175,6 +183,22 @@ Nothing else is validated or reshaped — the rest of the content is this agent'
 **A mismatch does not fail the publish** — the envelope is still `success`, exit 0, with a hint that begins `PUBLISHED, BUT THE HASH COULD NOT BE CONFIRMED.` Read `card_hash_verified` rather than the exit code. An unconfirmed hash is worth reporting: buyers verify this hash on their side and refuse to proceed when it does not match.
 
 Republishing replaces the content in place, so correcting a card is just another `card publish`.
+
+**If this agent serves its card at its own https origin**, say so instead of relying on the published copy:
+
+```bash
+kagent card set-url --url https://seller.example --output json
+```
+
+Precedence follows the URL. With an origin, the card served *there* is what buyers read and the published card becomes the fallback; with none, the published card is the answer — which is what makes an agent with no address of its own reachable at all. `--clear` stops claiming an origin and falls back to the published card.
+
+Two things to read rather than assume:
+
+- **`card_source` is the result, not an echo.** It becomes `self_hosted` only once the card at that origin has actually been observed. `platform_held` straight after a set means discovery has not landed yet, not that the URL was ignored — do not let a contract pin anything until a re-read agrees.
+- **A failed ladder costs the TIER, not the readability.** The verification ladder fetches the card at that origin and its registry-binding check wants an `x-kite-registry.agentId` declaring this agent's DID. Failing it does **not** stop the card being served — discovery is not verification, so a card that was found is what buyers read either way — it leaves the agent unverified. Read the tier with `kagent directory get <ref>` rather than assuming a served card is a verified one.
+- **The same URL is a retry.** Running `set-url` again with the same origin re-attempts discovery while no card has been found there, which is how a first attempt that failed on DNS, a certificate still issuing or a card not yet deployed is recovered from. Nothing re-probes on its own, so waiting does not help; once a card is found the repeat changes nothing.
+
+Clearing the URL of a **listed** seller is refused unless it stays readable without one (an active binding and a published card): a listing nobody can read is worse than no listing.
 
 ### Step 6: Publish the Documents
 

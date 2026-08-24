@@ -251,6 +251,82 @@ Republishing replaces the content in place. Any active runtime key of the agent 
 
 ---
 
+## `kagent card set-url`
+
+Where this agent serves its own card from. The mirror image of `card publish`:
+that verb hands the platform a card for an agent with no address of its own,
+this one says the agent HAS one.
+
+| Flag | Type | Default | Required | Notes |
+|---|---|---|---|---|
+| `--url <https url>` | string | `""` | one of | The https origin serving this agent's card. |
+| `--clear` | bool | `false` | one of | Stop claiming an origin; fall back to the published card. |
+
+Local refusals, all exit 2 and all before an envelope is signed:
+
+| Check | Failure message |
+|---|---|
+| One of `--url` / `--clear` | `--url is required.` |
+| Not both | `--clear and --url are mutually exclusive.` |
+| https only | `--url <u> is not https.` |
+
+```bash
+kagent card set-url --url https://seller.example --output json
+```
+
+```
+{
+  "status": "success",
+  "agent_id": "agt_...",
+  "agent_did": "did:kite:...",
+  "url": "https://seller.example",
+  "card_source": "platform_held",
+  "hint": "NOT served from that origin yet: ...",
+  "next_command": "kagent directory card <did> --output json"
+}
+```
+
+### Precedence follows the URL
+
+With an origin, the card served **there** is what buyers read and the published
+card becomes the fallback. With none, the published card is the answer — which is
+what makes an agent with no address of its own reachable at all.
+
+### `card_source` is the result, not an echo
+
+It reports what a public card read would answer **now**:
+
+| Value | Meaning |
+|---|---|
+| `self_hosted` | The card at your origin has been observed and is what buyers read. |
+| `platform_held` | The origin's card has **not** been observed yet; the published card is still what buyers read. |
+| `none` | Neither exists — buyers have nothing to read. |
+
+`platform_held` straight after a set means discovery has not landed, not that the
+URL was ignored. Do not let a contract pin anything until a re-read agrees.
+
+### A failed ladder costs the tier, not the serving
+
+The verification ladder fetches the card at that origin and its registry-binding
+check wants an `x-kite-registry.agentId` declaring **this** agent's DID. Failing
+it does NOT stop the card being served: discovery is not verification, so a card
+that was found is what buyers read whether or not the checks passed. What the
+agent loses is its verification tier — read it with `kagent directory get <ref>`.
+
+### The same URL is a retry, not a no-op
+
+While no card has been found at the origin, repeating `set-url` with the same URL
+re-attempts discovery. Nothing re-probes on its own, so a first attempt that
+failed on DNS, a certificate still issuing or a card not yet deployed is
+recovered from by running the command again — not by waiting. Once a card IS
+found the repeat changes nothing and does not touch the row.
+
+Clearing the URL of a **listed** seller is refused unless it stays readable
+without one (an active binding and a published card): `listing requires an active
+binding and a published card`.
+
+---
+
 ## `kagent docs publish`
 
 | Flag | Type | Default | Required | Notes |

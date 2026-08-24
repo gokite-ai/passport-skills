@@ -177,6 +177,25 @@ while IFS= read -r script; do
   fi
 done < <(find "$REPO_ROOT" -maxdepth 3 -name "setup.sh" -path "*/scripts/*" -not -path "*/node_modules/*" | grep -v "setup-ksearch")
 
+# The kagent pins were unchecked until a release moved both floors and only the
+# kpass side was caught by anything. Same duplication, same failure mode: a
+# drifted fallback installs a kagent the skills cannot drive.
+MIN_KAGENT=$(node -e "console.log(JSON.parse(require('fs').readFileSync('$SKILLS_JSON','utf8')).min_kagent_version.split('-')[0])")
+
+while IFS= read -r script; do
+  s_min=$(grep -oE '^DEFAULT_MIN_KAGENT_VERSION="[^"]*"' "$script" | cut -d'"' -f2 || true)
+  rel="${script#"$REPO_ROOT"/}"
+  if [[ -z "$s_min" ]]; then
+    echo "  FAIL: $rel — missing DEFAULT_MIN_KAGENT_VERSION pin"
+    ERRORS=$((ERRORS + 1))
+  elif [[ "$s_min" != "$MIN_KAGENT" ]]; then
+    echo "  FAIL: $rel — fallback floor ($s_min) drifted from skills.json ($MIN_KAGENT)"
+    ERRORS=$((ERRORS + 1))
+  else
+    echo "  [OK] $rel fallback floor matches skills.json"
+  fi
+done < <(find "$REPO_ROOT" -maxdepth 3 -name "setup-kagent.sh" -path "*/scripts/*" -not -path "*/node_modules/*")
+
 # ---- Summary ----
 echo ""
 if [[ "$ERRORS" -gt 0 ]]; then
