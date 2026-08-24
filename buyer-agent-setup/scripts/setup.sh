@@ -25,7 +25,6 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 # not ship — scripts/validate.sh checks in CI that they stay in sync with
 # skills.json, because a drifted fallback silently installs a CLI the skills
 # cannot drive.
-DEFAULT_CLI_VERSION="1.11.10"  # informational ceiling = skills.json max_cli_version
 DEFAULT_MIN_CLI_VERSION="1.5.0"  # floor = skills.json min_cli_version (pre-release tag dropped)
 
 SKILLS_JSON=""
@@ -49,12 +48,8 @@ read_skills_json_field() {
   fi
 }
 
-CLI_VERSION="$DEFAULT_CLI_VERSION"
 MIN_CLI_VERSION="$DEFAULT_MIN_CLI_VERSION"
 if [[ -n "$SKILLS_JSON" ]]; then
-  if PARSED=$(read_skills_json_field max_cli_version 2>/dev/null) && [[ -n "$PARSED" && "$PARSED" != "null" ]]; then
-    CLI_VERSION="$PARSED"
-  fi
   if PARSED=$(read_skills_json_field min_cli_version 2>/dev/null) && [[ -n "$PARSED" && "$PARSED" != "null" ]]; then
     MIN_CLI_VERSION="${PARSED%%-*}"  # drop pre-release tag for numeric compare
   fi
@@ -67,7 +62,6 @@ if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
   echo "Kite Passport CLI Bootstrap"
   echo ""
   echo "Ensures kpass >= ${MIN_CLI_VERSION} is installed and available on PATH."
-  echo "This bundle is validated against kpass up to ${CLI_VERSION}."
   echo "If not found (or too old), attempts to install it automatically."
   echo ""
   echo "Usage: bash setup.sh"
