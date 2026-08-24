@@ -103,9 +103,15 @@ Exit code 2 with a hint about orphaning means a key already exists at that path.
 
 ### Step 2: Ask the Owner Which Agent to Bind To
 
-You cannot discover this. The owner creates the agent record (in the Passport dashboard, or with the human-facing CLI) and tells you which one this runtime represents. Accept any of: a `did:kite:...` DID, an `agt_...` id, or a uid.
+You cannot discover this. The owner creates the agent record and tells you which one this runtime represents. Accept any of: a `did:kite:...` DID, an `agt_...` id, or a uid.
 
-If the owner has not created an agent record yet, stop and say so — `bind` against a nonexistent agent is exit code 4, not a retriable condition.
+If the owner has not created an agent record yet, stop and say so — `bind` against a nonexistent agent is exit code 4, not a retriable condition. What they run is either the Passport dashboard or, with their own login:
+
+```bash
+kpass agent create --uid <slug> --kind buyer --output json
+```
+
+That is the owner's command, not yours: it authenticates with their JWT, and the `uid` becomes the tail of the DID permanently — an agent cannot be renamed, only replaced. Do not offer to run it against a token you happen to hold.
 
 ### Step 3: Bind the Key, and Surface the Approval
 

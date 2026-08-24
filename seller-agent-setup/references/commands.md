@@ -251,6 +251,73 @@ Republishing replaces the content in place. Any active runtime key of the agent 
 
 ---
 
+## `kagent card set-url`
+
+Where this agent serves its own card from. The mirror image of `card publish`:
+that verb hands the platform a card for an agent with no address of its own,
+this one says the agent HAS one.
+
+| Flag | Type | Default | Required | Notes |
+|---|---|---|---|---|
+| `--url <https url>` | string | `""` | one of | The https origin serving this agent's card. |
+| `--clear` | bool | `false` | one of | Stop claiming an origin; fall back to the published card. |
+
+Local refusals, all exit 2 and all before an envelope is signed:
+
+| Check | Failure message |
+|---|---|
+| One of `--url` / `--clear` | `--url is required.` |
+| Not both | `--clear and --url are mutually exclusive.` |
+| https only | `--url <u> is not https.` |
+
+```bash
+kagent card set-url --url https://seller.example --output json
+```
+
+```
+{
+  "status": "success",
+  "agent_id": "agt_...",
+  "agent_did": "did:kite:...",
+  "url": "https://seller.example",
+  "card_source": "platform_held",
+  "hint": "NOT served from that origin yet: ...",
+  "next_command": "kagent directory card <did> --output json"
+}
+```
+
+### Precedence follows the URL
+
+With an origin, the card served **there** is what buyers read and the published
+card becomes the fallback. With none, the published card is the answer — which is
+what makes an agent with no address of its own reachable at all.
+
+### `card_source` is the result, not an echo
+
+It reports what a public card read would answer **now**:
+
+| Value | Meaning |
+|---|---|
+| `self_hosted` | The card at your origin has been observed and is what buyers read. |
+| `platform_held` | The origin's card has **not** been observed yet; the published card is still what buyers read. |
+| `none` | Neither exists — buyers have nothing to read. |
+
+`platform_held` straight after a set means discovery has not landed, not that the
+URL was ignored. Do not let a contract pin anything until a re-read agrees.
+
+### Setting the URL earns nothing by itself
+
+The verification ladder fetches the card at that origin and requires its
+`x-kite-registry.agentId` to declare **this** agent's DID. An origin that does
+not name this agent back is refused, so the claim only works when the origin
+already claims the agent.
+
+Clearing the URL of a **listed** seller is refused unless it stays readable
+without one (an active binding and a published card): `listing requires an active
+binding and a published card`.
+
+---
+
 ## `kagent docs publish`
 
 | Flag | Type | Default | Required | Notes |
