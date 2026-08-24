@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Kite Passport CLI Bootstrap Script
 #
-# Ensures the kpass CLI is installed, on PATH, and at least MIN_CLI_VERSION.
+# Ensures the kpass CLI is installed, on PATH, and at least MIN_KPASS_VERSION.
 # Installs via the official bundle installer (https://cli.gokite.ai/install.sh)
 # when missing or stale.
 #
@@ -13,7 +13,7 @@
 #   {"status":"error","error":"..."}
 #
 # Exit codes:
-#   0  kpass >= MIN_CLI_VERSION is available.
+#   0  kpass >= MIN_KPASS_VERSION is available.
 #   1  Could not install (or upgrade to) a suitable kpass.
 set -euo pipefail
 
@@ -25,8 +25,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 # not ship — scripts/validate.sh checks in CI that they stay in sync with
 # skills.json, because a drifted fallback silently installs a CLI the skills
 # cannot drive.
-DEFAULT_CLI_VERSION="1.10.1"  # informational ceiling = skills.json max_cli_version
-DEFAULT_MIN_CLI_VERSION="1.5.0"  # floor = skills.json min_cli_version (pre-release tag dropped)
+DEFAULT_MIN_KPASS_VERSION="1.5.0"  # floor = skills.json min_kpass_version (pre-release tag dropped)
 
 SKILLS_JSON=""
 for candidate in "$SCRIPT_DIR/../skills.json" "$SCRIPT_DIR/../../skills.json"; do
@@ -49,14 +48,10 @@ read_skills_json_field() {
   fi
 }
 
-CLI_VERSION="$DEFAULT_CLI_VERSION"
-MIN_CLI_VERSION="$DEFAULT_MIN_CLI_VERSION"
+MIN_KPASS_VERSION="$DEFAULT_MIN_KPASS_VERSION"
 if [[ -n "$SKILLS_JSON" ]]; then
-  if PARSED=$(read_skills_json_field max_cli_version 2>/dev/null) && [[ -n "$PARSED" && "$PARSED" != "null" ]]; then
-    CLI_VERSION="$PARSED"
-  fi
-  if PARSED=$(read_skills_json_field min_cli_version 2>/dev/null) && [[ -n "$PARSED" && "$PARSED" != "null" ]]; then
-    MIN_CLI_VERSION="${PARSED%%-*}"  # drop pre-release tag for numeric compare
+  if PARSED=$(read_skills_json_field min_kpass_version 2>/dev/null) && [[ -n "$PARSED" && "$PARSED" != "null" ]]; then
+    MIN_KPASS_VERSION="${PARSED%%-*}"  # drop pre-release tag for numeric compare
   fi
 fi
 
@@ -66,14 +61,13 @@ fi
 if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
   echo "Kite Passport CLI Bootstrap"
   echo ""
-  echo "Ensures kpass >= ${MIN_CLI_VERSION} is installed and available on PATH."
-  echo "This bundle is validated against kpass up to ${CLI_VERSION}."
+  echo "Ensures kpass >= ${MIN_KPASS_VERSION} is installed and available on PATH."
   echo "If not found (or too old), attempts to install it automatically."
   echo ""
   echo "Usage: bash setup.sh"
   echo ""
   echo "Installation order:"
-  echo "  1. Check if kpass >= ${MIN_CLI_VERSION} is already on PATH"
+  echo "  1. Check if kpass >= ${MIN_KPASS_VERSION} is already on PATH"
   echo "  2. Try: curl -fsSL https://cli.gokite.ai/install.sh | bash"
   echo "  3. Fail with installation instructions"
   echo ""
@@ -102,7 +96,7 @@ version_at_least() {
 }
 
 # report_if_suitable VIA — if the kpass now reachable on PATH meets
-# MIN_CLI_VERSION, print the ok envelope and exit 0. Otherwise return 1 so the
+# MIN_KPASS_VERSION, print the ok envelope and exit 0. Otherwise return 1 so the
 # caller can try the next install method. The post-install version re-check
 # matters: an old binary earlier on PATH can shadow a fresh install.
 report_if_suitable() {
@@ -111,11 +105,11 @@ report_if_suitable() {
   local version_output installed_version
   version_output=$(kpass --version 2>/dev/null || echo "unknown")
   installed_version=$(grep -oE '[0-9]+\.[0-9]+\.[0-9]+[0-9A-Za-z.-]*' <<< "$version_output" | head -1 || true)
-  if [[ -n "$installed_version" ]] && version_at_least "$installed_version" "$MIN_CLI_VERSION"; then
+  if [[ -n "$installed_version" ]] && version_at_least "$installed_version" "$MIN_KPASS_VERSION"; then
     echo "{\"status\":\"ok\",\"cli_version\":\"${version_output}\",\"installed_via\":\"${via}\"}"
     exit 0
   fi
-  echo "kpass on PATH reports '${version_output}' — below required ${MIN_CLI_VERSION} (or unreadable)." >&2
+  echo "kpass on PATH reports '${version_output}' — below required ${MIN_KPASS_VERSION} (or unreadable)." >&2
   return 1
 }
 
@@ -124,7 +118,7 @@ report_if_suitable() {
 # ---------------------------------------------------------------------------
 report_if_suitable "existing" || true
 if command -v kpass &>/dev/null; then
-  echo "Existing kpass is below ${MIN_CLI_VERSION}; reinstalling..." >&2
+  echo "Existing kpass is below ${MIN_KPASS_VERSION}; reinstalling..." >&2
 fi
 
 # ---------------------------------------------------------------------------
@@ -139,12 +133,12 @@ if curl -fsSL https://cli.gokite.ai/install.sh | bash >&2; then
   export PATH="${KPASS_INSTALL_DIR:-$HOME/.kpass}/bin:$HOME/.local/bin:$PATH"
   report_if_suitable "installer" || true
 fi
-echo "Installer did not produce a kpass >= ${MIN_CLI_VERSION} on PATH." >&2
+echo "Installer did not produce a kpass >= ${MIN_KPASS_VERSION} on PATH." >&2
 
 # ---------------------------------------------------------------------------
 # Step 3: Nothing worked
 # ---------------------------------------------------------------------------
 cat <<EOF
-{"status":"error","error":"Could not install kpass >= ${MIN_CLI_VERSION}. Install manually:\n\n  macOS / Linux:  curl -fsSL https://cli.gokite.ai/install.sh | bash\n  Windows:        irm https://cli.gokite.ai/install.ps1 | iex\n\nThen ensure the binary is on your PATH (before any older kpass)."}
+{"status":"error","error":"Could not install kpass >= ${MIN_KPASS_VERSION}. Install manually:\n\n  macOS / Linux:  curl -fsSL https://cli.gokite.ai/install.sh | bash\n  Windows:        irm https://cli.gokite.ai/install.ps1 | iex\n\nThen ensure the binary is on your PATH (before any older kpass)."}
 EOF
 exit 1
