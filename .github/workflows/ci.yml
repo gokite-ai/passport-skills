@@ -55,3 +55,49 @@ jobs:
       # Covers top-level scripts/ and the per-skill bundled copies under */scripts/
       - name: Run shellcheck on all shell scripts
         run: shellcheck scripts/*.sh */scripts/*.sh
+
+  setup-scripts:
+    name: Setup script behaviour
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # --help must work. It used to reference MIN_KAGENT_VERSION before the
+      # block that defines it, so under `set -u` it exited on an unbound
+      # variable — invisible until someone asked for help.
+      - name: setup scripts answer --help
+        run: |
+          set -euo pipefail
+          for s in scripts/setup.sh scripts/setup-kagent.sh scripts/setup-ksearch.sh \
+                   seller-agent-setup/scripts/setup-kagent.sh; do
+            [ -f "$s" ] || continue
+            out=$(bash "$s" --help 2>&1) || { echo "FAIL: $s --help exited $?"; echo "$out"; exit 1; }
+            grep -q "Usage" <<<"$out" || { echo "FAIL: $s --help printed no usage"; exit 1; }
+            echo "  ok  $s"
+          done
+
+      # Version precedence, including the case that matters: a release
+      # candidate must NOT satisfy a floor naming its own release.
+      - name: kagent floor uses SemVer precedence
+        run: |
+          set -euo pipefail
+          sed -n '/^version_at_least() {/,/^}/p' scripts/setup-kagent.sh > /tmp/vcmp.sh
+          cat >> /tmp/vcmp.sh <<'T'
+          fails=0
+          t() { if version_at_least "$1" "$2"; then r=yes; else r=no; fi
+                if [ "$r" != "$3" ]; then echo "  FAIL: $1 >= $2 gave $r, want $3"; fails=$((fails+1)); fi; }
+          t 1.11.0       1.11.0       yes
+          t 1.11.1       1.11.0       yes
+          t 1.10.9       1.11.0       no
+          t 1.11.0-rc.1  1.11.0       no
+          t 1.11.0       1.11.0-rc.1  yes
+          t 1.11.0-rc.2  1.11.0-rc.1  yes
+          t 1.11.0-rc    1.11.0-rc.1  no
+          t 1.11.0-alpha 1.11.0-beta  no
+          t 1.11.0-1     1.11.0-alpha no
+          t unknown      1.11.0       no
+          [ "$fails" -eq 0 ] || exit 1
+          echo "  ok  10 precedence cases"
+          T
+          bash /tmp/vcmp.sh
+

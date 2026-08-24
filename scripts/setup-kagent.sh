@@ -29,31 +29,6 @@
 set -euo pipefail
 
 # ---------------------------------------------------------------------------
-# Help
-# ---------------------------------------------------------------------------
-if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
-  echo "Kite Seller Agent CLI (kagent) Bootstrap"
-  echo ""
-  echo "Ensures kagent >= ${MIN_KAGENT_VERSION} is installed and available on PATH."
-  echo "Checks PATH and the standard Kite Passport bundle install locations;"
-  echo "installs the bundle automatically if not found."
-  echo ""
-  echo "Usage: bash scripts/setup-kagent.sh"
-  echo ""
-  echo "Lookup / install order:"
-  echo "  1. Check if kagent is already on PATH"
-  echo "  2. Check \${KPASS_INSTALL_DIR:-\$HOME/.kpass}/bin/kagent"
-  echo "  3. Check \$HOME/.local/bin/kagent"
-  echo "  4. Try: curl -fsSL https://cli.gokite.ai/install.sh | bash"
-  echo "  5. Fail with installation instructions"
-  echo ""
-  echo "Output: JSON to stdout"
-  echo "  {\"status\":\"ok\",\"cli_version\":\"...\",\"installed_via\":\"...\",\"binary\":\"...\"}"
-  echo "  {\"status\":\"error\",\"error\":\"...\"}"
-  exit 0
-fi
-
-# ---------------------------------------------------------------------------
 # The floor
 # ---------------------------------------------------------------------------
 # skills.json declares min_kagent_version, and until now this script only
@@ -79,25 +54,91 @@ read_skills_json_field() {
 MIN_KAGENT_VERSION="$DEFAULT_MIN_KAGENT_VERSION"
 if [[ -n "$SKILLS_JSON" ]]; then
   if PARSED=$(read_skills_json_field min_kagent_version) && [[ -n "$PARSED" && "$PARSED" != "null" ]]; then
-    MIN_KAGENT_VERSION="${PARSED%%-*}"  # drop any pre-release tag for numeric compare
+    MIN_KAGENT_VERSION="$PARSED"   # kept whole, pre-release tag included
   fi
 fi
 
-# version_at_least A B — succeeds when A >= B. Numeric major.minor.patch;
-# pre-release tags dropped. Fails on unparseable input, so an unreadable version
-# counts as too old and gets reinstalled rather than silently accepted.
+# version_at_least A B — succeeds when A >= B, by SemVer precedence.
+#
+# Pre-release tags are COMPARED, not discarded. Stripping them made
+# 1.11.0-rc.1 satisfy a 1.11.0 floor, which is backwards: a release candidate
+# precedes its release, and the whole point of a floor naming 1.11.0 is that
+# what came before it will not do.
+#
+# SemVer §11: a version with a pre-release ranks BELOW the same numeric release.
+# Between two pre-releases the identifiers are compared dot by dot, numeric
+# parts numerically, and a shorter set of identifiers ranks lower.
+#
+# Fails on unparseable input, so an unreadable version counts as too old and
+# gets reinstalled rather than silently accepted.
 version_at_least() {
-  local a="${1%%-*}" b="${2%%-*}"
-  [[ "$a" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]] || return 1
-  [[ "$b" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]] || return 1
+  local a="$1" b="$2"
+  local a_core="${a%%-*}" b_core="${b%%-*}"
+  local a_pre="" b_pre=""
+  [[ "$a" == *-* ]] && a_pre="${a#*-}"
+  [[ "$b" == *-* ]] && b_pre="${b#*-}"
+
+  [[ "$a_core" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]] || return 1
+  [[ "$b_core" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]] || return 1
+
   local a1 a2 a3 b1 b2 b3
-  IFS=. read -r a1 a2 a3 <<< "$a"
-  IFS=. read -r b1 b2 b3 <<< "$b"
+  IFS=. read -r a1 a2 a3 <<< "$a_core"
+  IFS=. read -r b1 b2 b3 <<< "$b_core"
   a3=${a3:-0}; b3=${b3:-0}
   if ((a1 != b1)); then ((a1 > b1)); return; fi
   if ((a2 != b2)); then ((a2 > b2)); return; fi
-  ((a3 >= b3))
+  if ((a3 != b3)); then ((a3 > b3)); return; fi
+
+  # Same numeric core: no pre-release outranks any pre-release.
+  [[ -z "$a_pre" ]] && return 0
+  [[ -z "$b_pre" ]] && return 1
+
+  local -a ai bi
+  IFS=. read -r -a ai <<< "$a_pre"
+  IFS=. read -r -a bi <<< "$b_pre"
+  local i
+  for ((i = 0; i < ${#ai[@]} || i < ${#bi[@]}; i++)); do
+    # A shorter identifier list ranks lower when all preceding parts are equal.
+    [[ $i -ge ${#ai[@]} ]] && return 1
+    [[ $i -ge ${#bi[@]} ]] && return 0
+    local x="${ai[$i]}" y="${bi[$i]}"
+    if [[ "$x" =~ ^[0-9]+$ && "$y" =~ ^[0-9]+$ ]]; then
+      ((x != y)) && { ((x > y)); return; }
+    elif [[ "$x" =~ ^[0-9]+$ ]]; then
+      return 1   # numeric identifiers rank below alphanumeric ones
+    elif [[ "$y" =~ ^[0-9]+$ ]]; then
+      return 0
+    elif [[ "$x" != "$y" ]]; then
+      [[ "$x" > "$y" ]]; return
+    fi
+  done
+  return 0
 }
+
+# ---------------------------------------------------------------------------
+# Help
+# ---------------------------------------------------------------------------
+if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+  echo "Kite Seller Agent CLI (kagent) Bootstrap"
+  echo ""
+  echo "Ensures kagent >= ${MIN_KAGENT_VERSION} is installed and available on PATH."
+  echo "Checks PATH and the standard Kite Passport bundle install locations;"
+  echo "installs the bundle automatically if not found."
+  echo ""
+  echo "Usage: bash scripts/setup-kagent.sh"
+  echo ""
+  echo "Lookup / install order:"
+  echo "  1. Check if kagent is already on PATH"
+  echo "  2. Check \${KPASS_INSTALL_DIR:-\$HOME/.kpass}/bin/kagent"
+  echo "  3. Check \$HOME/.local/bin/kagent"
+  echo "  4. Try: curl -fsSL \${KPASS_BASE_URL:-https://cli.gokite.ai}/install.sh | bash"
+  echo "  5. Fail with installation instructions"
+  echo ""
+  echo "Output: JSON to stdout"
+  echo "  {\"status\":\"ok\",\"cli_version\":\"...\",\"installed_via\":\"...\",\"binary\":\"...\"}"
+  echo "  {\"status\":\"error\",\"error\":\"...\"}"
+  exit 0
+fi
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -161,7 +202,11 @@ try_locate "passport-bundle" && exit 0
 # Step 2: Install via the official bundle installer
 # ---------------------------------------------------------------------------
 echo "kagent not found. Installing the Kite Passport bundle (kpass + kagent + skills) via the official installer (https://cli.gokite.ai/install.sh)..." >&2
-if curl -fsSL https://cli.gokite.ai/install.sh | bash >&2; then
+# Honours KPASS_BASE_URL, like the installer itself does. Hardcoding the
+# production domain made this script unusable for verifying a staging bundle —
+# the one case where you most want to check that kagent actually ships.
+INSTALLER_BASE="${KPASS_BASE_URL:-https://cli.gokite.ai}"
+if curl -fsSL "${INSTALLER_BASE}/install.sh" | bash >&2; then
   # try_locate's bundle-path checks are PATH-independent, so run it before
   # exporting PATH. Otherwise the PATH-based "command -v" branch matches
   # first and mislabels the fresh install as "path" instead of "installer".
