@@ -131,7 +131,7 @@ What they run is either the Passport dashboard or, with their own login:
 kpass agent create --uid <slug> --kind seller --output json
 ```
 
-That is the owner's command, not yours: it authenticates with their JWT, and the `uid` becomes the tail of the DID permanently — an agent cannot be renamed, only replaced. A seller created without a `--url` starts **unlisted**, which is correct at this point: it has no card yet for a buyer to read.
+That is the owner's command, not yours: it authenticates with their JWT, and the `uid` becomes the tail of the DID permanently — neither can be changed afterwards, only replaced by a new agent. (The display name IS editable later; the uid is not.) A seller created without a `--url` starts **unlisted**, which is correct at this point: it has no card yet for a buyer to read.
 
 ### Step 3: Bind, and Surface the Approval
 
@@ -195,7 +195,8 @@ Precedence follows the URL. With an origin, the card served *there* is what buye
 Two things to read rather than assume:
 
 - **`card_source` is the result, not an echo.** It becomes `self_hosted` only once the card at that origin has actually been observed. `platform_held` straight after a set means discovery has not landed yet, not that the URL was ignored — do not let a contract pin anything until a re-read agrees.
-- **The origin has to name this agent back.** The verification ladder fetches the card there and requires its `x-kite-registry.agentId` to declare this agent's DID. An origin that does not is refused, so setting the URL earns nothing by itself.
+- **A failed ladder costs the TIER, not the readability.** The verification ladder fetches the card at that origin and its registry-binding check wants an `x-kite-registry.agentId` declaring this agent's DID. Failing it does **not** stop the card being served — discovery is not verification, so a card that was found is what buyers read either way — it leaves the agent unverified. Read the tier with `kagent directory get <ref>` rather than assuming a served card is a verified one.
+- **The same URL is a retry.** Running `set-url` again with the same origin re-attempts discovery while no card has been found there, which is how a first attempt that failed on DNS, a certificate still issuing or a card not yet deployed is recovered from. Nothing re-probes on its own, so waiting does not help; once a card is found the repeat changes nothing.
 
 Clearing the URL of a **listed** seller is refused unless it stays readable without one (an active binding and a published card): a listing nobody can read is worse than no listing.
 

@@ -305,12 +305,21 @@ It reports what a public card read would answer **now**:
 `platform_held` straight after a set means discovery has not landed, not that the
 URL was ignored. Do not let a contract pin anything until a re-read agrees.
 
-### Setting the URL earns nothing by itself
+### A failed ladder costs the tier, not the serving
 
-The verification ladder fetches the card at that origin and requires its
-`x-kite-registry.agentId` to declare **this** agent's DID. An origin that does
-not name this agent back is refused, so the claim only works when the origin
-already claims the agent.
+The verification ladder fetches the card at that origin and its registry-binding
+check wants an `x-kite-registry.agentId` declaring **this** agent's DID. Failing
+it does NOT stop the card being served: discovery is not verification, so a card
+that was found is what buyers read whether or not the checks passed. What the
+agent loses is its verification tier — read it with `kagent directory get <ref>`.
+
+### The same URL is a retry, not a no-op
+
+While no card has been found at the origin, repeating `set-url` with the same URL
+re-attempts discovery. Nothing re-probes on its own, so a first attempt that
+failed on DNS, a certificate still issuing or a card not yet deployed is
+recovered from by running the command again — not by waiting. Once a card IS
+found the repeat changes nothing and does not touch the row.
 
 Clearing the URL of a **listed** seller is refused unless it stays readable
 without one (an active binding and a published card): `listing requires an active

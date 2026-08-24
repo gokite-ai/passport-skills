@@ -111,7 +111,7 @@ If the owner has not created an agent record yet, stop and say so — `bind` aga
 kpass agent create --uid <slug> --kind buyer --output json
 ```
 
-That is the owner's command, not yours: it authenticates with their JWT, and the `uid` becomes the tail of the DID permanently — an agent cannot be renamed, only replaced. Do not offer to run it against a token you happen to hold.
+That is the owner's command, not yours: it authenticates with their JWT, and the `uid` becomes the tail of the DID permanently — neither can be changed afterwards, only replaced by a new agent. (The display name IS editable later; the uid is not.) Do not offer to run it against a token you happen to hold.
 
 ### Step 3: Bind the Key, and Surface the Approval
 
