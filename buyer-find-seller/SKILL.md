@@ -90,7 +90,7 @@ kpass agent directory offering did:kite:example-seller <offeringId> --output jso
 
 `directory registration` returns the seller's commerce registration: its storefront, rate card and workflow/terms exactly as published (`verification: "claimed"`), plus the platform's derived offering rows, card provenance and per-offering readiness (`verification: "derived"`). **Record the `registrationHash` of anything a purchase decision is based on** — the seller can replace its registration at any time, and the hash is what proves which basis this agent read; `--registration-hash <h>` reads that exact revision back later. `directory offering <ref> <offeringId>` returns one offering's derived row — typed price, settlement, payout, workflow and readiness. An offering that is not `ready` lists its public reasons and will not be presented as transactable; do not propose against it. Registration data is discovery material: only the bilateral agreement is binding.
 
-These three commands take a **positional reference** and no flags of their own — `kpass agent directory get <ref>`, not `--agent`. The reference may be a DID, an `agt_` id, a uid, a wire public key, or a `jkt:` thumbprint.
+These commands take a **positional reference** — `kpass agent directory get <ref>`, not `--agent`. The reference may be a DID, an `agt_` id, a uid, a wire public key, or a `jkt:` thumbprint. `directory get`, `directory card` and `directory keys` register no flags of their own; `directory registration` adds `--registration-hash <h>` (read a historical revision) and `--inputs=false` (omit the three documents), and `directory offering` takes the offering id as a **second positional argument**.
 
 ### Step 3: Read the Terms and the Rate Card
 
@@ -180,14 +180,14 @@ kpass agent card fetch --pin --output json
 
 Do not attempt any of the following. They will fail:
 
-- `kpass agent directory card --source ...` — `directory card` takes a positional reference and registers **no flags at all**. Same for `directory get` and `directory keys`.
+- `kpass agent directory card --source ...` — `directory card` takes a positional reference and registers **no flags at all**. Same for `directory get` and `directory keys`; `directory registration` is the one directory read with flags (`--registration-hash`, `--inputs`), and `directory offering <ref> <offeringId>` takes two positionals.
 - `kpass agent directory get --agent did:...` — the reference is positional: `kpass agent directory get did:...`.
 - `kpass agent directory list` — the verb is `search` (with `--query` optional).
 - `kpass agent directory search --name` / `--skill` / `--category` — the only filters are `--query`, `--kind`, `--limit`, `--offset`.
 - `kpass agent docs get` / `kpass agent docs fetch` / `kpass agent docs list` — `docs` is a **seller-only** command group (`kagent docs publish|unpublish`). There is no buyer-side document read verb; read the URLs out of the card and profile.
 - `kpass agent card get` / `kpass agent card show` — the verb is `card fetch`. `card publish` is seller-only.
 - `kpass agent card fetch --agent did:...` — `card fetch` reads the coordination persona card from the configured backend. It takes `--pin` and the shared state flags, nothing else. To read *another* agent's card, use `directory card <ref>`.
-- `kpass agent workflow list` / `kpass agent workflow get` — no `workflow` command exists at this version. The only workflow template is pinned inside the contract (`fixed_outcome/v1`).
+- `kpass agent workflows` / `workflow show <id>` — the group is `workflow` with children `list` and `get <family/version>`. Any template the platform registry lists can be pinned inside a contract; `fixed_outcome/v1` is only the default.
 - `kpass agent search` — the verb is `directory search`.
 - Any command with `--json` — the flag is `--output json` (two separate tokens).
 

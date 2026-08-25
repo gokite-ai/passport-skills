@@ -410,7 +410,7 @@ Clearing an unset pointer reports `cleared: false` and is a **no-op, not a failu
 |---|---|---|---|---|
 | `--output-dir <dir>` | string | `.` | no | Where the three skeletons are written. |
 
-Writes `storefront.json`, `rate-card.json`, and `workflow-terms.json`. **Existing files are never overwritten** — that is exit 2 with `<path> already exists.` The skeletons carry this runtime's bound agent DID when the binding resolves, and a `did:kite:<namespace>:<agent>` placeholder otherwise. Every `<angle-bracket>` value must be edited; a forgotten one fails `registration validate` loudly.
+Writes `storefront.json`, `rate-card.json`, and `workflow-terms.json`. **Existing files are never overwritten** — that is exit 2 with `<path> already exists.` The skeletons carry this runtime's bound agent DID when the binding resolves (placeholder otherwise), and the settlement `chainId` from the **pinned coordination card** — with no pin it stays `0`, which `registration validate` refuses until edited, so run `kagent card fetch --pin` first. Every `<angle-bracket>` value must be edited; a forgotten one fails `registration validate` loudly.
 
 ---
 
@@ -425,7 +425,7 @@ Writes `storefront.json`, `rate-card.json`, and `workflow-terms.json`. **Existin
 
 Local pre-flight. It checks what this machine can check: JSON validity, the schema identifiers, `agentDid` agreement across the three files, offering ids (grammar, uniqueness), the cross-input joins (every rate-card offering resolves to the storefront; the workflow/terms offering set **equals** the storefront set; a `formula` offering has rate-card prose), the price and payout tagged unions, and the money grammar (integer strings in minor units, positive where a price must be). Workflow ids are resolved against the public `GET /v1/workflows` list unless `--offline`.
 
-A failure is exit 2 with every problem under `details.problems`, each in the same `{input, path, message}` shape the platform's own refusals use. **Passing is necessary, not sufficient** — the platform additionally validates the settlement context and builds the registry projection, and it is the authority.
+A failure is **exit 8** (protocol: the files failed this machine's own checks; retrying identical bytes cannot help) with every problem under `details.problems`, each in the same `{input, path, message}` shape the platform's own refusals use. A missing `--flag` or an unreadable path is the usual exit 2; a file that is not valid JSON, or one over the 256 KiB input cap, is exit 8 like the findings. **Passing is necessary, not sufficient** — the platform additionally validates the settlement context and builds the registry projection, and it is the authority.
 
 ---
 
@@ -438,7 +438,7 @@ A failure is exit 2 with every problem under `details.problems`, each in the sam
 | `--workflow-terms <path>` | string | `""` | **yes** | Workflow/terms input file (≤ 256 KiB). |
 | `--expected-revision <n>` | int | read first | no | `0` on the first publish; the current revision on replacement. |
 
-ONE atomic publish of all three inputs, signed under `kite:passport:registration-publish:v0`. The local validate runs first — a refusal this machine can see never costs a signature. Each input's `agentDid` must equal the bound agent (refused locally otherwise). When `--expected-revision` is omitted the verb reads the current revision first; an unattended pipeline should pass the revision it knows, because a concurrent publish between that read and this write is exactly what the token exists to catch.
+ONE atomic publish of all three inputs, signed under `kite:passport:registration-publish:v0`. The local validate runs first — a refusal this machine can see never costs a signature (its findings are **exit 8**, same as `registration validate`). Each input's `agentDid` must equal the bound agent (refused locally otherwise). When `--expected-revision` is omitted the verb reads the current revision first; an unattended pipeline should pass the revision it knows, because a concurrent publish between that read and this write is exactly what the token exists to catch.
 
 ```
 {

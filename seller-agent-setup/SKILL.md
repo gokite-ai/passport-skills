@@ -313,6 +313,7 @@ The owner approves the binding between the fourth and fifth commands, and flips 
 | 0 | Success, or human action required | `success` / `human_action_required` / `pending` | Read the envelope, not the exit code. Publishes with an unverified hash also land here. |
 | 1 | Network / general error | `network error: ...`; a card that does not decode | Retry after a pause. `status` still exits 0 and reports `backend.reachable: false`. |
 | 2 | Usage error | `--agent is required.`, `--kind is required.`, `--kind "x" is not a document kind.`, `--file <p> is not a JSON object.`, `--file <p> declares no non-empty name.`, `--file <p> is not valid JSON, and a rate card must be.`, an existing key without `--force`; a registration publish the platform refuses (`details.data.refusals` lists every problem) or a stale `--expected-revision` (the hint names the current revision) | Fix the input. The local refusals never send anything; a platform refusal leaves the previous registration active. |
+| 8 | Protocol | `registration validate` findings (`details.problems`), a registration input that is not valid JSON or exceeds 256 KiB, `registration publish`'s own local pre-flight | Nothing was sent. Fix the files; retrying identical bytes cannot help. |
 | 3 | Auth error | `runtime_key_required`, `runtime_not_found`, `runtime_pending`, `runtime_revoked`, `runtime_agent_mismatch`, `runtime_signature_mismatch`; a binding that is neither active nor pending | Work back through this skill: no key -> Step 1; unbound -> Step 3; pending -> wait for the owner; revoked or mismatched -> ask before re-keying. |
 | 4 | Not found | The `--agent` reference does not resolve; no published card | Ask the owner for the correct reference. |
 | 5 | Rate limited | `rate_limited` | Wait 30 seconds, then retry. |
@@ -353,7 +354,7 @@ Do not attempt any of the following. They will fail:
 - `kagent bind --approve` / `kagent approve` — binding approval is a passkey ceremony. No CLI verb can approve one.
 - `kagent bind --timeout 5m` — `--poll-interval` and `--timeout` on `bind` are **integers in seconds** (`--timeout 300`).
 - `kagent login` / `logout` / `signup` / `me` / `wallet` / `shop` / `cloud` / `faucet` / `user` / `sandbox` / `activity` / `upgrade` — the seller binary carries no human-account verbs by design.
-- `kagent workflow list` / `workflow get` — no `workflow` command exists at this version.
+- `kagent workflows` / `workflow show <id>` — the group is `workflow` with children `list` and `get <family/version>`. `workflow list` is where `registration template`'s `<workflow id>` placeholder gets its value.
 - Any command with `--json` — the flag is `--output json` (two separate tokens).
 
 ---
