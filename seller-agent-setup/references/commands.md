@@ -404,6 +404,79 @@ Clearing an unset pointer reports `cleared: false` and is a **no-op, not a failu
 
 ---
 
+## `kagent registration template`
+
+| Flag | Type | Default | Required | Notes |
+|---|---|---|---|---|
+| `--output-dir <dir>` | string | `.` | no | Where the three skeletons are written. |
+
+Writes `storefront.json`, `rate-card.json`, and `workflow-terms.json`. **Existing files are never overwritten** — that is exit 2 with `<path> already exists.` The skeletons carry this runtime's bound agent DID when the binding resolves (placeholder otherwise), and the settlement `chainId` from the **pinned coordination card** — with no pin it stays `0`, which `registration validate` refuses until edited, so run `kagent card fetch --pin` first. Every `<angle-bracket>` value must be edited; a forgotten one fails `registration validate` loudly.
+
+---
+
+## `kagent registration validate`
+
+| Flag | Type | Default | Required | Notes |
+|---|---|---|---|---|
+| `--storefront <path>` | string | `""` | **yes** | Storefront input file. |
+| `--rate-card <path>` | string | `""` | **yes** | Rate-card input file. |
+| `--workflow-terms <path>` | string | `""` | **yes** | Workflow/terms input file. |
+| `--offline` | bool | `false` | no | Skip the network check of workflow ids. |
+
+Local pre-flight. It checks what this machine can check: JSON validity, the schema identifiers, `agentDid` agreement across the three files, offering ids (grammar, uniqueness), the cross-input joins (every rate-card offering resolves to the storefront; the workflow/terms offering set **equals** the storefront set; a `formula` offering has rate-card prose), the price and payout tagged unions, and the money grammar (integer strings in minor units, positive where a price must be). Workflow ids are resolved against the public `GET /v1/workflows` list unless `--offline`.
+
+A failure is **exit 8** (protocol: the files failed this machine's own checks; retrying identical bytes cannot help) with every problem under `details.problems`, each in the same `{input, path, message}` shape the platform's own refusals use. A missing `--flag` or an unreadable path is the usual exit 2; a file that is not valid JSON, or one over the 256 KiB input cap, is exit 8 like the findings. **Passing is necessary, not sufficient** — the platform additionally validates the settlement context and builds the registry projection, and it is the authority.
+
+---
+
+## `kagent registration publish`
+
+| Flag | Type | Default | Required | Notes |
+|---|---|---|---|---|
+| `--storefront <path>` | string | `""` | **yes** | Storefront input file (≤ 256 KiB). |
+| `--rate-card <path>` | string | `""` | **yes** | Rate-card input file (≤ 256 KiB). |
+| `--workflow-terms <path>` | string | `""` | **yes** | Workflow/terms input file (≤ 256 KiB). |
+| `--expected-revision <n>` | int | read first | no | `0` on the first publish; the current revision on replacement. |
+
+ONE atomic publish of all three inputs, signed under `kite:passport:registration-publish:v0`. The local validate runs first — a refusal this machine can see never costs a signature (its findings are **exit 8**, same as `registration validate`). Each input's `agentDid` must equal the bound agent (refused locally otherwise). When `--expected-revision` is omitted the verb reads the current revision first; an unattended pipeline should pass the revision it knows, because a concurrent publish between that read and this write is exactly what the token exists to catch.
+
+```
+{
+  "status": "success",
+  "agent_did": "did:kite:...",
+  "revision": 4,
+  "registration_hash": "sha256:...",
+  "input_hashes": { "storefront": "sha256:...", "rateCard": "sha256:...", "workflowTerms": "sha256:..." },
+  "activated_at": "...",
+  "offering_count": 2,
+  "readiness": { "ok": false, "reasons": [ { "code": "payout_not_configured", "offeringId": "...", "message": "..." } ] },
+  "unchanged": false
+}
+```
+
+Three outcomes that are not plain success/failure:
+
+- **`unchanged: true`** — this exact content was already active; nothing moved, no revision was minted, and a stale `--expected-revision` does not matter for an identical republish.
+- **A platform refusal (exit 2)** — `details.data.refusals` lists **every** problem at once, each with a stable code, the input name, and a JSON Pointer. The previous registration stays active. Fix the files; the validator never repairs input.
+- **A revision conflict (exit 2, `error_code: registration_revision_conflict`)** — another process replaced the registration; the hint names the current revision. Re-read with `registration get`, decide whether this publish still makes sense over what is now active, then pass the current `--expected-revision`.
+
+`readiness` is per offering and platform-derived. An unready offering activates but is listed as unavailable; `owner_policy_restriction` reasons are value-free by design and are the owner's to fix in Passport.
+
+---
+
+## `kagent registration get`
+
+| Flag | Type | Default | Required | Notes |
+|---|---|---|---|---|
+| `--registration-hash <h>` | string | `""` | no | Read a historical revision by digest — `sha256:`-prefixed or bare hex. |
+| `--inputs` | bool | `true` | no | `--inputs=false` omits the three input documents. |
+
+Reads the registration as the platform serves it: the exact inputs and their hashes under `verification: "claimed"`, and the offering projection, card provenance and readiness under `verification: "derived"`. Readiness is re-derived on every read, so an owner policy change shows up without a republish. A historical read carries its lifecycle `status` and a superseded revision is never presented as current.
+
+The buyer-side spellings of the same public reads are `directory registration <ref>` and `directory offering <ref> <offeringId>` — no runtime key required.
+
+---
+
 ## `kagent directory card <ref>` — verifying what buyers see
 
 Positional reference, no flags of its own. The same read a buyer performs, including hash verification: the envelope carries `card_hash`, `card_hash_recomputed`, and `card_hash_verified`, and **a mismatch is exit 8** with both hashes in `details`.
