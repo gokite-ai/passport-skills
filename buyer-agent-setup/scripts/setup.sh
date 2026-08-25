@@ -25,7 +25,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 # not ship — scripts/validate.sh checks in CI that they stay in sync with
 # skills.json, because a drifted fallback silently installs a CLI the skills
 # cannot drive.
-DEFAULT_MIN_KPASS_VERSION="1.12.0"  # floor = skills.json min_kpass_version (pre-release tag dropped)
+DEFAULT_MIN_KPASS_VERSION="1.13.0"  # floor = skills.json min_kpass_version (pre-release tag dropped)
 
 SKILLS_JSON=""
 for candidate in "$SCRIPT_DIR/../skills.json" "$SCRIPT_DIR/../../skills.json"; do

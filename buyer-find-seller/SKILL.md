@@ -21,14 +21,14 @@ Discovery and verification, before any money or signature is involved. Everythin
 
 Two distinct jobs live here, and confusing them wastes a lot of time:
 
-1. **Reading the counterparty** — `kpass agent directory ...`, which answers "who is this seller, what do they sell, which keys can they sign with".
+1. **Reading the counterparty** — `kpass agent directory ...`, which answers "who is this seller, what do they sell, on what terms, which keys can they sign with".
 2. **Pinning this agent's own chain context** — `kpass agent card fetch --pin`, which records the coordination persona card hash, endpoint, extension URI, chain id, and escrow vault into local state. `kpass agent agreement propose` refuses to run without it. This is not the seller's card.
 
 ## Prerequisites
 
 An **active runtime binding**. Run `kpass agent status --output json` first; if `binding.status` is anything other than `active`, use the **`buyer-agent-setup`** skill.
 
-`directory search`, `directory get`, `directory card`, and `directory keys` are public reads and work without a key. `card fetch --pin` writes into this agent's state and needs the state directory to exist, which means `init` has run.
+`directory search`, `directory get`, `directory card`, `directory keys`, `directory registration`, and `directory offering` are public reads and work without a key. `card fetch --pin` writes into this agent's state and needs the state directory to exist, which means `init` has run.
 
 ## When to Use This Skill
 
@@ -53,7 +53,7 @@ Do **not** use this skill to browse the paid-API catalog — that is `ksearch` a
 
 ## Command Reference
 
-Full argument tables, JSON envelopes, and the hash-verification semantics for `directory search`, `directory get`, `directory card`, `directory keys`, and `card fetch` live in:
+Full argument tables, JSON envelopes, and the hash-verification semantics for `directory search`, `directory get`, `directory card`, `directory keys`, `directory registration`, `directory offering`, and `card fetch` live in:
 
 -> **`@references/commands.md`**
 
@@ -80,11 +80,15 @@ The envelope carries `agents` (each with `id`, `did`, `uid`, `name`, `kind`, `ve
 ```bash
 kpass agent directory get did:kite:example-seller --output json
 kpass agent directory card did:kite:example-seller --output json
+kpass agent directory registration did:kite:example-seller --output json
+kpass agent directory offering did:kite:example-seller <offeringId> --output json
 ```
 
 `directory get` returns the backend's profile object spread verbatim at the top level — its keys are whatever the platform publishes, so read what is there rather than expecting a fixed shape.
 
 `directory card` returns the seller's published agent card *and verifies its hash*: the envelope carries `card_hash` (as reported), `card_hash_recomputed`, and `card_hash_verified`. **A mismatch is exit code 8, not a soft warning** — the CLI refuses to hand you a card whose bytes do not match the published hash, with both hashes in `details`. Do not work around it: report to the owner that the seller's card does not verify, and do not propose against it.
+
+`directory registration` returns the seller's commerce registration: its storefront, rate card and workflow/terms exactly as published (`verification: "claimed"`), plus the platform's derived offering rows, card provenance and per-offering readiness (`verification: "derived"`). **Record the `registrationHash` of anything a purchase decision is based on** — the seller can replace its registration at any time, and the hash is what proves which basis this agent read; `--registration-hash <h>` reads that exact revision back later. `directory offering <ref> <offeringId>` returns one offering's derived row — typed price, settlement, payout, workflow and readiness. An offering that is not `ready` lists its public reasons and will not be presented as transactable; do not propose against it. Registration data is discovery material: only the bilateral agreement is binding.
 
 These three commands take a **positional reference** and no flags of their own — `kpass agent directory get <ref>`, not `--agent`. The reference may be a DID, an `agt_` id, a uid, a wire public key, or a `jkt:` thumbprint.
 

@@ -3,8 +3,9 @@ name: seller-agent-setup
 description: >-
   Stand up an autonomous seller on Kite Passport: generate the `kagent` runtime
   key, bind it to the agent record with the owner's passkey approval, pin the
-  coordination persona card, publish the agent card, and publish the terms and
-  rate-card documents buyers read before proposing. Invoke before any other
+  coordination persona card, publish the agent card, and publish the commerce
+  registration (storefront, rate card, workflow/terms) buyers read before
+  proposing. Invoke before any other
   `kagent` command, whenever `kagent status` reports anything other than an
   active binding, and whenever the card or a published document needs updating.
   This is the gateway skill for the seller-agent group -- serving agreements
@@ -20,7 +21,7 @@ allowed-tools:
 
 Everything a seller agent needs before it can be proposed to. `kagent` is a **separate binary** from `kpass`, shipped in the same passport-cli bundle, with its own runtime key and its own state directory. A seller identity is not a buyer identity with different flags — the two binaries hold different keys and bind to different agent records.
 
-The bootstrap is five steps, and the order matters: `init` -> `bind` (owner approves) -> `card fetch --pin` -> `card publish` -> `docs publish`. A seller that serves its card at its own https origin adds `card set-url` beside the publish, which flips precedence to that origin. The pin is a hard prerequisite for every signing verb, not a nicety.
+The bootstrap is five steps, and the order matters: `init` -> `bind` (owner approves) -> `card fetch --pin` -> `card publish` -> `registration publish`. A seller that serves its card at its own https origin adds `card set-url` beside the publish, which flips precedence to that origin. The pin is a hard prerequisite for every signing verb, not a nicety. Generic `docs publish` documents remain available for free-form prose, but they are NOT registration inputs — the commerce facts buyers and the platform act on come from the registration.
 
 One boundary to be clear about up front: **this agent publishes; the owner lists.** Making a published card publicly discoverable in the agent directory is a visibility change the owner makes in Passport. `card publish` puts the content in place; it does not flip the listing.
 
@@ -101,11 +102,11 @@ Resolution order for the key: `--key-file`, then `KAGENT_RUNTIME_KEY_FILE`, then
 
 ## Command Reference
 
-Full argument tables, JSON envelopes, content rules, and hash semantics for `init`, `key show`, `bind`, `status`, `card fetch`, `card publish`, `docs publish`, and `docs unpublish`:
+Full argument tables, JSON envelopes, content rules, and hash semantics for `init`, `key show`, `bind`, `status`, `card fetch`, `card publish`, `registration template`, `registration validate`, `registration publish`, `registration get`, `docs publish`, and `docs unpublish`:
 
 -> **`@references/commands.md`**
 
-Read the `card publish` and `docs publish` sections before publishing — both echo a hash, and the two hashes are computed differently.
+Read the `card publish`, `registration publish`, and `docs publish` sections before publishing — each echoes a hash, and the hashes are computed differently.
 
 ---
 
@@ -200,7 +201,7 @@ Two things to read rather than assume:
 
 Clearing the URL of a **listed** seller is refused unless it stays readable without one (an active binding and a published card): a listing nobody can read is worse than no listing.
 
-### Step 6: Publish the Documents
+### Step 6: Publish Free-Form Documents (optional)
 
 ```bash
 kagent docs publish --kind terms --file ./terms.md --output json
@@ -226,7 +227,41 @@ What to put in the terms, given how the protocol settles:
 
 `kagent docs unpublish --kind <kind>` clears the pointer. Clearing an unset pointer reports `cleared: false` and is a no-op, not a failure. The content stays addressable by hash — unpublishing moves the pointer, it does not delete bytes.
 
-### Step 7: Confirm, Then Tell the Owner to List
+One boundary: these generic documents are supplementary prose. A legacy `--kind rate-card` document **cannot** satisfy the commerce registration below — the registration carries its own rate card, validated against the storefront.
+
+### Step 7: Publish the Commerce Registration
+
+The commerce registration is how this seller declares what it sells: three JSON inputs — **storefront** (the catalog: each entry an offering with price, settlement, payout and negotiability), **rate card** (advisory SKUs, tiers and worked examples), and **workflow/terms** (the workflow each offering runs under, plus delivery/acceptance/refund/license prose) — submitted together in **one atomic publish**. There is no per-input upload: the platform validates the complete set against itself, activates one immutable revision, and derives the registry rows buyers search.
+
+```bash
+# 1. Skeletons. Never overwrites; edit every <angle-bracket> placeholder.
+kagent registration template --output-dir ./registration --output json
+
+# 2. Local pre-flight: catches most refusals before a signature is spent.
+kagent registration validate \
+  --storefront ./registration/storefront.json \
+  --rate-card ./registration/rate-card.json \
+  --workflow-terms ./registration/workflow-terms.json --output json
+
+# 3. The atomic publish.
+kagent registration publish \
+  --storefront ./registration/storefront.json \
+  --rate-card ./registration/rate-card.json \
+  --workflow-terms ./registration/workflow-terms.json --output json
+
+# 4. Read back what buyers will see.
+kagent registration get --output json
+```
+
+Things to read rather than assume:
+
+- **A refusal lists every problem at once.** The platform answers with `details.data.refusals`, each carrying a stable code, the input name, and a JSON Pointer to the offending member. Fix the files and republish — the validator never repairs input, and the previous registration (if any) stays active.
+- **`readiness` is not success/failure.** A structurally valid registration may activate with an unready offering (for example `payout.status: not-configured`). Read `readiness.reasons`: the registry lists such an offering as unavailable until the gap is fixed, and some reasons (`owner_policy_restriction`) are the owner's to fix in Passport, not this agent's.
+- **Republish replaces everything.** The registration is one snapshot; there is no patching one offering. `--expected-revision` is the concurrency token — the verb reads the current revision when the flag is omitted, but an unattended pipeline should pass the revision it knows. Re-publishing identical content is idempotent (`unchanged: true`, no new revision).
+- **Every input's `agentDid` must be this agent.** The CLI refuses locally on a mismatch; fix the file, never re-bind to match a file.
+- **Settlement is pinned to the deployment.** v0 accepts the deployment's chain id, `USDC`, and 6 decimals; anything else is refused, not stored as an aspiration. Price and quantity members are integer strings in minor units.
+
+### Step 8: Confirm, Then Tell the Owner to List
 
 ```bash
 kagent status --output json
@@ -245,7 +280,7 @@ kagent status --output json
 
 Then say this to the owner, because it is the step this agent cannot take:
 
-> The card and documents are published. Making the listing publicly discoverable in the agent directory is a visibility change only you can make in Passport.
+> The card and commerce registration are published. Making the listing publicly discoverable in the agent directory is a visibility change only you can make in Passport. If the registration reports `owner_policy_restriction` readiness reasons, the acceptance policy also needs your attention there.
 
 Verify what a buyer will see with `kagent directory card <own-did> --output json` — the same read a buyer performs, including the hash verification.
 
@@ -260,8 +295,10 @@ kagent init --output json
 kagent bind --agent did:kite:example-seller --wait --output json
 kagent card fetch --pin --output json
 kagent card publish --file ./card.json --output json
-kagent docs publish --kind terms --file ./terms.md --output json
-kagent docs publish --kind rate-card --file ./rate-card.json --output json
+kagent registration template --output-dir ./registration --output json
+# … edit the three skeletons …
+kagent registration validate --storefront ./registration/storefront.json --rate-card ./registration/rate-card.json --workflow-terms ./registration/workflow-terms.json --output json
+kagent registration publish --storefront ./registration/storefront.json --rate-card ./registration/rate-card.json --workflow-terms ./registration/workflow-terms.json --output json
 kagent status --output json
 ```
 
@@ -275,7 +312,7 @@ The owner approves the binding between the fourth and fifth commands, and flips 
 |---|---|---|---|
 | 0 | Success, or human action required | `success` / `human_action_required` / `pending` | Read the envelope, not the exit code. Publishes with an unverified hash also land here. |
 | 1 | Network / general error | `network error: ...`; a card that does not decode | Retry after a pause. `status` still exits 0 and reports `backend.reachable: false`. |
-| 2 | Usage error | `--agent is required.`, `--kind is required.`, `--kind "x" is not a document kind.`, `--file <p> is not a JSON object.`, `--file <p> declares no non-empty name.`, `--file <p> is not valid JSON, and a rate card must be.`, an existing key without `--force` | Fix the input. All of these refuse before anything is sent. |
+| 2 | Usage error | `--agent is required.`, `--kind is required.`, `--kind "x" is not a document kind.`, `--file <p> is not a JSON object.`, `--file <p> declares no non-empty name.`, `--file <p> is not valid JSON, and a rate card must be.`, an existing key without `--force`; a registration publish the platform refuses (`details.data.refusals` lists every problem) or a stale `--expected-revision` (the hint names the current revision) | Fix the input. The local refusals never send anything; a platform refusal leaves the previous registration active. |
 | 3 | Auth error | `runtime_key_required`, `runtime_not_found`, `runtime_pending`, `runtime_revoked`, `runtime_agent_mismatch`, `runtime_signature_mismatch`; a binding that is neither active nor pending | Work back through this skill: no key -> Step 1; unbound -> Step 3; pending -> wait for the owner; revoked or mismatched -> ask before re-keying. |
 | 4 | Not found | The `--agent` reference does not resolve; no published card | Ask the owner for the correct reference. |
 | 5 | Rate limited | `rate_limited` | Wait 30 seconds, then retry. |
