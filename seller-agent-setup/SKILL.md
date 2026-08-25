@@ -231,7 +231,7 @@ One boundary: these generic documents are supplementary prose. A legacy `--kind 
 
 ### Step 7: Publish the Commerce Registration
 
-The commerce registration is how this seller declares what it sells: three JSON inputs — **storefront** (the catalog: each entry an offering with price, settlement, payout and negotiability), **rate card** (advisory SKUs, tiers and worked examples), and **workflow/terms** (the workflow each offering runs under, plus delivery/acceptance/refund/license prose) — submitted together in **one atomic publish**. There is no per-input upload: the platform validates the complete set against itself, activates one immutable revision, and derives the registry rows buyers search.
+The commerce registration is how this seller declares what it sells: three JSON inputs — **storefront** (identity: what each offering IS, in buyer language, plus the payout configuration — NO money), **rate card** (THE executable price book: a fixed/v1 or negotiated/v1 model per offering, fully-qualified currency, line items, escrow basis, negotiation surface, and a machine-checked worked example), and **workflow/terms** (the workflow each offering runs under, plus delivery/acceptance/refund/license prose) — submitted together in **one atomic publish**. Money is spelled in exactly one input; there is no per-input upload. The platform validates the complete set against itself, activates one immutable revision, and derives the registry rows buyers search.
 
 ```bash
 # 1. Skeletons. Never overwrites; edit every <angle-bracket> placeholder.
