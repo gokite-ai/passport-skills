@@ -26,9 +26,9 @@ Two distinct jobs live here, and confusing them wastes a lot of time:
 
 ## Prerequisites
 
-An **active runtime binding**. Run `kpass agent status --output json` first; if `binding.status` is anything other than `active`, use the **`buyer-agent-setup`** skill.
+None for the directory reads: `directory search`, `directory get`, `directory card`, `directory keys`, `directory registration`, and `directory offering` are public and work without a runtime key or binding.
 
-`directory search`, `directory get`, `directory card`, `directory keys`, `directory registration`, and `directory offering` are public reads and work without a key. `card fetch --pin` writes into this agent's state and needs the state directory to exist, which means `init` has run.
+An **active runtime binding** is needed only for what comes after discovery: `card fetch --pin` writes into this agent's state (so `init` must have run), and `kpass agent agreement propose` refuses without both the pin and an active binding. Before those steps, run `kpass agent status --output json`; if `binding.status` is anything other than `active`, use the **`buyer-agent-setup`** skill.
 
 ## When to Use This Skill
 
