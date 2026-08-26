@@ -140,7 +140,17 @@ That is the owner's command, not yours: it authenticates with their JWT, and the
 kagent bind --agent <did-or-agt-id> --wait --output json
 ```
 
-- **`status: "human_action_required"`, `binding: "pending"`** — the direct path, always. The envelope carries `approval_url`. **Surface it verbatim and say it needs the owner's passkey.** Runtime approval is an owner action and cannot be completed from this CLI.
+- **`status: "human_action_required"`, `binding: "pending"`** — the direct path, always. **The owner must approve it with their passkey; no CLI verb can.** How to tell them depends on what the envelope carries, and both cases happen:
+  - **`approval_url` present** — surface it verbatim and say it needs their passkey. It is written only when the backend supplied one, so its absence is normal, not an error.
+  - **`approval_url` absent** — give the navigation path and the identifying fields instead, because a bare "go approve it" is not actionable and an agent can carry **several** pending runtimes at once:
+
+    > Approve this runtime in Passport: **the Passport web app → Agents → `<agent_did>` → Runtimes**, and approve the row shown as PENDING with thumbprint `<thumbprint>` (address `<address>`, runtime `<runtime_id>`).
+
+    All four values are in the bind envelope. Name the thumbprint every time: duplicate pending rows for one key are possible — a redeploy that re-files a request produces one per boot — and the owner has no other way to tell which row is the one you filed.
+
+  Re-surface the same message rather than re-running `bind`: each direct bind files a fresh request, which adds a row for the owner to disambiguate and does not speed anything up.
+
+  Runtime approval is an owner action and cannot be completed from this CLI.
 - **`status: "success"`, `binding: "active"`** — the token path (`--token art_...`), where the owner pre-authorized by minting a token.
 
 `--wait` polls at a **fixed** 3-second interval (no backoff) up to `--timeout` seconds, default 300. Both flags are **bare integers in seconds** here, unlike the Go durations used elsewhere in the tree. A timeout is **not** an error: the command returns the last observation, so a still-pending binding exits 0 with `human_action_required`. Re-surface the URL rather than re-running `bind` in a loop — each direct bind mints a fresh approval and makes it harder for the owner to know which link is live.
@@ -261,7 +271,62 @@ Things to read rather than assume:
 - **Every input's `agentDid` must be this agent.** The CLI refuses locally on a mismatch; fix the file, never re-bind to match a file.
 - **Settlement is pinned to the deployment.** v0 accepts the deployment's chain id, `USDC`, and 6 decimals; anything else is refused, not stored as an aspiration. Price and quantity members are integer strings in minor units.
 
-### Step 8: Confirm, Then Tell the Owner to List
+### Step 8: Tell the Owner to Set the Mandate — Without It the Agent Refuses Everything
+
+A seller with a bound runtime, a pinned card, a published registration and a
+listing still commits to **nothing**. The acceptance policy is the owner's
+standing answer to "which deals may this agent sign without asking me?", and
+until they write one, every incoming proposal is refused with
+`acceptance_policy_violation`. That is fail-closed by design, not a fault — but
+it looks exactly like a broken agent, and this agent cannot fix it, read it, or
+even tell you it is missing: **it cannot read its own policy.**
+
+So say it explicitly, and say it before the first buyer arrives:
+
+> Your agent will refuse every proposal until you set its acceptance policy.
+> It is an owner action — your JWT is the whole authorization, and there is no
+> passkey ceremony on this route.
+
+Read what is there now:
+
+```bash
+curl -fsS -H "Authorization: Bearer <owner-jwt>" \
+  "$KITE_PASSPORT_BASE_URL/v1/agents/<agt_id-or-did>/acceptancePolicy"
+```
+
+`configured: false` is the state to act on. It is reported explicitly because
+the absence of a policy is a **position**, not a gap: it means every acceptance
+is refused, and reading it as "unconfigured, therefore permissive" is backwards.
+
+Write one — an atomic FULL REPLACE, guarded by optimistic concurrency:
+
+```bash
+curl -fsS -X PUT -H "Authorization: Bearer <owner-jwt>" -H 'Content-Type: application/json' \
+  "$KITE_PASSPORT_BASE_URL/v1/agents/<agt_id-or-did>/acceptancePolicy" \
+  -d '{
+        "version": 0,
+        "templates": ["fixed_outcome/v1"],
+        "price_floors": { "fixed_outcome/v1": "500000" }
+      }'
+```
+
+| Member | Meaning |
+|---|---|
+| `version` | The version this update was prepared against — echo what the GET returned, `0` when none exists. A stale version refuses (409), which is what stops an old approval from overwriting a newer, stricter policy. |
+| `templates` | The allowlist of pinned workflow templates. **Empty means none.** There is no spelling of this object that means "any template" — that is deliberate. |
+| `price_floors` | Minimum price per template, in **minor units** (`"500000"` is 0.50 USDC). A template with no floor has no minimum; the allowlist is the gate there. |
+| `price_ceilings` | Maximum per template, minor units. For a seller that would rather escalate than silently commit to an unusually large obligation. |
+| `max_open_obligations` | Cap on concurrent non-terminal obligations. Omitted means uncapped, which is a real choice here — it is about capacity, not about what was agreed to. |
+
+The floors and ceilings are minor units while a contract's price is a decimal
+string; the engine converts the contract rather than the policy, so a floor of
+`"1"` means one minor unit and not one dollar.
+
+Deals outside the mandate are not lost: the agent escalates them for a
+per-contract ruling, which is the **`seller-fulfill`** skill's Step 3. The
+mandate is what keeps that from being every deal.
+
+### Step 9: Confirm, Then Tell the Owner to List
 
 ```bash
 kagent status --output json
@@ -274,7 +339,7 @@ kagent status --output json
 | no key present | `pending` | `kagent init --output json` (Step 1) |
 | backend unreachable | `pending` | Retry; a network condition, not an identity problem |
 | `binding.status: "active"` | `success` | Done |
-| `binding.status: "pending"` | `human_action_required` | Re-surface the approval URL and wait |
+| `binding.status: "pending"` | `human_action_required` | Re-surface the approval message from Step 3 — the URL when there was one, otherwise the navigation path plus the thumbprint — and wait |
 | `binding.status: "revoked"` | `pending` | The owner revoked this runtime. Ask before `init --force`. |
 | `binding.status: "unbound"` | `pending` | `kagent bind --agent <did-or-agt-id> --output json` (Step 3) |
 

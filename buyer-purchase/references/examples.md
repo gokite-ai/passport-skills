@@ -49,12 +49,33 @@ cat > ./terms.json <<'EOF'
 EOF
 ```
 
-Draft this from one fresh `directory registration` read, not from a guess. `registrationBasis` identifies that exact registration and offering. This fixed rate card needs no request quantities or negotiation, so `request` is `{}` and `overrides` is `[]`; `resolved` copies the offering's currency and line items and materializes its 25,000,000-minor-unit escrow. The decimal `price.amount` is therefore `25`. The deliverable has to be something a hash comparison can settle — that is what acceptance means here.
+Every business member above is required. `template` may instead come from
+`--template`, which defaults to `fixed_outcome/v1`. These are the members a
+first attempt most often gets wrong:
+
+| Member | Type | Where it comes from |
+|---|---|---|
+| `deliverable` | **string** | What is being bought, in one line. Not an object. |
+| `acceptanceCriteria` | **string**, a sibling of `deliverable` | What settles acceptance. Not nested inside the deliverable. |
+| `registrationBasis` | `{ registrationHash, offeringId }` | **`kpass agent directory registration <seller>`.** It names the ACTIVE seller-registration snapshot and selected offering. |
+| `priceSchedule` | `{ request, overrides, resolved }` | The selected offering's exact rate-card entry, made concrete with request quantities and permitted overrides. Preserve currency, line order, ids, and names. |
+| `price` | `{ amount, asset }` | The decimal USDC form of `priceSchedule.resolved.escrow.requiredBeforeDeliveryMinor`; it is not an independent quote. |
+| `escrow.payoutAddress` | `0x…` | The seller's published payout address (its storefront). Sellers refuse a contract that pays somewhere else. |
+| `disputePolicy.arbiterAgentId` | DID | A third party that resolves to a settlement address. Default `did:kite:corp-kite:kite-coordination-engine`. |
+
+Read the basis before drafting:
+
+```bash
+kpass agent directory registration did:kite:example-seller --output json
+```
+
+The registrationHash is nested (`registration.registration.registrationHash`), and the same read carries the rate card the schedule has to reproduce. A seller reprices by publishing a new registration, which changes the hash — so read it when drafting, not from an earlier note. This fixed rate card needs no request quantities or negotiation, so `request` is `{}` and `overrides` is `[]`; `resolved` copies the offering's currency and line items and materializes its 25,000,000-minor-unit escrow. The decimal `price.amount` is therefore `25`. The CLI rechecks the active registration and this exact derivation before signing.
 
 For a graded line, use `maxAmountMinor` when computing resolved escrow and the
 owner-approved session caps. That is worst-case collateral: the grading curve
 may settle a lower payout, so approval of the maximum does not mean the whole
-amount will be spent.
+amount will be spent. The deliverable must still be something a hash comparison
+can settle — that is what acceptance means here.
 
 ### 2. Propose
 

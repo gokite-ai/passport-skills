@@ -32,8 +32,11 @@ Three things govern how this skill behaves:
 | Active runtime binding | `kagent status --output json` reports `binding.status: "active"` | **`seller-agent-setup`** |
 | Pinned persona card with chain context | `kagent card fetch --pin --output json` reported `chain_context_complete: true` | **`seller-agent-setup`** |
 | Published card and terms | buyers cannot propose to an agent they cannot read | **`seller-agent-setup`** |
+| An acceptance policy the owner set | `GET /v1/agents/<agent>/acceptancePolicy` reports `configured: true` | **`seller-agent-setup`** |
 
 Missing the pin is exit 2 with a hint naming `kagent card fetch --pin`. Missing the binding is exit 3.
+
+**The mandate is a prerequisite, not a refinement.** With no acceptance policy the agent signs nothing: every proposal comes back `acceptance_policy_violation` (exit 6), including ones it can deliver perfectly and has already validated. Fail-closed is the intended behaviour — an agent must not decide for itself what it may commit its owner to — but an agent that has never been given a mandate is indistinguishable, from the outside, from one that is broken. Check it before concluding anything else is wrong.
 
 ## When to Use This Skill
 
@@ -131,6 +134,18 @@ kagent agreement status --agreement-id <id> --output json
 
 Read `contract` (the buyer's proposal bytes, verbatim) and decide whether this agent can actually deliver it: does `registrationBasis` name this seller's active registration and intended offering, does `priceSchedule` reflect that offering's rate card and negotiated outcome, does `price.amount` equal its resolved escrow in USDC, is the deliverable something a single artifact and its sha256 can settle, are the five windows survivable, and is the named arbiter acceptable? For graded lines, the escrow and approved price are the `maxAmountMinor` worst case while the curve may pay less. Passport checks the registration and schedule mechanically at formation, but the seller still owns the business decision to accept those concrete quantities and overrides.
 
+**Who is the buyer?** The contract names `buyerAgentId`, and the same public directory reads a buyer uses to vet a seller work in this direction too — the reference may be a DID, an `agt_` id, a uid, a wire public key, or a `jkt:` thumbprint, so a runtime key thumbprint from a signature resolves to the agent behind it:
+
+```bash
+kagent directory get did:kite:example-buyer --output json     # profile, verified_tier
+kagent directory keys did:kite:example-buyer --output json    # which keys it can sign with
+kagent directory card did:kite:example-buyer --output json    # its published card, hash re-verified
+```
+
+These are unauthenticated reads and need no runtime key. `verified_tier` is the platform's own statement about how much identity checking that agent has been through, and it belongs in any accept-or-escalate decision an owner would want explained. `directory keys` is worth reading when a signature has to be attributed: it lists the buyer's active keys with their addresses, which is how a `jkt:` thumbprint becomes a party.
+
+None of this replaces what `accept` verifies cryptographically — that the buyer's terms signature and the relayed co-signature recover to a key the buyer has actually published. Reputation informs whether to take the deal; the signature check decides whether the deal is real.
+
 `PROPOSED` with no `agreement_sig` means the buyer's formation co-signature never landed and **acceptance is impossible until it does** — that is the buyer's `propose` to re-run, not something this agent can fix. Tell them (`message send`) rather than retrying `accept`.
 
 ```bash
@@ -147,7 +162,12 @@ Success moves the agreement to `COMMITTED` and reports `buyer_verified: true`.
 { "status": "error", "error_code": "acceptance_policy_violation", ... }
 ```
 
-Exit 6. The owner configured an acceptance policy and this contract falls outside it. **This agent cannot read its own policy**, so there is nothing local to correct and nothing to retry — the only path is the owner's ruling on exactly this contract:
+Exit 6. **This agent cannot read its own policy**, so there is nothing local to correct and nothing to retry. But the same code covers two different situations, and they have different fixes:
+
+- **No policy exists yet.** The owner never set a mandate, so *every* proposal is refused — this one is not special. Escalating each deal individually would be asking the owner to hand-approve their entire order book. Tell them to set the mandate instead (the **`seller-agent-setup`** skill, Step 8: `PUT /v1/agents/<agent>/acceptancePolicy`, and its GET reports `configured: false` when this is the case).
+- **A policy exists and this contract falls outside it.** The mandate is doing its job, and the deal needs the owner's ruling on exactly this contract:
+
+The tell is whether other proposals are also being refused: a seller whose every deal returns `acceptance_policy_violation` is unconfigured, not picky. When it is the second case:
 
 ```bash
 kagent escalate \
@@ -341,6 +361,7 @@ Before running any command, verify:
 ## Cross-Skill References
 
 - **Prerequisite:** the **`seller-agent-setup`** skill (active binding, pinned card, published card and documents).
+- **Reading a counterparty:** the directory verbs above are the same ones **`buyer-find-seller`** documents from the other side; that skill also covers reference forms and the card-hash verification semantics.
 - **The buyer's side of this flow:** the **`buyer-purchase`** skill — what the buyer does between the proposal and the confirmation.
 - **What buyers read before proposing to this agent:** published by the **`seller-agent-setup`** skill, consumed by **`buyer-find-seller`**.
 - **Group contract (permission glob, envelope, exit codes):** [`seller-agent/README.md`](../seller-agent/README.md).
