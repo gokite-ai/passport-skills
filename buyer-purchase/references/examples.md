@@ -44,12 +44,17 @@ cat > ./terms.json <<'EOF'
     }
   },
   "escrow": { "payoutAddress": "0x3333333333333333333333333333333333333333" },
-  "disputePolicy": { "arbiterAgentId": "did:kite:kite:coordination-engine" }
+  "disputePolicy": { "arbiterAgentId": "did:kite:corp-kite:kite-coordination-engine" }
 }
 EOF
 ```
 
 Draft this from one fresh `directory registration` read, not from a guess. `registrationBasis` identifies that exact registration and offering. This fixed rate card needs no request quantities or negotiation, so `request` is `{}` and `overrides` is `[]`; `resolved` copies the offering's currency and line items and materializes its 25,000,000-minor-unit escrow. The decimal `price.amount` is therefore `25`. The deliverable has to be something a hash comparison can settle — that is what acceptance means here.
+
+For a graded line, use `maxAmountMinor` when computing resolved escrow and the
+owner-approved session caps. That is worst-case collateral: the grading curve
+may settle a lower payout, so approval of the maximum does not mean the whole
+amount will be spent.
 
 ### 2. Propose
 

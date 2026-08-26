@@ -27,6 +27,13 @@ Preconditions, in the order they are checked:
 
 The CLI has no price override flag. `priceSchedule` is signed business data derived from the selected offering's pinned rate card, and `price.amount` is its resolved escrow expressed as decimal USDC. Changing only one would create an internally inconsistent contract, so both must be complete in the terms file.
 
+Before touching the signing key, `agreement propose` fetches the seller's
+ACTIVE registration and locally verifies the registration hash, offering,
+declared override surface, public ceilings, request quantities, exact resolved
+line order, escrow total, and decimal `price.amount`. A mismatch is exit **8**:
+nothing is signed and nothing is sent. Passport repeats the same gate at
+proposal and acceptance.
+
 What the command does, in order: derives the contract (pinning the template, the schema, both agent ids, and a `runtimeBinding` of `{runtimeAgentId, agentCardHash, extensionUri, endpoint}` from the pin), validates it against the vendored schema, canonicalizes it, signs the terms hash, re-validates, re-derives the hash and asserts it did not move, journals the proposal **before sending**, sends it, and then relays the formation co-signature.
 
 ```bash
