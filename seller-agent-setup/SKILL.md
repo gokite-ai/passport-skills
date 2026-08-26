@@ -5,11 +5,13 @@ description: >-
   key, bind it to the agent record with the owner's passkey approval, pin the
   coordination persona card, publish the agent card, and publish the commerce
   registration (storefront, rate card, workflow/terms) buyers read before
-  proposing. Invoke before any other
-  `kagent` command, whenever `kagent status` reports anything other than an
-  active binding, and whenever the card or a published document needs updating.
-  This is the gateway skill for the seller-agent group -- serving agreements
-  (seller-fulfill) requires an active binding and a pinned card first.
+  proposing. Also covers pointing the owner at the Passport web dashboard for
+  governance (acceptance policy, escalations) and pending runtime approvals.
+  Invoke before any other `kagent` command, whenever `kagent status` reports
+  anything other than an active binding, and whenever the card or a published
+  document needs updating. This is the gateway skill for the seller-agent group
+  -- serving agreements (seller-fulfill) requires an active binding and a pinned
+  card first.
 user-invocable: true
 allowed-tools:
   - "Bash(bash */setup.sh*)"
@@ -147,6 +149,8 @@ kagent bind --agent <did-or-agt-id> --wait --output json
     > Approve this runtime in Passport: **the Passport web app → Agents → `<agent_did>` → Runtimes**, and approve the row shown as PENDING with thumbprint `<thumbprint>` (address `<address>`, runtime `<runtime_id>`).
 
     All four values are in the bind envelope. Name the thumbprint every time: duplicate pending rows for one key are possible — a redeploy that re-files a request produces one per boot — and the owner has no other way to tell which row is the one you filed.
+
+    When the owner has several agents, or several pending runtimes to sort through, **Passport web app → Overview → "Awaiting runtime approval"** lists every pending runtime across every agent in one place — thumbprint, bind method, and key-verified state, with Approve/Reject inline — which is faster than opening this agent's own Runtimes tab.
 
   Re-surface the same message rather than re-running `bind`: each direct bind files a fresh request, which adds a row for the owner to disambiguate and does not speed anything up.
 
@@ -287,7 +291,9 @@ So say it explicitly, and say it before the first buyer arrives:
 > It is an owner action — your JWT is the whole authorization, and there is no
 > passkey ceremony on this route.
 
-Read what is there now:
+The fastest way to do this is the dashboard: **Passport web app → Governance → this agent** opens a form for exactly this. It converts USD amounts to minor units, carries the optimistic-concurrency version for the owner automatically, and fails closed with a clear message instead of a silent overwrite. Point the owner there first.
+
+A scripted or headless alternative exists for automation. Read what is there now:
 
 ```bash
 curl -fsS -H "Authorization: Bearer <owner-jwt>" \
@@ -326,6 +332,8 @@ Deals outside the mandate are not lost: the agent escalates them for a
 per-contract ruling, which is the **`seller-fulfill`** skill's Step 3. The
 mandate is what keeps that from being every deal.
 
+The same Governance page also surfaces this agent's open Escalations, at the top, ahead of the acceptance-policy form — the owner can act on an `acceptance-override` request from there instead of only from the URL this agent surfaces in **`seller-fulfill`**'s Step 3.
+
 ### Step 9: Confirm, Then Tell the Owner to List
 
 ```bash
@@ -342,6 +350,8 @@ kagent status --output json
 | `binding.status: "pending"` | `human_action_required` | Re-surface the approval message from Step 3 — the URL when there was one, otherwise the navigation path plus the thumbprint — and wait |
 | `binding.status: "revoked"` | `pending` | The owner revoked this runtime. Ask before `init --force`. |
 | `binding.status: "unbound"` | `pending` | `kagent bind --agent <did-or-agt-id> --output json` (Step 3) |
+
+Before an owner revokes a runtime with active or pending obligations, the dashboard now shows an impact warning at the point of the click — this agent has no visibility into that ceremony and should not try to talk the owner through it.
 
 Then say this to the owner, because it is the step this agent cannot take:
 

@@ -2,14 +2,16 @@
 name: seller-fulfill
 description: >-
   Serve incoming agreements as an autonomous seller: notice a proposal (by
-  streaming notifications with `kagent listen --forward` or by polling
-  `kagent agreement list`), verify the buyer's formation signatures and accept,
+  streaming notifications with `kagent listen --forward`, polling `kagent
+  agreement list`, or draining the work plane with `kagent work claim` /
+  `work pending`), verify the buyer's formation signatures and accept,
   escalate to the owner when the acceptance policy refuses a deal, sign the
   Activation, deliver the artifact once the escrow is funded, register evidence,
   and answer buyer questions. Invoke whenever a buyer has proposed to this agent,
-  whenever an accepted agreement needs advancing, and whenever an acceptance or
-  delivery is refused (acceptance_policy_violation, revision_conflict, an unfunded
-  escrow). Requires an active binding and a pinned card -- see seller-agent-setup.
+  whenever an accepted agreement needs advancing, whenever this agent holds a
+  leased work item to submit or fail, and whenever an acceptance or delivery is
+  refused (acceptance_policy_violation, revision_conflict, an unfunded escrow).
+  Requires an active binding and a pinned card -- see seller-agent-setup.
 user-invocable: true
 allowed-tools:
   - "Bash(kagent *)"
@@ -45,12 +47,13 @@ Missing the pin is exit 2 with a hint naming `kagent card fetch --pin`. Missing 
 - `agreement accept` refused with `acceptance_policy_violation` and the owner needs to rule.
 - A delivery was interrupted and needs resuming.
 - A buyer sent a question.
+- This agent holds a work item leased from `kagent work claim` that needs submitting or failing.
 
 Do **not** use this skill for setup, card publishing, or document publishing — that is **`seller-agent-setup`**.
 
-## Choosing How to Notice Work: `listen` vs Polling
+## Choosing How to Notice Work: `listen` vs Polling vs the Work Plane
 
-Both modes exist, they answer different questions, and a seller that only polls will miss the work it most needs to see.
+These modes exist, they answer different questions, and a seller that only polls will miss the work it most needs to see.
 
 | | `kagent listen --forward <url>` | `kagent agreement list` / `agreement status --watch` |
 |---|---|---|
@@ -68,12 +71,20 @@ Neither is the correctness mechanism. The stream is a latency optimization: ever
 
 `--forward` is **required** on `listen`. Without a target the process would read the stream and discard it, which is worse than not running: the cursor would advance past events nothing acted on.
 
+### A Third Option: the Work Plane
+
+`kagent work claim` and `kagent work pending` answer a third question: "what does Passport say I owe right now, across every agreement, regardless of whether I was ever notified?" The coordination engine states an obligation after every committed transition — for this seller, a delivery obligation appears the moment an agreement reaches `FULFILLING`. `work claim` leases a batch of due items and reads back their offered commands, deadline, and verification anchors in one call; `work pending` is the backstop sweep that finds anything a dropped `work.available` notification stranded, without leasing it.
+
+Use it alongside, not instead of, `listen`/polling: `listen` is the lowest-latency way to learn a proposal exists at all, but the work plane is the reliable way to find a due obligation this agent already knows about (an accepted agreement whose delivery is owed) even when the doorbell that should have said so never arrived. A worker driven by a scheduler rather than a live process should poll `work pending` periodically for exactly this reason.
+
+Full mechanics — the two clocks, claim-token fencing, and how `work submit` relates to `agreement deliver` — are in `references/commands.md`.
+
 ## Defaults (Do Not Ask the Owner Unless They Specify Otherwise)
 
 | Setting | Default | Override |
 |---|---|---|
 | Output format | `--output json` | Always. |
-| Consumption mode | `listen --forward` for a service; polling otherwise | See the table above. |
+| Consumption mode | `listen --forward` for a service; polling otherwise | See the table above. A scheduler-driven worker should also poll `work claim`/`work pending` as a backstop — see "A Third Option: the Work Plane" below. |
 | `--evidence-type` | `delivery` | Only change it for evidence that is not the deliverable itself. |
 | `--content-type` on artifacts | Derived from the file extension, falling back to `application/octet-stream` | Advisory for artifacts — no refusal, unlike documents. |
 | Watching | `--watch` with the default 10-minute timeout | A timeout is not a failure; re-run it. |
@@ -152,7 +163,9 @@ None of this replaces what `accept` verifies cryptographically — that the buye
 kagent agreement accept --agreement-id <id> --output json
 ```
 
-`--agreement-id` is the only flag. Before signing anything, the command verifies locally, in order: that the contract names this agent as seller; that the terms hash re-derives from the stored proposal bytes; that the buyer's terms signature recovers to a key the buyer has actually published; and that the relayed EIP-712 Agreement co-signature recovers to that same buyer key and was built for this agent's key. Any failure is a local refusal (exit 8, or 6 when the contract names a different seller) — nothing was sent, and re-running the same bytes will fail the same way.
+`--agreement-id` is the only flag. Before signing anything, the command verifies locally, in order: that the contract names this agent as seller; that the terms hash re-derives from the stored proposal bytes; that the buyer's terms signature recovers to a key the buyer has actually published; that the relayed EIP-712 Agreement co-signature recovers to that same buyer key and was built for this agent's key; and that the contract's `registrationBasis` and `priceSchedule` match this seller's own active registration, read fresh from Passport. Any failure is a local refusal (exit 8, or 6 when the contract names a different seller) — nothing was sent, and re-running the same bytes will fail the same way.
+
+That last check used to happen only after this agent had already signed: Passport re-derived the same mismatch and refused the acceptance, but by then the seller's key had already signed a contract certain to be rejected. It is now caught here, before either signature is produced — the same way `propose` already gates the buyer's price schedule before the buyer signs.
 
 Success moves the agreement to `COMMITTED` and reports `buyer_verified: true`.
 
@@ -185,6 +198,8 @@ Write `--summary` for a human who is about to spend a passkey ceremony: what the
 The result is `human_action_required` with an `approval_url`. **Surface it verbatim.** `--wait` polls with backoff (2 to 15 seconds, 10-minute default timeout), or poll separately with `kagent escalation status --id <id> --wait --output json` — the flag is `--id`, not `--escalation-id`.
 
 On approval, **re-run `agreement accept`**. The escalation status's own `next_command` is exactly that command. The override admits this contract **once**: a second acceptance of the same deal finds the override spent. A declined or expired escalation is envelope status `expired` — the owner said no, and this agent should not open a second escalation for the same deal without being told to.
+
+The owner can also see every open escalation for this agent in one place — **Passport web app → Governance → this agent → Escalations**, at the top of that page — rather than only from the `approval_url` this agent surfaces per deal.
 
 ### Step 4: Sign the Activation
 

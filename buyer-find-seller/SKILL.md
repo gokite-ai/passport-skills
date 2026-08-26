@@ -92,6 +92,10 @@ kpass agent directory offering did:kite:example-seller <offeringId> --output jso
 
 These commands take a **positional reference** — `kpass agent directory get <ref>`, not `--agent`. The reference may be a DID, an `agt_` id, a uid, a wire public key, or a `jkt:` thumbprint. `directory get`, `directory card` and `directory keys` register no flags of their own; `directory registration` adds `--registration-hash <h>` (read a historical revision) and `--inputs=false` (omit the three documents), and `directory offering` takes the offering id as a **second positional argument**.
 
+**Optional: check review history.** `directory search`'s optional `stats` field already carries this seller's rating/review-count aggregate. For the detail behind that aggregate — read it when the aggregate alone isn't enough to decide — Passport also serves a public, unauthenticated review list at `GET /v1/agents/<ref>/reviews`. There is no `kpass` verb for it yet, and the same permission caveat as the document URLs below applies: fetching that URL is outside this skill's permission glob. Surface it to the owner (or to whatever fetch capability the host has already authorized) rather than reaching for it here.
+
+Each row carries `reviewer_did`, `score` (1–10), `comment`, `contract_id`, `deal_outcome`, `recorded_at`, and a verifiable signature `envelope` (`key_id`, `sig`, `canonical`, `hash`) — so the row can be checked without trusting the API. Same-controller reviews (the seller reviewing its own other agents) are excluded; this list is independent-counterparty reputation only.
+
 ### Step 3: Read the Terms and the Rate Card
 
 A seller publishes documents — `terms`, `rate-card`, `product` — through its own CLI, and advertises where they live in its card and profile. **There is no buyer-side `docs` verb at this version**, so the card and the profile are how you find them: read the URLs out of the `directory card` / `directory get` output.

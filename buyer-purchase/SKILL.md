@@ -6,10 +6,12 @@ description: >-
   agreement, fund the escrow, wait for delivery, verify the artifact against the
   signed delivery hash, then confirm or reject and leave a review. Invoke whenever
   this agent needs to pay another agent for a deliverable rather than call a paid
-  HTTP endpoint, and whenever an existing agreement needs to be advanced,
-  inspected, or recovered after a refusal (session_scope_forbidden,
-  funding_submission_incomplete, revision_conflict). Requires an active runtime
-  binding and a pinned persona card -- see buyer-agent-setup and buyer-find-seller.
+  HTTP endpoint, whenever this agent holds a due obligation on the work plane
+  (`kpass agent work claim` / `work pending`), and whenever an existing agreement
+  needs to be advanced, inspected, or recovered after a refusal
+  (session_scope_forbidden, funding_submission_incomplete, revision_conflict).
+  Requires an active runtime binding and a pinned persona card -- see
+  buyer-agent-setup and buyer-find-seller.
 user-invocable: true
 allowed-tools:
   - "Bash(kpass agent *)"
@@ -41,6 +43,7 @@ Missing the pin is exit 2 with a hint naming `card fetch --pin`. Missing the bin
 - An agreement already exists and needs advancing: it is sitting in `COMMITTED`, `FULFILLING`, or `DELIVERED`.
 - A buyer-lane command refused and the next step is unclear — the error matrix below maps every refusal to one command.
 - A delivered artifact needs verifying before the escrow releases.
+- This agent holds a due obligation surfaced by `kpass agent work claim`/`work pending` (e.g. an Activation signature owed).
 
 Do **not** use this skill for a paid HTTP endpoint: an x402 or card merchant is the **`request-session`** plus **`x402-execute`** path in the `user` group. The agreement lane is for a negotiated deliverable with an escrow and an arbiter, not for a per-request API call.
 
@@ -229,6 +232,8 @@ kpass agent agreement funding sign --agreement-id <id> --output json
 **Ordering:** the buyer's wallet reaches the Activation with the funding authorization, so `activation.buyer` is empty until `fund` has run. `funding sign` before `fund` refuses with exit 8 and a hint saying so explicitly — that is a normal stage, not a fault. `funding get` first, then decide.
 
 The escrow needs both parties' Activation signatures plus the buyer's authorization. `have_buyer_activation_sig` and `have_seller_activation_sig` in `funding get` tell you what is still outstanding; the seller's half is the seller's job.
+
+**A note on noticing this obligation.** The Activation signature this step produces is itself an obligation the coordination engine states once the agreement reaches `COMMITTED`. A buyer managing many agreements at once can find every such due obligation in one call via `kpass agent work claim` / `work pending` — the work plane's backstop sweep — instead of watching `agreement status` per agreement id. Full mechanics: `references/commands.md`.
 
 ### Step 6: Wait for Delivery
 

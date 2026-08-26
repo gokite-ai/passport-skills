@@ -70,8 +70,11 @@ Preconditions: the runtime key resolves and its binding is `active` (else exit 3
 | 7 | The relayed EIP-712 Agreement co-signature is present | Exit **1**, `next_command: "kagent agreement status --agreement-id <id> --watch --output json"` |
 | 8 | The co-signature names **this agent's** key, not a sibling | Exit **8** |
 | 9 | The co-signature recovers to the buyer's address under the escrow domain | Exit **8** |
+| 10 | The contract's `registrationBasis` and `priceSchedule` match this seller's own active registration (read fresh via `GET /v1/agents/<seller>/registration`) | Exit **8** |
 
-Every one of these is a local refusal: nothing was sent, and the same bytes will fail again. Check 7 is the exception worth reading twice — it means the buyer's formation relay has not landed, which only the buyer can fix by re-running `propose` (the relay is write-once, so their identical resend is a no-op).
+Every one of these refuses before any signature is produced and before the accept is sent. Check 7 is the exception worth reading twice — it means the buyer's formation relay has not landed, which only the buyer can fix by re-running `propose` (the relay is write-once, so their identical resend is a no-op).
+
+Check 10 is new: it used to be enforced only server-side, after this agent had already signed. It reuses the same validation `propose` runs on the buyer's side, so a schedule one lane would refuse can no longer be signed by the other.
 
 Then this agent signs the terms hash and the EIP-712 Agreement, appends its signature entry alongside the buyer's, re-validates the contract against the schema, and asserts the terms anchor did not move.
 
@@ -488,6 +491,29 @@ SIGINT/SIGTERM flushes the cursor and exits 0. Progress lines go to **stderr** p
 ```
 
 A fatal error emits an error envelope with no data members and the classified exit code.
+
+---
+
+## `kagent work claim` / `work submit` / `work fail` / `work pending`
+
+The work plane's queue, this agent's side: after every committed transition the coordination engine states an obligation, Passport materializes it as a work item, and these four verbs are how the obligated party drains it. It exists alongside `listen`/polling as a third, backstop-reliable way to find due work — see "A Third Option: the Work Plane" in `SKILL.md` for when to prefer it.
+
+An item carries two clocks that never merge: `deadline` is the agreement's (past it the vault settles without anyone's signature), `lease_expires_at` is the queue's (past it another attempt starts). Pace the work by the deadline, retries by the lease.
+
+| Verb | Flags | Notes |
+|---|---|---|
+| `work claim` | `--command <name>` (repeatable, narrows to items offering that act), `--max <n>` (default 25, cap 100), `--lease-seconds <n>` (30–3600, default 300), `--key-file` | Leases up to `--max` due items exclusively for `--lease-seconds`, and reads back what the `work.available` doorbell doesn't carry: the offered commands, the agreement deadline, and the verification anchors (`terms_digest`, `chart_hash`, `latest_proof_hash`). An EMPTY batch is success, not refusal — nothing is due right now, which is what makes polling this cheap. The claim token fences the whole batch; quote it back on `submit`/`fail`. |
+| `work submit` | `--item <wrk_id>`, `--claim-token <token>`, `--agreement-id` (with `--file`; read from the queue when absent), `--file` (uploads and registers the artifact — its sha256 becomes the `deliveryHash`) or `--evidence-id` + `--content-hash` (cite a record already registered), `--evidence-type` (default `delivery`), `--content-type`, `--units`, `--key-file` | Records that the deliverable's bytes exist — deliberately nothing more. SUBMITTED never moves the agreement; the receipt's `next_action` names the signed command only this party can send (for a delivery obligation, that's `agreement deliver`). A submission under a superseded token is a conflict the worker must NOT retry — the lease lapsed, a successor claimed the item, and the successor's submission is the one that counts. An identical retry under the live token is a no-op success. |
+| `work fail` | `--item`, `--claim-token`, `--reason` (closed enum: `upstream_unavailable`, `request_unpriced`, `capacity_exceeded`, `permanent_error`), `--retriable`, `--detail` (free text, never parsed), `--key-file` | An explicit, reasoned hand-back — without it a worker that cannot do the work either sits on the lease until it lapses, or submits nothing and lies. `--retriable` is this worker's own claim that another attempt could help; it requeues the item with a backoff and never touches the money plane — exhausting attempts is terminal for the ITEM only, and the agreement's deadline decides where the money goes. |
+| `work pending` | `--limit <n>` (cap 200), `--since <RFC3339>`, `--key-file` | Lists this agent's outstanding items regardless of what was notified or leased — the backstop half of "the doorbell is allowed to get lost". `lease_expires_at` present on a row means some worker still holds it, which is how a supervisor tells "not started" from "in flight, maybe crashed". |
+
+`work submit --file` alone does not complete a delivery obligation: the agreement moves only once this party's signed command (`agreement deliver`, for a delivery obligation) reaches the coordination engine. Treat `work claim`'s offered commands as the authority on which signed verb to run next.
+
+```bash
+kagent work claim --command deliver --max 5 --output json
+kagent work submit --item wrk_9a2 --claim-token clm_7f... --file ./report.pdf --output json
+kagent agreement deliver --agreement-id agr_7f2a --file ./report.pdf --output json
+```
 
 ---
 
