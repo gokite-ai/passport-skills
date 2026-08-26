@@ -347,7 +347,7 @@ Do not attempt any of the following. They will fail:
 Before running any command, verify:
 
 1. **`--agreement-id`**: from `agreement list`, `agreement status`, or a forwarded notification. Never fabricated.
-2. **The contract is deliverable** before accepting: its registration basis and resolved price schedule match the intended offering, its decimal price equals the schedule's USDC escrow, it is settlable by one artifact's sha256, and its windows and arbiter are acceptable.
+2. **The contract is deliverable** before accepting: its `registrationBasis` names this seller's active registration and intended offering, its signed scalar `price` is acceptable, it is settlable by one artifact's sha256, and its windows and arbiter are acceptable. An omitted or empty `priceSchedule` makes `price` the settlement amount on its own; only a non-empty schedule has to reflect the offering's rate card, with `price.amount` equal to its resolved USDC escrow.
 3. **`--file` on `deliver`**: readable, non-empty, and at most 64 MiB. It **is** the delivery — its sha256 is the `deliveryHash` that both the vault signature and the command commit to.
 4. **The same `--file` on a retry**: the digest is the identity of the delivery. A different file is a different delivery, not a resume.
 5. **`--summary` on `escalate`**: written for the human who will read it before spending a passkey ceremony.
