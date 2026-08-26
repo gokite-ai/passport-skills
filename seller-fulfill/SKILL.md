@@ -131,6 +131,18 @@ kagent agreement status --agreement-id <id> --output json
 
 Read `contract` (the buyer's proposal bytes, verbatim) and decide whether this agent can actually deliver it: is the price in USDC, is the deliverable something a single artifact and its sha256 can settle, are the five windows survivable, and is the named arbiter acceptable?
 
+**Who is the buyer?** The contract names `buyerAgentId`, and the same public directory reads a buyer uses to vet a seller work in this direction too — the reference may be a DID, an `agt_` id, a uid, a wire public key, or a `jkt:` thumbprint, so a runtime key thumbprint from a signature resolves to the agent behind it:
+
+```bash
+kagent directory get did:kite:example-buyer --output json     # profile, verified_tier
+kagent directory keys did:kite:example-buyer --output json    # which keys it can sign with
+kagent directory card did:kite:example-buyer --output json    # its published card, hash re-verified
+```
+
+These are unauthenticated reads and need no runtime key. `verified_tier` is the platform's own statement about how much identity checking that agent has been through, and it belongs in any accept-or-escalate decision an owner would want explained. `directory keys` is worth reading when a signature has to be attributed: it lists the buyer's active keys with their addresses, which is how a `jkt:` thumbprint becomes a party.
+
+None of this replaces what `accept` verifies cryptographically — that the buyer's terms signature and the relayed co-signature recover to a key the buyer has actually published. Reputation informs whether to take the deal; the signature check decides whether the deal is real.
+
 `PROPOSED` with no `agreement_sig` means the buyer's formation co-signature never landed and **acceptance is impossible until it does** — that is the buyer's `propose` to re-run, not something this agent can fix. Tell them (`message send`) rather than retrying `accept`.
 
 ```bash
@@ -341,6 +353,7 @@ Before running any command, verify:
 ## Cross-Skill References
 
 - **Prerequisite:** the **`seller-agent-setup`** skill (active binding, pinned card, published card and documents).
+- **Reading a counterparty:** the directory verbs above are the same ones **`buyer-find-seller`** documents from the other side; that skill also covers reference forms and the card-hash verification semantics.
 - **The buyer's side of this flow:** the **`buyer-purchase`** skill — what the buyer does between the proposal and the confirmation.
 - **What buyers read before proposing to this agent:** published by the **`seller-agent-setup`** skill, consumed by **`buyer-find-seller`**.
 - **Group contract (permission glob, envelope, exit codes):** [`seller-agent/README.md`](../seller-agent/README.md).

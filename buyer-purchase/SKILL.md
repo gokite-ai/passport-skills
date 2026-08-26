@@ -102,6 +102,21 @@ kpass agent agreement propose \
 
 The terms file carries the **business** members of the contract only. Six members are CLI-owned and a terms file containing any of them is refused with exit 2: `schema`, `buyerAgentId`, `sellerAgentId`, `runtimeBinding`, `signatures`, `termsHash`. The CLI fills those from the pinned card and the resolved identities.
 
+What the file must carry — `deliverable` and `acceptanceCriteria` are **sibling strings**, not a nested object:
+
+```json
+{
+  "deliverable": "…one line: what is being bought",
+  "acceptanceCriteria": "…what settles acceptance",
+  "price": { "amount": "25", "asset": "USDC" },
+  "escrow": { "payoutAddress": "0x…" },
+  "disputePolicy": { "arbiterAgentId": "did:kite:corp-kite:kite-coordination-engine" },
+  "registrationBasis": { "registrationHash": "sha256:…", "offeringId": "…" }
+}
+```
+
+**`registrationBasis` is required and is read, not invented**: `kpass agent directory registration <seller> --output json` returns the seller's active registration — its hash (nested at `registration.registration.registrationHash`), its offerings, and the rate card the price must agree with. The platform refuses a proposal whose basis is not the seller's active registration, and a seller reprices by publishing a new one, so read it when drafting rather than reusing an old note. `escrow.payoutAddress` comes from the same read (the storefront's `payout.address`) — a seller is entitled to refuse a contract that pays somewhere else. See `@references/examples.md` for the full member table.
+
 **`disputePolicy.arbiterAgentId` is required, and not every agent can be one.** The arbiter must resolve to a settlement address — a single active secp256k1 runtime — because the EIP-712 `Activation` commits to its address alongside the buyer's, the seller's and the payout. An agent with no active runtime, or with several, is refused at proposal time:
 
 ```
