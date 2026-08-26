@@ -17,31 +17,35 @@ The terms file carries the business half of the contract only. The CLI owns `sch
 ```bash
 cat > ./terms.json <<'EOF'
 {
+  "template": "fixed_outcome/v1",
+  "registrationBasis": {
+    "registrationHash": "sha256:abababababababababababababababababababababababababababababababab",
+    "offeringId": "market-report"
+  },
   "deliverable": "Market research report on the EU battery-storage market, PDF",
   "acceptanceCriteria": "A PDF whose sha256 matches the deliveryHash in the signed delivery command",
   "price": { "amount": "25", "asset": "USDC" },
-  "escrow": { "payoutAddress": "0x…" },
-  "disputePolicy": { "arbiterAgentId": "did:kite:corp-kite:kite-coordination-engine" },
-  "registrationBasis": {
-    "registrationHash": "sha256:…",
-    "offeringId": "…"
-  }
+  "priceSchedule": {},
+  "escrow": { "payoutAddress": "0x3333333333333333333333333333333333333333" },
+  "disputePolicy": { "arbiterAgentId": "did:kite:corp-kite:kite-coordination-engine" }
 }
 EOF
 ```
 
-Every member above is required, and three of them are the ones a first attempt usually gets wrong:
+The example keeps the optional `priceSchedule` slot visible as `{}`. It may be
+omitted with the same meaning. `template` may instead come from `--template`,
+which defaults to `fixed_outcome/v1`. These are the members a first attempt
+most often gets wrong:
 
 | Member | Type | Where it comes from |
 |---|---|---|
 | `deliverable` | **string** | What is being bought, in one line. Not an object. |
 | `acceptanceCriteria` | **string**, a sibling of `deliverable` | What settles acceptance. Not nested inside the deliverable. |
-| `price` | `{ amount, asset }` | The seller's rate card. `asset` is `USDC`; `amount` is a decimal with at most 6 fractional digits. |
+| `registrationBasis` | `{ registrationHash, offeringId }` | **`kpass agent directory registration <seller>`.** It names the ACTIVE seller-registration snapshot and selected offering. |
+| `priceSchedule` | `{}` or `{ request, overrides, resolved }` | Optional. `{}` makes no line-level assertion. A non-empty value is the selected offering's exact rate-card entry, made concrete with request quantities and permitted overrides. |
+| `price` | `{ amount, asset }` | The signed settlement amount when `priceSchedule` is omitted or `{}`. With a non-empty schedule, it must be the decimal USDC form of the resolved escrow. |
 | `escrow.payoutAddress` | `0x…` | The seller's published payout address (its storefront). Sellers refuse a contract that pays somewhere else. |
 | `disputePolicy.arbiterAgentId` | DID | A third party that resolves to a settlement address. Default `did:kite:corp-kite:kite-coordination-engine`. |
-| `registrationBasis` | `{ registrationHash, offeringId }` | **`kpass agent directory registration <seller>`.** REQUIRED: it names the seller-registration snapshot this deal forms against, and the platform refuses a proposal — and an acceptance — whose basis is not the seller's active registration. |
-
-`template` is optional here; `--template` sets it and defaults to `fixed_outcome/v1`.
 
 Read the basis before drafting:
 
@@ -49,9 +53,13 @@ Read the basis before drafting:
 kpass agent directory registration did:kite:example-seller --output json
 ```
 
-The registrationHash is nested (`registration.registration.registrationHash`), and the same read carries the rate card the price has to agree with. A seller reprices by publishing a new registration, which changes the hash — so read it when you draft, not from an earlier note.
+The registrationHash is nested (`registration.registration.registrationHash`), and the same read carries the rate card used to assess the 25 USDC price. A seller reprices by publishing a new registration, which changes the hash — so read it when drafting, not from an earlier note. The CLI rechecks the active registration and offering before signing. If a non-empty schedule is supplied, it also rechecks the exact derivation before signing.
 
-Draft the rest from the seller's published `terms` and `rate-card` documents, not from a guess. The deliverable has to be something a hash comparison can settle — that is what acceptance means here.
+For a non-empty schedule with a graded line, use `maxAmountMinor` when computing
+resolved escrow and the owner-approved session caps. That is worst-case
+collateral: the grading curve may settle a lower payout, so approval of the
+maximum does not mean the whole amount will be spent. The deliverable must still
+be something a hash comparison can settle — that is what acceptance means here.
 
 ### 2. Propose
 

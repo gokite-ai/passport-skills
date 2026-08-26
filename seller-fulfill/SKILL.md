@@ -132,7 +132,7 @@ Note that `agreement list --state PROPOSED` filters **client-side** — the requ
 kagent agreement status --agreement-id <id> --output json
 ```
 
-Read `contract` (the buyer's proposal bytes, verbatim) and decide whether this agent can actually deliver it: is the price in USDC, is the deliverable something a single artifact and its sha256 can settle, are the five windows survivable, and is the named arbiter acceptable?
+Read `contract` (the buyer's proposal bytes, verbatim) and decide whether this agent can actually deliver it: does `registrationBasis` name this seller's active registration and intended offering, is the signed scalar `price` acceptable, is the deliverable something a single artifact and its sha256 can settle, are the five windows survivable, and is the named arbiter acceptable? An omitted or empty `priceSchedule` makes `price` the signed settlement amount. If the schedule is non-empty, verify that it reflects the offering's rate card and negotiated outcome and that `price.amount` equals its resolved escrow in USDC. For graded lines, the escrow and approved price are the `maxAmountMinor` worst case while the curve may pay less. Passport checks the registration and any non-empty schedule mechanically at formation, but the seller still owns the business decision to accept the price, quantities, and overrides.
 
 **Who is the buyer?** The contract names `buyerAgentId`, and the same public directory reads a buyer uses to vet a seller work in this direction too — the reference may be a DID, an `agt_` id, a uid, a wire public key, or a `jkt:` thumbprint, so a runtime key thumbprint from a signature resolves to the agent behind it:
 
@@ -347,7 +347,7 @@ Do not attempt any of the following. They will fail:
 Before running any command, verify:
 
 1. **`--agreement-id`**: from `agreement list`, `agreement status`, or a forwarded notification. Never fabricated.
-2. **The contract is deliverable** before accepting: priced in USDC, settlable by one artifact's sha256, with survivable windows and an acceptable arbiter.
+2. **The contract is deliverable** before accepting: its `registrationBasis` names this seller's active registration and intended offering, its signed scalar `price` is acceptable, it is settlable by one artifact's sha256, and its windows and arbiter are acceptable. An omitted or empty `priceSchedule` makes `price` the settlement amount on its own; only a non-empty schedule has to reflect the offering's rate card, with `price.amount` equal to its resolved USDC escrow.
 3. **`--file` on `deliver`**: readable, non-empty, and at most 64 MiB. It **is** the delivery — its sha256 is the `deliveryHash` that both the vault signature and the command commit to.
 4. **The same `--file` on a retry**: the digest is the identity of the delivery. A different file is a different delivery, not a resume.
 5. **`--summary` on `escalate`**: written for the human who will read it before spending a passkey ceremony.

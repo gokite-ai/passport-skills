@@ -12,7 +12,6 @@ Every command takes `--output json`. All flags are long-form. `--base-url`, `--o
 |---|---|---|---|---|
 | `--seller <ref>` | string | `""` | **yes** (unless `--resume`) | DID, `agt_` id, uid, or key thumbprint. Resolving to this same agent is exit 2. |
 | `--terms-file <path>` | string | `""` | **yes** (unless `--resume`) | JSON file carrying the contract's business members. |
-| `--price <decimal>` | string | `""` | no | Overrides the terms file's `price.amount`. Decimal USDC, at most 6 fractional digits. Injects `price.asset: "USDC"` when the terms file omits it. |
 | `--seller-key-id <key_id>` | string | `""` | conditional | Which of the seller's active keys the Agreement digest names. Required when the seller has more than one active key with an address. |
 | `--resume <proposalId>` | string | `""` | no | Resend a journaled proposal's exact bytes. Short-circuits every other flag. |
 
@@ -21,10 +20,20 @@ Preconditions, in the order they are checked:
 1. The runtime key resolves and its binding is `active` — otherwise exit 3.
 2. A persona card is pinned — otherwise exit 2 with `next_command: "kpass agent card fetch --pin --output json"`. The pin must carry `endpoint` and `extension_uri`, and a non-zero `chain_id` and `escrow_vault` — a pin without chain context is exit 8.
 3. The seller reference resolves, and is not this agent.
-4. The terms file reads, parses, and contains none of the six CLI-owned members.
+4. The terms file reads, parses, contains none of the six CLI-owned members, and carries required matching `registrationBasis` and `price` members. `priceSchedule` is optional; examples use `{}` to keep the slot visible.
 5. The seller key selection is unambiguous.
 
 **CLI-owned terms members** — each is exit 2 if present in the terms file: `schema`, `buyerAgentId`, `sellerAgentId`, `runtimeBinding`, `signatures`, `termsHash`.
+
+The CLI has no price override flag. With an omitted or empty `priceSchedule`, `price` is the signed settlement amount. A non-empty `priceSchedule` is signed business data derived from the selected offering's pinned rate card, and `price.amount` must be its resolved escrow expressed as decimal USDC.
+
+Before touching the signing key, `agreement propose` fetches the seller's
+ACTIVE registration and locally verifies the registration hash, offering,
+and offering. For a non-empty schedule it also verifies the declared override
+surface, public ceilings, request quantities, exact resolved line order, escrow
+total, and decimal `price.amount`. A mismatch is exit **8**:
+nothing is signed and nothing is sent. Passport repeats the same gate at
+proposal and acceptance.
 
 What the command does, in order: derives the contract (pinning the template, the schema, both agent ids, and a `runtimeBinding` of `{runtimeAgentId, agentCardHash, extensionUri, endpoint}` from the pin), validates it against the vendored schema, canonicalizes it, signs the terms hash, re-validates, re-derives the hash and asserts it did not move, journals the proposal **before sending**, sends it, and then relays the formation co-signature.
 

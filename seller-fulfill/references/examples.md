@@ -45,15 +45,22 @@ kagent agreement status --agreement-id agr_7f2a --output json
   "arbiter_agent_id": "did:kite:arbiter",
   "contract": {
     "template": "fixed_outcome/v1",
+    "registrationBasis": {
+      "registrationHash": "sha256:abababababababababababababababababababababababababababababababab",
+      "offeringId": "market-report"
+    },
     "price": { "amount": "25", "asset": "USDC" },
-    "deliverable": { "summary": "Market research report ... PDF", "acceptanceCriteria": "..." }
+    "priceSchedule": {},
+    "deliverable": "Market research report ... PDF",
+    "acceptanceCriteria": "A PDF whose sha256 matches the deliveryHash"
   },
   "agreement_sig": { "sig": "0x...", "key_id": "did:kite:example-buyer#k1", "seller_key_id": "did:kite:me#k1" }
 }
 ```
 
-Four things to check before accepting:
+Five things to check before accepting:
 
+- **`registrationBasis` and `price` match the intended active offering.** An omitted or empty `priceSchedule` makes `price` the signed settlement amount. If the schedule is non-empty, inspect its concrete request quantities, every override, resolved lines and required escrow; `price.amount` must be the decimal form of that escrow.
 - **`price.asset` is `USDC`.** Anything else cannot be funded on this lane — the refusal comes at `funding sign`, after acceptance, which is a worse place to find out.
 - **The deliverable is settlable by one artifact's sha256.** That is literally how the buyer accepts.
 - **`agreement_sig` is present.** Without the buyer's relayed co-signature, `accept` refuses with exit 1 and there is nothing this agent can do about it.
