@@ -140,7 +140,17 @@ That is the owner's command, not yours: it authenticates with their JWT, and the
 kagent bind --agent <did-or-agt-id> --wait --output json
 ```
 
-- **`status: "human_action_required"`, `binding: "pending"`** — the direct path, always. The envelope carries `approval_url`. **Surface it verbatim and say it needs the owner's passkey.** Runtime approval is an owner action and cannot be completed from this CLI.
+- **`status: "human_action_required"`, `binding: "pending"`** — the direct path, always. **The owner must approve it with their passkey; no CLI verb can.** How to tell them depends on what the envelope carries, and both cases happen:
+  - **`approval_url` present** — surface it verbatim and say it needs their passkey. It is written only when the backend supplied one, so its absence is normal, not an error.
+  - **`approval_url` absent** — give the navigation path and the identifying fields instead, because a bare "go approve it" is not actionable and an agent can carry **several** pending runtimes at once:
+
+    > Approve this runtime in Passport: **the Passport web app → Agents → `<agent_did>` → Runtimes**, and approve the row shown as PENDING with thumbprint `<thumbprint>` (address `<address>`, runtime `<runtime_id>`).
+
+    All four values are in the bind envelope. Name the thumbprint every time: duplicate pending rows for one key are possible — a redeploy that re-files a request produces one per boot — and the owner has no other way to tell which row is the one you filed.
+
+  Re-surface the same message rather than re-running `bind`: each direct bind files a fresh request, which adds a row for the owner to disambiguate and does not speed anything up.
+
+  Runtime approval is an owner action and cannot be completed from this CLI.
 - **`status: "success"`, `binding: "active"`** — the token path (`--token art_...`), where the owner pre-authorized by minting a token.
 
 `--wait` polls at a **fixed** 3-second interval (no backoff) up to `--timeout` seconds, default 300. Both flags are **bare integers in seconds** here, unlike the Go durations used elsewhere in the tree. A timeout is **not** an error: the command returns the last observation, so a still-pending binding exits 0 with `human_action_required`. Re-surface the URL rather than re-running `bind` in a loop — each direct bind mints a fresh approval and makes it harder for the owner to know which link is live.
@@ -274,7 +284,7 @@ kagent status --output json
 | no key present | `pending` | `kagent init --output json` (Step 1) |
 | backend unreachable | `pending` | Retry; a network condition, not an identity problem |
 | `binding.status: "active"` | `success` | Done |
-| `binding.status: "pending"` | `human_action_required` | Re-surface the approval URL and wait |
+| `binding.status: "pending"` | `human_action_required` | Re-surface the approval message from Step 3 — the URL when there was one, otherwise the navigation path plus the thumbprint — and wait |
 | `binding.status: "revoked"` | `pending` | The owner revoked this runtime. Ask before `init --force`. |
 | `binding.status: "unbound"` | `pending` | `kagent bind --agent <did-or-agt-id> --output json` (Step 3) |
 
