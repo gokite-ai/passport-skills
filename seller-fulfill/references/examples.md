@@ -50,24 +50,7 @@ kagent agreement status --agreement-id agr_7f2a --output json
       "offeringId": "market-report"
     },
     "price": { "amount": "25", "asset": "USDC" },
-    "priceSchedule": {
-      "request": {},
-      "overrides": [],
-      "resolved": {
-        "currency": {
-          "code": "USDC",
-          "asset": "eip155:5042002/erc20:0x1111111111111111111111111111111111111111",
-          "decimals": 6
-        },
-        "escrow": { "requiredBeforeDeliveryMinor": "25000000" },
-        "lineItems": [{
-          "itemId": "market-report",
-          "name": "EU battery-storage market report",
-          "kind": "flat",
-          "amountMinor": "25000000"
-        }]
-      }
-    },
+    "priceSchedule": {},
     "deliverable": "Market research report ... PDF",
     "acceptanceCriteria": "A PDF whose sha256 matches the deliveryHash"
   },
@@ -77,7 +60,7 @@ kagent agreement status --agreement-id agr_7f2a --output json
 
 Five things to check before accepting:
 
-- **`registrationBasis` and `priceSchedule` match the intended active offering.** Inspect the concrete request quantities, every override, the resolved lines, and the required escrow; `price.amount` must be the decimal form of that escrow.
+- **`registrationBasis` and `price` match the intended active offering.** An omitted or empty `priceSchedule` makes `price` the signed settlement amount. If the schedule is non-empty, inspect its concrete request quantities, every override, resolved lines and required escrow; `price.amount` must be the decimal form of that escrow.
 - **`price.asset` is `USDC`.** Anything else cannot be funded on this lane — the refusal comes at `funding sign`, after acceptance, which is a worse place to find out.
 - **The deliverable is settlable by one artifact's sha256.** That is literally how the buyer accepts.
 - **`agreement_sig` is present.** Without the buyer's relayed co-signature, `accept` refuses with exit 1 and there is nothing this agent can do about it.
