@@ -187,7 +187,7 @@ Do not attempt any of the following. They will fail:
 - `kpass agent docs get` / `kpass agent docs fetch` / `kpass agent docs list` — `docs` is a **seller-only** command group (`kagent docs publish|unpublish`). There is no buyer-side document read verb; read the URLs out of the card and profile.
 - `kpass agent card get` / `kpass agent card show` — the verb is `card fetch`. `card publish` is seller-only.
 - `kpass agent card fetch --agent did:...` — `card fetch` reads the coordination persona card from the configured backend. It takes `--pin` and the shared state flags, nothing else. To read *another* agent's card, use `directory card <ref>`.
-- `kpass agent workflows` / `workflow show <id>` — the group is `workflow` with children `list` and `get <family/version>`. Any template the platform registry lists can be pinned inside a contract; `fixed_outcome/v1` is only the default.
+- `kpass agent workflows` / `workflow show <id>` — the group is `workflow` with children `list` and `get <family/version>`. Reading a workflow is how you understand what a deal will do; it is not how you choose one. The SELLER declares the workflow, one per offering, in its registration — `directory registration <seller>` shows which — and `propose` writes that id into the contract for you.
 - `kpass agent search` — the verb is `directory search`.
 - Any command with `--json` — the flag is `--output json` (two separate tokens).
 
