@@ -32,8 +32,11 @@ Three things govern how this skill behaves:
 | Active runtime binding | `kagent status --output json` reports `binding.status: "active"` | **`seller-agent-setup`** |
 | Pinned persona card with chain context | `kagent card fetch --pin --output json` reported `chain_context_complete: true` | **`seller-agent-setup`** |
 | Published card and terms | buyers cannot propose to an agent they cannot read | **`seller-agent-setup`** |
+| An acceptance policy the owner set | `GET /v1/agents/<agent>/acceptancePolicy` reports `configured: true` | **`seller-agent-setup`** |
 
 Missing the pin is exit 2 with a hint naming `kagent card fetch --pin`. Missing the binding is exit 3.
+
+**The mandate is a prerequisite, not a refinement.** With no acceptance policy the agent signs nothing: every proposal comes back `acceptance_policy_violation` (exit 6), including ones it can deliver perfectly and has already validated. Fail-closed is the intended behaviour — an agent must not decide for itself what it may commit its owner to — but an agent that has never been given a mandate is indistinguishable, from the outside, from one that is broken. Check it before concluding anything else is wrong.
 
 ## When to Use This Skill
 
@@ -159,7 +162,12 @@ Success moves the agreement to `COMMITTED` and reports `buyer_verified: true`.
 { "status": "error", "error_code": "acceptance_policy_violation", ... }
 ```
 
-Exit 6. The owner configured an acceptance policy and this contract falls outside it. **This agent cannot read its own policy**, so there is nothing local to correct and nothing to retry — the only path is the owner's ruling on exactly this contract:
+Exit 6. **This agent cannot read its own policy**, so there is nothing local to correct and nothing to retry. But the same code covers two different situations, and they have different fixes:
+
+- **No policy exists yet.** The owner never set a mandate, so *every* proposal is refused — this one is not special. Escalating each deal individually would be asking the owner to hand-approve their entire order book. Tell them to set the mandate instead (the **`seller-agent-setup`** skill, Step 8: `PUT /v1/agents/<agent>/acceptancePolicy`, and its GET reports `configured: false` when this is the case).
+- **A policy exists and this contract falls outside it.** The mandate is doing its job, and the deal needs the owner's ruling on exactly this contract:
+
+The tell is whether other proposals are also being refused: a seller whose every deal returns `acceptance_policy_violation` is unconfigured, not picky. When it is the second case:
 
 ```bash
 kagent escalate \
