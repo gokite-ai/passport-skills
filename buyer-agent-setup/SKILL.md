@@ -121,7 +121,17 @@ kpass agent bind --agent <did-or-agt-id> --wait --output json
 
 Two outcomes, and the difference is the whole ceremony:
 
-- **`status: "human_action_required"`, `binding: "pending"`** — the normal direct path. The envelope carries `approval_url`. **Surface that URL to the owner verbatim and tell them it needs their passkey.** Nothing this agent can do advances the binding; `--wait` polls every 3 seconds up to the timeout and returns the last observation.
+- **`status: "human_action_required"`, `binding: "pending"`** — the normal direct path. **The owner must approve it with their passkey; no CLI verb can.** How to tell them depends on what the envelope carries, and both cases happen:
+  - **`approval_url` present** — surface it verbatim and say it needs their passkey. It is written only when the backend supplied one, so its absence is normal, not an error.
+  - **`approval_url` absent** — give the navigation path and the identifying fields instead, because a bare "go approve it" is not actionable and an agent can carry **several** pending runtimes at once:
+
+    > Approve this runtime in Passport: **the Passport web app → Agents → `<agent_did>` → Runtimes**, and approve the row shown as PENDING with thumbprint `<thumbprint>` (address `<address>`, runtime `<runtime_id>`).
+
+    All four values are in the bind envelope. Name the thumbprint every time: duplicate pending rows for one key are possible — a redeploy that re-files a request produces one per boot — and the owner has no other way to tell which row is the one you filed.
+
+  Re-surface the same message rather than re-running `bind`: each direct bind files a fresh request, which adds a row for the owner to disambiguate and does not speed anything up.
+
+  Nothing this agent can do advances the binding; `--wait` polls every 3 seconds up to the timeout and returns the last observation.
 - **`status: "success"`, `binding: "active"`** — the token path (`--token art_...`), where the owner pre-authorized the binding by minting a token. No approval URL, nothing to wait for.
 
 A `--wait` that times out is **not a failure**: it exits 0 with `human_action_required` and the binding is still pending. Report the approval URL again and poll `status` later rather than re-running `bind`.
@@ -141,7 +151,7 @@ kpass agent status --output json
 | no key present | `pending` | `kpass agent init --output json` (Step 1) |
 | backend unreachable | `pending` | Retry `status`; this is a network condition, not an identity problem |
 | `binding.status: "active"` | `success` | Done. Proceed to **`buyer-find-seller`**. |
-| `binding.status: "pending"` | `human_action_required` | Surface `approval_url` from the earlier `bind` output again and wait |
+| `binding.status: "pending"` | `human_action_required` | Re-surface the approval message from Step 3 — the URL when there was one, otherwise the navigation path plus the thumbprint — and wait |
 | `binding.status: "revoked"` | `pending` | The owner revoked this runtime. Ask before running `init --force`. |
 | `binding.status: "unbound"` | `pending` | `kpass agent bind --agent <did-or-agt-id> --output json` (Step 3) |
 
@@ -186,7 +196,7 @@ The buyer lane uses the standard table extended with two agent-plane codes (7 an
 
 **`runtime key already exists` (exit 2):** A key is present at the resolved path. Run `kpass agent status --output json` first — if it is already bound and active, setup is complete and nothing needs doing. Only `--force` if the owner is abandoning that identity.
 
-**Binding stuck at `pending`:** Expected, and not an error. The owner has not opened the approval URL, or has not finished the passkey ceremony. Re-surface the URL. Do not re-run `bind` in a loop — each direct bind mints a fresh nonce and a fresh approval, which makes it harder for the owner to know which link is live.
+**Binding stuck at `pending`:** Expected, and not an error. The owner has not approved it yet, or has not finished the passkey ceremony. Re-surface the approval message — including the thumbprint, so they can pick the right row. Do not re-run `bind` in a loop: each direct bind files a fresh request, and a key with several pending rows is harder to approve, not easier. It also outlives the moment — an agent that re-filed on every restart can leave a column of duplicate rows behind, and once approved they all count, which makes the key ambiguous to counterparties.
 
 **`runtime_revoked` (exit 3):** The owner revoked this runtime in Passport, deliberately. The key is dead for signing. Ask before running `init --force`: a new key orphans agreements pinned to the old one.
 
