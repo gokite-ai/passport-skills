@@ -45,15 +45,39 @@ kagent agreement status --agreement-id agr_7f2a --output json
   "arbiter_agent_id": "did:kite:arbiter",
   "contract": {
     "template": "fixed_outcome/v1",
+    "registrationBasis": {
+      "registrationHash": "sha256:abababababababababababababababababababababababababababababababab",
+      "offeringId": "market-report"
+    },
     "price": { "amount": "25", "asset": "USDC" },
-    "deliverable": { "summary": "Market research report ... PDF", "acceptanceCriteria": "..." }
+    "priceSchedule": {
+      "request": {},
+      "overrides": [],
+      "resolved": {
+        "currency": {
+          "code": "USDC",
+          "asset": "eip155:5042002/erc20:0x1111111111111111111111111111111111111111",
+          "decimals": 6
+        },
+        "escrow": { "requiredBeforeDeliveryMinor": "25000000" },
+        "lineItems": [{
+          "itemId": "market-report",
+          "name": "EU battery-storage market report",
+          "kind": "flat",
+          "amountMinor": "25000000"
+        }]
+      }
+    },
+    "deliverable": "Market research report ... PDF",
+    "acceptanceCriteria": "A PDF whose sha256 matches the deliveryHash"
   },
   "agreement_sig": { "sig": "0x...", "key_id": "did:kite:example-buyer#k1", "seller_key_id": "did:kite:me#k1" }
 }
 ```
 
-Four things to check before accepting:
+Five things to check before accepting:
 
+- **`registrationBasis` and `priceSchedule` match the intended active offering.** Inspect the concrete request quantities, every override, the resolved lines, and the required escrow; `price.amount` must be the decimal form of that escrow.
 - **`price.asset` is `USDC`.** Anything else cannot be funded on this lane — the refusal comes at `funding sign`, after acceptance, which is a worse place to find out.
 - **The deliverable is settlable by one artifact's sha256.** That is literally how the buyer accepts.
 - **`agreement_sig` is present.** Without the buyer's relayed co-signature, `accept` refuses with exit 1 and there is nothing this agent can do about it.

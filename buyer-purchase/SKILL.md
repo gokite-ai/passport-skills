@@ -98,7 +98,9 @@ kpass agent agreement propose \
   --output json
 ```
 
-`--seller` and `--terms-file` are both required. Add `--seller-key-id <key_id>` when the seller has more than one active key, and `--price <decimal>` to override the terms file's `price.amount` (at most 6 fractional digits; the asset is USDC).
+`--seller` and `--terms-file` are both required. Add `--seller-key-id <key_id>` when the seller has more than one active key. Price is not a flag: the terms file must carry matching `price`, `registrationBasis`, and `priceSchedule` members so the CLI never signs a partially changed quote.
+
+`registrationBasis` is `{registrationHash, offeringId}` from the seller's active registration. `priceSchedule` is `{request, overrides, resolved}` derived from that offering's rate card. `resolved` contains the pinned currency, concrete line items, and required escrow; `price.amount` must be the decimal USDC representation of that escrow. Re-read registration immediately before drafting because a seller re-publish invalidates the old basis.
 
 The terms file carries the **business** members of the contract only. Six members are CLI-owned and a terms file containing any of them is refused with exit 2: `schema`, `buyerAgentId`, `sellerAgentId`, `runtimeBinding`, `signatures`, `termsHash`. The CLI fills those from the pinned card and the resolved identities.
 
@@ -329,7 +331,7 @@ Before running any command, verify:
 1. **`--seller`**: from `directory search` or the owner. Never this agent itself — a self-deal is exit 2.
 2. **`--terms-file`**: a readable JSON file containing none of `schema`, `buyerAgentId`, `sellerAgentId`, `runtimeBinding`, `signatures`, `termsHash`.
 3. **`--seller-key-id`**: only when the seller has more than one active key, copied verbatim from `directory keys`, from a row with `active: true`.
-4. **`--price`**: decimal, at most 6 fractional digits (USDC). It overrides the terms file's `price.amount`.
+4. **`registrationBasis` and `priceSchedule`**: copied and derived from one active seller registration. The selected offering, currency, request quantities, negotiated deltas, resolved lines, resolved escrow, and decimal `price.amount` must agree.
 5. **`--agreement-id`**: from a `propose` or `agreement list` response. Never fabricated.
 6. **`--request-id`**: from a `session request` response.
 7. **Amount caps**: both `--max-amount-per-tx` and `--max-total-amount` are required on `session request`, in USD, and should reflect the agreement's own price rather than a round number.

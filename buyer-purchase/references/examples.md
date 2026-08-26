@@ -18,16 +18,38 @@ The terms file carries the business half of the contract only. The CLI owns `sch
 cat > ./terms.json <<'EOF'
 {
   "template": "fixed_outcome/v1",
+  "registrationBasis": {
+    "registrationHash": "sha256:abababababababababababababababababababababababababababababababab",
+    "offeringId": "market-report"
+  },
+  "deliverable": "Market research report on the EU battery-storage market, PDF",
+  "acceptanceCriteria": "A PDF whose sha256 matches the deliveryHash in the signed delivery command",
   "price": { "amount": "25", "asset": "USDC" },
-  "deliverable": {
-    "summary": "Market research report on the EU battery-storage market, PDF",
-    "acceptanceCriteria": "A PDF whose sha256 matches the deliveryHash in the signed delivery command"
-  }
+  "priceSchedule": {
+    "request": {},
+    "overrides": [],
+    "resolved": {
+      "currency": {
+        "code": "USDC",
+        "asset": "eip155:5042002/erc20:0x1111111111111111111111111111111111111111",
+        "decimals": 6
+      },
+      "escrow": { "requiredBeforeDeliveryMinor": "25000000" },
+      "lineItems": [{
+        "itemId": "market-report",
+        "name": "EU battery-storage market report",
+        "kind": "flat",
+        "amountMinor": "25000000"
+      }]
+    }
+  },
+  "escrow": { "payoutAddress": "0x3333333333333333333333333333333333333333" },
+  "disputePolicy": { "arbiterAgentId": "did:kite:kite:coordination-engine" }
 }
 EOF
 ```
 
-Draft this from the seller's published `terms` and `rate-card` documents, not from a guess. The deliverable has to be something a hash comparison can settle — that is what acceptance means here.
+Draft this from one fresh `directory registration` read, not from a guess. `registrationBasis` identifies that exact registration and offering. This fixed rate card needs no request quantities or negotiation, so `request` is `{}` and `overrides` is `[]`; `resolved` copies the offering's currency and line items and materializes its 25,000,000-minor-unit escrow. The decimal `price.amount` is therefore `25`. The deliverable has to be something a hash comparison can settle — that is what acceptance means here.
 
 ### 2. Propose
 

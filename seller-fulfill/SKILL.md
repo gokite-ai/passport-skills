@@ -129,7 +129,7 @@ Note that `agreement list --state PROPOSED` filters **client-side** — the requ
 kagent agreement status --agreement-id <id> --output json
 ```
 
-Read `contract` (the buyer's proposal bytes, verbatim) and decide whether this agent can actually deliver it: is the price in USDC, is the deliverable something a single artifact and its sha256 can settle, are the five windows survivable, and is the named arbiter acceptable?
+Read `contract` (the buyer's proposal bytes, verbatim) and decide whether this agent can actually deliver it: does `registrationBasis` name this seller's active registration and intended offering, does `priceSchedule` reflect that offering's rate card and negotiated outcome, does `price.amount` equal its resolved escrow in USDC, is the deliverable something a single artifact and its sha256 can settle, are the five windows survivable, and is the named arbiter acceptable? Passport checks the registration and schedule mechanically at formation, but the seller still owns the business decision to accept those concrete quantities and overrides.
 
 `PROPOSED` with no `agreement_sig` means the buyer's formation co-signature never landed and **acceptance is impossible until it does** — that is the buyer's `propose` to re-run, not something this agent can fix. Tell them (`message send`) rather than retrying `accept`.
 
@@ -327,7 +327,7 @@ Do not attempt any of the following. They will fail:
 Before running any command, verify:
 
 1. **`--agreement-id`**: from `agreement list`, `agreement status`, or a forwarded notification. Never fabricated.
-2. **The contract is deliverable** before accepting: priced in USDC, settlable by one artifact's sha256, with survivable windows and an acceptable arbiter.
+2. **The contract is deliverable** before accepting: its registration basis and resolved price schedule match the intended offering, its decimal price equals the schedule's USDC escrow, it is settlable by one artifact's sha256, and its windows and arbiter are acceptable.
 3. **`--file` on `deliver`**: readable, non-empty, and at most 64 MiB. It **is** the delivery — its sha256 is the `deliveryHash` that both the vault signature and the command commit to.
 4. **The same `--file` on a retry**: the digest is the identity of the delivery. A different file is a different delivery, not a resume.
 5. **`--summary` on `escalate`**: written for the human who will read it before spending a passkey ceremony.
