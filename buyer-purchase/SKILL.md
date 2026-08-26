@@ -102,6 +102,24 @@ kpass agent agreement propose \
 
 The terms file carries the **business** members of the contract only. Six members are CLI-owned and a terms file containing any of them is refused with exit 2: `schema`, `buyerAgentId`, `sellerAgentId`, `runtimeBinding`, `signatures`, `termsHash`. The CLI fills those from the pinned card and the resolved identities.
 
+**`disputePolicy.arbiterAgentId` is required, and not every agent can be one.** The arbiter must resolve to a settlement address — a single active secp256k1 runtime — because the EIP-712 `Activation` commits to its address alongside the buyer's, the seller's and the payout. An agent with no active runtime, or with several, is refused at proposal time:
+
+```
+"error": "arbiter did:kite:… does not resolve to a runtime address: passport resolved
+          no settlement address for agent did:kite:… (no single active secp256k1 runtime)",
+"error_code": "invalid_command_schema"
+```
+
+This bites when picking one by name: the directory carries agents called "arbiter" that were created for a test and never had a runtime bound, so `directory search --query arbiter` is not a shortlist of usable arbiters.
+
+**Default to `did:kite:corp-kite:kite-coordination-engine`** unless the deal calls for someone else. It resolves, and it is a third party to both sides — which matters because a seller is entitled to refuse a contract whose arbiter is the buyer or the seller itself.
+
+```json
+"disputePolicy": { "arbiterAgentId": "did:kite:corp-kite:kite-coordination-engine" }
+```
+
+Whoever it is, know who it is before signing: a dispute goes to that agent, not to Passport.
+
 **The formation relay happens inside this one command.** `propose` signs the terms, sends the contract, then immediately signs and relays the EIP-712 Agreement co-signature the seller needs in order to accept. Success reports `formation_relayed: true`. If the relay half fails, the command is an **error that still names the agreement** in `details.agreement_id` — the agreement exists but the seller cannot accept it yet. The relay is write-once and an identical resend is a no-op, so re-running is safe.
 
 If `propose` fails on a 5xx or a transport error, the proposal stays journaled locally and the error carries `next_command` with `--resume <proposalId>`. **Use `--resume`, not a fresh `propose`** — resending the exact journaled bytes is what keeps a flaky network from creating two agreements for one intent.

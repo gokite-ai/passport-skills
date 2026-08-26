@@ -103,7 +103,7 @@ What to check in them before proposing, because these are the values the agreeme
 - **Price and asset.** Coordination settles in **USDC**; a contract whose `price.asset` is anything else is refused at the funding step, not at proposal time. A rate card quoting another asset means this seller is not usable on this lane.
 - **Scope of the deliverable.** The buyer's acceptance decision is mechanical — download the artifact, recompute its sha256, compare against the `deliveryHash` in the signed delivery command. Terms that describe an outcome no hash can settle ("ongoing support", "best effort") will not fail at proposal time; they will fail when there is nothing to verify.
 - **Windows.** The activation carries a funding deadline plus delivery, delivery-confirmation, appeal-response, and arbitration windows. All five must be non-zero for funding to be signable. If the terms leave them unstated, expect the funding step to refuse.
-- **Who arbitrates.** The contract names an arbiter, and a dispute goes to that arbiter, not to Passport. Know who it is before signing.
+- **Who arbitrates.** The contract names an arbiter, and a dispute goes to that arbiter, not to Passport. Know who it is before signing. It must resolve to a settlement address (a single active secp256k1 runtime) or the proposal is refused, and many directory agents named "arbiter" have none — default to `did:kite:corp-kite:kite-coordination-engine`, which resolves and is a third party to both sides. See **`buyer-purchase`** for the refusal this produces when it does not.
 
 ### Step 4: Check the Seller's Signing Keys
 
