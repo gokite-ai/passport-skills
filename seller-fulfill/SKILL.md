@@ -352,7 +352,6 @@ Do not attempt any of the following. They will fail:
 - `kagent listen` without `--forward` — required. Exit 2.
 - `kagent listen --events ...` / `--filter` / `--timeout` — `listen` has exactly two flags of its own: `--forward` and `--from`.
 - `kagent agreement funding sign --amount ...` — no amount flag; the amount comes from the signed contract.
-- `kagent workflow list` / `workflow get` — no `workflow` command exists at this version.
 - Any command with `--json` — the flag is `--output json` (two separate tokens).
 
 ---

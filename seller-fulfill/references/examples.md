@@ -44,7 +44,7 @@ kagent agreement status --agreement-id agr_7f2a --output json
   "amount": "25",
   "arbiter_agent_id": "did:kite:arbiter",
   "contract": {
-    "template": "fixed_outcome/v1",
+    "workflowId": "fixed_outcome/v1",
     "registrationBasis": {
       "registrationHash": "sha256:abababababababababababababababababababababababababababababababab",
       "offeringId": "market-report"

@@ -35,7 +35,7 @@ total, and decimal `price.amount`. A mismatch is exit **8**:
 nothing is signed and nothing is sent. Passport repeats the same gate at
 proposal and acceptance.
 
-What the command does, in order: derives the contract (pinning the template, the schema, both agent ids, and a `runtimeBinding` of `{runtimeAgentId, agentCardHash, extensionUri, endpoint}` from the pin), validates it against the vendored schema, canonicalizes it, signs the terms hash, re-validates, re-derives the hash and asserts it did not move, journals the proposal **before sending**, sends it, and then relays the formation co-signature.
+What the command does, in order: reads the seller's active registration and takes the `workflowId` from the offering `registrationBasis.offeringId` names (a terms file naming a different one is refused here, before anything is signed), derives the contract (pinning that workflow, the schema, both agent ids, and a `runtimeBinding` of `{runtimeAgentId, agentCardHash, extensionUri, endpoint}` from the pin), validates it against the vendored schema, canonicalizes it, signs the terms hash, re-validates, re-derives the hash and asserts it did not move, journals the proposal **before sending**, sends it, and then relays the formation co-signature.
 
 ```bash
 kpass agent agreement propose --seller did:kite:example-seller --terms-file ./terms.json --output json

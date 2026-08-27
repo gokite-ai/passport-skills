@@ -356,7 +356,6 @@ Do not attempt any of the following. They will fail:
 - `kpass agent agreement review --subject ...` — the subject is derived from the agreement.
 - `kpass agent agreement propose --buyer ...` — the buyer is this agent. The flag is `--seller`.
 - `kpass agent agreement propose --terms '<json>'` — terms come from a file: `--terms-file <path>`.
-- `kpass agent workflow list` / `kpass agent workflow get` — no `workflow` command exists at this version.
 - `kpass agent agreement funding sign --amount ...` — no amount flag; it reads the signed contract.
 - `kpass agent escalation list` — the only child of `escalation` is `status`, and it takes `--id` (not `--escalation-id`).
 - Any command with `--json` — the flag is `--output json` (two separate tokens).
