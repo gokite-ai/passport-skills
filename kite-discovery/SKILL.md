@@ -156,7 +156,7 @@ Do NOT attempt any of the following. They will fail:
 - `ksearch service list --filter` -- does not exist; use `--query`, `--tag`, `--asset`, or `--payment-approach`
 - `ksearch service get --service-id X` -- the flags were retired; the service id is the single positional argument: `ksearch service get X`
 - `kpass services list` -- discovery is NOT a Passport CLI command; use `ksearch`
-- `kpass services get` -- discovery is NOT a Passport CLI command; use `ksearch`
+- `kpass service get` -- discovery is NOT a Passport CLI command; use `ksearch`
 - Any command with `--json` -- the correct flag is `--output json` (two separate tokens)
 
 ---

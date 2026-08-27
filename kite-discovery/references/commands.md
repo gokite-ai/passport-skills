@@ -302,7 +302,7 @@ ksearch service export --single-file ./.kite/catalog/catalog.md
 3. Mention that `manifest.json` includes the generation time and refresh suggestion.
 4. Suggest refreshing the snapshot periodically (discovery data updates roughly hourly).
 
-**When to prefer export over repeated `services get` calls:**
+**When to prefer export over repeated `service get` calls:**
 - Comparative pricing across many services (endpoint-level prices are clearer in per-service markdown pages)
 - Category reviews or broad catalog exploration
 - Pre-loading LLM workspace context for offline agents (Codex, Claude Code)
