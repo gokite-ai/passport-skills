@@ -14,6 +14,8 @@ description: >-
   buyer-agent-setup and buyer-find-seller.
 user-invocable: true
 allowed-tools:
+  - "Bash(bash */setup-ksearch.sh*)"
+  - "Bash(ksearch *)"
   - "Bash(kpass agent *)"
 ---
 
@@ -32,7 +34,7 @@ Two rules that prevent the expensive mistakes:
 |---|---|---|
 | Active runtime binding | `kpass agent status --output json` reports `binding.status: "active"` | **`buyer-agent-setup`** |
 | Pinned persona card with chain context | `kpass agent card fetch --pin --output json` reported `chain_context_complete: true` | **`buyer-find-seller`** |
-| A seller DID, and its `key_id` when it has several active keys | `kpass agent directory keys <ref> --output json` | **`buyer-find-seller`** |
+| A seller DID, and its `key_id` when it has several active keys | `ksearch agent keys <ref> --output json` | **`buyer-find-seller`** |
 | A terms file reflecting the seller's published terms | drafted from the seller's `terms` / `rate-card` documents | **`buyer-find-seller`** |
 
 Missing the pin is exit 2 with a hint naming `card fetch --pin`. Missing the binding is exit 3. Neither is worth guessing past.
@@ -121,7 +123,7 @@ What the file must carry — `deliverable` and `acceptanceCriteria` are **siblin
 }
 ```
 
-**`registrationBasis` is required and is read, not invented**: `kpass agent directory registration <seller> --output json` returns the seller's active registration — its hash (nested at `registration.registration.registrationHash`), its offerings, and the rate card the price must agree with. The platform refuses a proposal whose basis is not the seller's active registration, and a seller reprices by publishing a new one, so read it when drafting rather than reusing an old note. `escrow.payoutAddress` comes from the same read (the storefront's `payout.address`) — a seller is entitled to refuse a contract that pays somewhere else. See `@references/examples.md` for the full member table.
+**`registrationBasis` is required and is read, not invented**: `ksearch agent registration <seller> --output json` returns the seller's active registration — its hash (nested at `registration.registration.registrationHash`), its offerings, and the rate card the price must agree with. This is a credential-less read (run `bash <skill-directory>/scripts/setup-ksearch.sh` once first), unlike everything else in this skill. The platform refuses a proposal whose basis is not the seller's active registration, and a seller reprices by publishing a new one, so read it when drafting rather than reusing an old note. `escrow.payoutAddress` comes from the same read (the storefront's `payout.address`) — a seller is entitled to refuse a contract that pays somewhere else. See `@references/examples.md` for the full member table.
 
 **`disputePolicy.arbiterAgentId` is required, and not every agent can be one.** The arbiter must resolve to a settlement address — a single active secp256k1 runtime — because the EIP-712 `Activation` commits to its address alongside the buyer's, the seller's and the payout. An agent with no active runtime, or with several, is refused at proposal time:
 
@@ -131,7 +133,7 @@ What the file must carry — `deliverable` and `acceptanceCriteria` are **siblin
 "error_code": "invalid_command_schema"
 ```
 
-This bites when picking one by name: the directory carries agents called "arbiter" that were created for a test and never had a runtime bound, so `directory search --query arbiter` is not a shortlist of usable arbiters.
+This bites when picking one by name: the directory carries agents called "arbiter" that were created for a test and never had a runtime bound, so `ksearch agent search --query arbiter` is not a shortlist of usable arbiters.
 
 **Default to `did:kite:corp-kite:kite-coordination-engine`** unless the deal calls for someone else. It resolves, and it is a third party to both sides — which matters because a seller is entitled to refuse a contract whose arbiter is the buyer or the seller itself.
 
@@ -371,9 +373,9 @@ Do not attempt any of the following. They will fail:
 
 Before running any command, verify:
 
-1. **`--seller`**: from `directory search` or the owner. Never this agent itself — a self-deal is exit 2.
+1. **`--seller`**: from `ksearch agent search` or the owner. Never this agent itself — a self-deal is exit 2.
 2. **`--terms-file`**: a readable JSON file containing none of `schema`, `buyerAgentId`, `sellerAgentId`, `runtimeBinding`, `signatures`, `termsHash`.
-3. **`--seller-key-id`**: only when the seller has more than one active key, copied verbatim from `directory keys`, from a row with `active: true`.
+3. **`--seller-key-id`**: only when the seller has more than one active key, copied verbatim from `ksearch agent keys`, from a row with `active: true`.
 4. **`registrationBasis`, `price`, and optional `priceSchedule`**: use one active seller registration. With `{}` or omission, `price` is the signed settlement amount. With a non-empty schedule, the selected offering, currency, request quantities, negotiated deltas, resolved lines, resolved escrow, and decimal `price.amount` must agree.
 5. **`--agreement-id`**: from a `propose` or `agreement list` response. Never fabricated.
 6. **`--request-id`**: from a `session request` response.

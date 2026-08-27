@@ -572,5 +572,281 @@
       "USDC only",
       "do not send ETH"
     ]
+  },
+  {
+    "id": 57,
+    "prompt": "Set yourself up as a buyer agent on Kite Passport so you can start finding sellers.",
+    "expected_output": "Agent runs the buyer-agent-setup skill's setup.sh, then kpass agent init --output json to generate a runtime key, and reports the address and thumbprint from the result.",
+    "assertions": [
+      "kpass agent init",
+      "--output json",
+      "thumbprint"
+    ]
+  },
+  {
+    "id": 58,
+    "prompt": "I created a buyer agent record, did:kite:acme-buyer-01 — bind your runtime key to it.",
+    "expected_output": "Agent runs kpass agent bind --agent did:kite:acme-buyer-01 --wait --output json. Since binding comes back pending and human_action_required, the agent surfaces the approval_url (or the Agents -> Runtimes navigation path plus the thumbprint when no URL is present) and explains the owner must approve it with their passkey — it does not attempt to approve the binding itself.",
+    "assertions": [
+      "kpass agent bind --agent did:kite:acme-buyer-01",
+      "--wait",
+      "passkey",
+      "approval"
+    ]
+  },
+  {
+    "id": 59,
+    "prompt": "Is your buyer identity ready to use yet?",
+    "expected_output": "Agent runs kpass agent status --output json and reports readiness from binding.status: active means done and ready to hand off to buyer-find-seller, pending means still awaiting the owner's approval.",
+    "assertions": [
+      "kpass agent status",
+      "--output json",
+      "binding.status"
+    ]
+  },
+  {
+    "id": 60,
+    "prompt": "kpass agent bind just failed with runtime_agent_mismatch — what now?",
+    "expected_output": "Agent explains the owner pointed this runtime at a different agent record than expected, and asks the owner to confirm the correct DID or agt_ id rather than re-initializing the key or retrying bind with a guess.",
+    "assertions": [
+      "runtime_agent_mismatch",
+      "different agent",
+      "ask rather than"
+    ]
+  },
+  {
+    "id": 61,
+    "prompt": "Set yourself up as a seller agent on Kite Passport.",
+    "expected_output": "Agent runs setup-kagent.sh then setup.sh, confirms with kagent --version, then runs kagent init --output json to create the runtime key, reporting the address and thumbprint.",
+    "assertions": [
+      "kagent init",
+      "--output json",
+      "thumbprint"
+    ]
+  },
+  {
+    "id": 62,
+    "prompt": "The owner created a seller agent record, did:kite:acme-seller-01 — bind to it.",
+    "expected_output": "Agent runs kagent bind --agent did:kite:acme-seller-01 --wait --output json. Since the result is pending and human_action_required, the agent surfaces the approval_url or the navigation path plus thumbprint, and explains only the owner can approve it with a passkey.",
+    "assertions": [
+      "kagent bind --agent did:kite:acme-seller-01",
+      "--wait",
+      "passkey"
+    ]
+  },
+  {
+    "id": 63,
+    "prompt": "Publish your seller card so buyers can find you.",
+    "expected_output": "Agent first pins the coordination persona card with kagent card fetch --pin --output json, then publishes the seller's own card with kagent card publish --file ./card.json --output json, and checks card_hash_verified in the result rather than trusting the success status alone.",
+    "assertions": [
+      "kagent card fetch --pin",
+      "kagent card publish --file",
+      "card_hash_verified"
+    ]
+  },
+  {
+    "id": 64,
+    "prompt": "Publish your storefront, rate card, and workflow terms so buyers can see what you sell.",
+    "expected_output": "Agent generates skeleton files with kagent registration template --output-dir ./registration --output json, has the owner fill them in, pre-flights locally with kagent registration validate, then publishes atomically with kagent registration publish, passing all three of --storefront, --rate-card, and --workflow-terms together.",
+    "assertions": [
+      "registration template",
+      "registration validate",
+      "registration publish",
+      "--storefront",
+      "--rate-card",
+      "--workflow-terms"
+    ]
+  },
+  {
+    "id": 65,
+    "prompt": "A buyer says every proposal they send you gets refused — what's wrong?",
+    "expected_output": "Agent recognizes this is very likely acceptance_policy_violation because the owner has never set an acceptance policy on this agent, and tells the owner to set one via the Passport web app's Governance page rather than treating it as a bug in the agent — it cannot read or fix its own policy.",
+    "assertions": [
+      "acceptance_policy_violation",
+      "set its acceptance policy",
+      "owner action"
+    ]
+  },
+  {
+    "id": 66,
+    "prompt": "card_hash_verified came back false after I published my card — is that a problem?",
+    "expected_output": "Agent explains the publish still succeeded (status success, exit 0), but the served card does not hash to what the platform reported, which will fail a buyer's own hash verification and make the listing effectively unusable until it agrees — so it should be reported to the owner rather than ignored just because the exit code was 0.",
+    "assertions": [
+      "card_hash_verified",
+      "PUBLISHED, BUT THE HASH COULD NOT BE CONFIRMED",
+      "buyers verify this hash"
+    ]
+  },
+  {
+    "id": 67,
+    "prompt": "Find me a seller who can transcribe audio recordings.",
+    "expected_output": "Agent runs ksearch agent search --query transcription --kind seller --output json (the credential-less discovery binary, not kpass) and lists matching sellers, reading each one's verified_tier before reporting it.",
+    "assertions": [
+      "ksearch agent search",
+      "--query",
+      "--kind seller",
+      "--output json"
+    ]
+  },
+  {
+    "id": 68,
+    "prompt": "Find a seller that can produce a dataset for under $10, ready to transact right now.",
+    "expected_output": "Agent recognizes this needs a capability/price search rather than a name search, and runs ksearch agent offerings --offering-kind dataset --max-total-price-minor 10000000 --ready --output json, reading each hit's registrationHash and offering.offeringId as the registrationBasis for a later proposal.",
+    "assertions": [
+      "ksearch agent offerings",
+      "--offering-kind dataset",
+      "--max-total-price-minor",
+      "--ready"
+    ]
+  },
+  {
+    "id": 69,
+    "prompt": "Before I propose to did:kite:example-seller, check that its card actually verifies.",
+    "expected_output": "Agent runs ksearch agent card did:kite:example-seller --output json and checks card_hash_verified. A mismatch is treated as a hard stop — exit 8, not a soft warning — and reported to the owner rather than worked around.",
+    "assertions": [
+      "ksearch agent card did:kite:example-seller",
+      "card_hash_verified",
+      "exit 8"
+    ]
+  },
+  {
+    "id": 70,
+    "prompt": "This seller has more than one active signing key — which one do I use to propose?",
+    "expected_output": "Agent runs ksearch agent keys did:kite:example-seller --output json, finds active_count greater than one, and picks the --seller-key-id from a row with active: true rather than guessing or defaulting to the first entry.",
+    "assertions": [
+      "ksearch agent keys",
+      "active_count",
+      "--seller-key-id"
+    ]
+  },
+  {
+    "id": 71,
+    "prompt": "I'm ready to propose to a seller — pin your coordination card first.",
+    "expected_output": "Agent runs kpass agent card fetch --pin --output json and checks chain_context_complete before assuming propose will work, since an incomplete chain context still pins successfully but makes propose refuse later.",
+    "assertions": [
+      "kpass agent card fetch --pin",
+      "chain_context_complete"
+    ]
+  },
+  {
+    "id": 72,
+    "prompt": "A buyer proposed agreement agr_7f2a — review and accept it if it looks right.",
+    "expected_output": "Agent runs kagent agreement status --agreement-id agr_7f2a --output json to read the contract, checks the registrationBasis, price, deliverable, windows, and arbiter, then runs kagent agreement accept --agreement-id agr_7f2a --output json.",
+    "assertions": [
+      "kagent agreement status --agreement-id agr_7f2a",
+      "kagent agreement accept --agreement-id agr_7f2a",
+      "--output json"
+    ]
+  },
+  {
+    "id": 73,
+    "prompt": "Accepting that deal just failed with acceptance_policy_violation, but I actually want to take it.",
+    "expected_output": "Agent recognizes this needs the owner's explicit ruling on this one contract, runs kagent escalate --kind acceptance-override --agreement-id agr_7f2a --summary \"...\" --wait --output json, and surfaces the resulting approval_url verbatim rather than retrying accept.",
+    "assertions": [
+      "acceptance_policy_violation",
+      "kagent escalate",
+      "--kind acceptance-override",
+      "approval_url"
+    ]
+  },
+  {
+    "id": 74,
+    "prompt": "The buyer's escrow is funded for agr_7f2a — sign the Activation.",
+    "expected_output": "Agent runs kagent agreement funding get --agreement-id agr_7f2a --output json, checks activation_signable is true, then runs kagent agreement funding sign --agreement-id agr_7f2a --output json.",
+    "assertions": [
+      "kagent agreement funding get --agreement-id agr_7f2a",
+      "activation_signable",
+      "kagent agreement funding sign --agreement-id agr_7f2a"
+    ]
+  },
+  {
+    "id": 75,
+    "prompt": "Deliver report.pdf for agreement agr_7f2a.",
+    "expected_output": "Agent runs kagent agreement deliver --agreement-id agr_7f2a --file ./report.pdf --output json. If it refuses because the escrow is not funded, the agent does not treat it as an error to route around — it explains the file was NOT uploaded, waits, and re-runs the identical command once funding lands.",
+    "assertions": [
+      "kagent agreement deliver --agreement-id agr_7f2a --file",
+      "not funded",
+      "NOT uploaded"
+    ]
+  },
+  {
+    "id": 76,
+    "prompt": "You're going to run as a live service that responds to deals in real time — how should you notice new proposals?",
+    "expected_output": "Agent recommends kagent listen --forward <local-endpoint> --output json, since it is the only way to learn about new proposals (agreement.proposed) and receive buyer messages (message.received), rather than relying only on polling kagent agreement list.",
+    "assertions": [
+      "kagent listen --forward",
+      "agreement.proposed",
+      "message.received"
+    ]
+  },
+  {
+    "id": 77,
+    "prompt": "A buyer asked you a question about agreement agr_7f2a — answer it.",
+    "expected_output": "Agent runs kagent message send --to <buyer-did> --body '{\"question\":\"...\",\"answer\":\"...\"}' --output json. If it needs to resend the same answer after a lost response, it passes the same --idempotency-key both times rather than letting a re-run mint a second message.",
+    "assertions": [
+      "kagent message send --to",
+      "--body",
+      "--idempotency-key"
+    ]
+  },
+  {
+    "id": 78,
+    "prompt": "Propose a $25 market-report deal to did:kite:example-seller.",
+    "expected_output": "Agent drafts a terms file with deliverable, acceptanceCriteria, price, an empty priceSchedule, escrow.payoutAddress, disputePolicy.arbiterAgentId, and a registrationBasis read fresh from ksearch agent registration did:kite:example-seller (the credential-less discovery binary), then runs kpass agent agreement propose --seller did:kite:example-seller --terms-file ./terms.json --output json.",
+    "assertions": [
+      "kpass agent agreement propose --seller did:kite:example-seller",
+      "--terms-file",
+      "registrationBasis"
+    ]
+  },
+  {
+    "id": 79,
+    "prompt": "The seller accepted agreement agr_123 — get the owner's approval to spend up to $25 on it.",
+    "expected_output": "Agent runs kpass agent session request --agreement-id agr_123 --max-amount-per-tx 25 --max-total-amount 25 --output json, surfaces the resulting approval_url to the owner, then polls kpass agent session request-status --request-id <id> --wait --output json.",
+    "assertions": [
+      "kpass agent session request --agreement-id agr_123",
+      "--max-amount-per-tx",
+      "--max-total-amount",
+      "approval_url"
+    ]
+  },
+  {
+    "id": 80,
+    "prompt": "The session for agr_123 is approved — fund the escrow.",
+    "expected_output": "Agent runs kpass agent fund --agreement-id agr_123 --output json. If it comes back with funding_submission_incomplete (retriable), the agent re-runs the identical command rather than proposing again or requesting a new session, since funding is idempotent on (session, agreement) and either alternative would buy the deal twice.",
+    "assertions": [
+      "kpass agent fund --agreement-id agr_123",
+      "funding_submission_incomplete",
+      "identical command"
+    ]
+  },
+  {
+    "id": 81,
+    "prompt": "Delivery landed for agr_123 — is it safe to confirm?",
+    "expected_output": "Agent runs kpass agent agreement proofs --agreement-id agr_123 --verify --output json plus agreement evidence list, then downloads the artifact and compares its recomputed sha256 against the signed deliveryHash before confirming — it does not confirm on the strength of the proof-chain check alone.",
+    "assertions": [
+      "agreement proofs --agreement-id agr_123 --verify",
+      "deliveryHash",
+      "sha256"
+    ]
+  },
+  {
+    "id": 82,
+    "prompt": "The delivered file's hash doesn't match what was signed — reject agr_123.",
+    "expected_output": "Agent runs kpass agent agreement reject --agreement-id agr_123 --reason-code delivery-hash-mismatch --output json, using a specific, non-empty reason code rather than confirming or inventing a value from an enumerated list that doesn't exist.",
+    "assertions": [
+      "kpass agent agreement reject --agreement-id agr_123",
+      "--reason-code delivery-hash-mismatch"
+    ]
+  },
+  {
+    "id": 83,
+    "prompt": "That deal with the seller wrapped up well — leave them a review.",
+    "expected_output": "Agent runs kpass agent agreement review --agreement-id agr_123 --rating <1-10> --output json, asking the owner for a rating or deriving one from whether the artifact matched the terms, since --rating is required rather than optional.",
+    "assertions": [
+      "kpass agent agreement review --agreement-id agr_123",
+      "--rating",
+      "--output json"
+    ]
   }
 ]

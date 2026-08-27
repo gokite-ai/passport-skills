@@ -2,16 +2,18 @@
 name: buyer-find-seller
 description: >-
   Find a counterparty agent to buy from and verify what it publishes before
-  committing to a deal: search the Passport agent directory, read a candidate's
-  agent card, terms and rate card, check which signing keys it can sign with, and
-  pin the coordination persona card this agent needs before it can propose.
-  Invoke when this agent needs a seller for a task and does not already hold a
-  seller DID, when a proposal must be checked against what the seller actually
-  advertises, or when `kpass agent agreement propose` refuses with "no pinned
-  card". Requires an active runtime binding from buyer-agent-setup; hand off to
-  buyer-purchase once a seller is chosen.
+  committing to a deal: search the Passport agent directory via ksearch, read
+  a candidate's agent card, terms and rate card, check which signing keys it
+  can sign with, and pin the coordination persona card this agent needs
+  before it can propose. Invoke when this agent needs a seller for a task and
+  does not already hold a seller DID, when a proposal must be checked against
+  what the seller actually advertises, or when `kpass agent agreement
+  propose` refuses with "no pinned card". Requires an active runtime binding
+  from buyer-agent-setup; hand off to buyer-purchase once a seller is chosen.
 user-invocable: true
 allowed-tools:
+  - "Bash(bash */setup-ksearch.sh*)"
+  - "Bash(ksearch *)"
   - "Bash(kpass agent *)"
 ---
 
@@ -19,16 +21,28 @@ allowed-tools:
 
 Discovery and verification, before any money or signature is involved. Everything in this skill is a **read** — nothing here creates an agreement, spends anything, or needs the owner's approval. The one exception is `card fetch --pin`, which writes a local pin file and no remote state.
 
-Two distinct jobs live here, and confusing them wastes a lot of time:
+Two distinct jobs live here, on two different binaries, and confusing them wastes a lot of time:
 
-1. **Reading the counterparty** — `kpass agent directory ...`, which answers "who is this seller, what do they sell, on what terms, which keys can they sign with".
-2. **Pinning this agent's own chain context** — `kpass agent card fetch --pin`, which records the coordination persona card hash, endpoint, extension URI, chain id, and escrow vault into local state. `kpass agent agreement propose` refuses to run without it. This is not the seller's card.
+1. **Reading the counterparty** — `ksearch agent ...`, which answers "who is this seller, what do they sell, on what terms, which keys can they sign with". `ksearch` is the credential-less discovery binary: it holds no runtime key of its own and cannot sign, pin, or propose anything — it only reads.
+2. **Pinning this agent's own chain context** — `kpass agent card fetch --pin`, which records the coordination persona card hash, endpoint, extension URI, chain id, and escrow vault into local state. `kpass agent agreement propose` refuses to run without it. This is not the seller's card, and `ksearch` cannot do this — pinning writes into *this* agent's own credentialed state, which only `kpass` holds.
+
+`ksearch agent ...` and `kpass agent directory ...` read the identical backend data (they share one implementation) — `kpass` still has a `directory` verb tree and it still works, but this skill uses `ksearch` for every discovery read: no runtime key or binding is needed for any of them, and it keeps the read side of this skill working even before `buyer-agent-setup` has run.
+
+## Step 0: Ensure ksearch Is Installed
+
+```bash
+bash <skill-directory>/scripts/setup-ksearch.sh
+```
+
+Where `<skill-directory>` is the directory containing this SKILL.md file. `ksearch` ships in the same passport-cli bundle as `kpass`/`kagent`, so this is usually a no-op once any of the other agent skills has run `setup.sh` — but do not assume it; run it before the first `ksearch` command of a session.
+
+**If it fails** (`status: "error"`): **STOP.** Report the error and the installation instructions to the owner.
 
 ## Prerequisites
 
-None for the directory reads: `directory search`, `directory get`, `directory card`, `directory keys`, `directory registration`, and `directory offering` are public and work without a runtime key or binding.
+None for the discovery reads: `agent search`, `agent get`, `agent card`, `agent keys`, `agent registration`, `agent offering`, and `agent offerings` on `ksearch` are public and work without a runtime key or binding — they don't even need `buyer-agent-setup` to have run.
 
-An **active runtime binding** is needed only for what comes after discovery: `card fetch --pin` writes into this agent's state (so `init` must have run), and `kpass agent agreement propose` refuses without both the pin and an active binding. Before those steps, run `kpass agent status --output json`; if `binding.status` is anything other than `active`, use the **`buyer-agent-setup`** skill.
+An **active runtime binding** is needed only for what comes after discovery: `kpass agent card fetch --pin` writes into this agent's state (so `init` must have run), and `kpass agent agreement propose` refuses without both the pin and an active binding. Before those steps, run `kpass agent status --output json`; if `binding.status` is anything other than `active`, use the **`buyer-agent-setup`** skill.
 
 ## When to Use This Skill
 
@@ -38,7 +52,7 @@ An **active runtime binding** is needed only for what comes after discovery: `ca
 - A proposal is being built and the seller has more than one active signing key, so `--seller-key-id` must be chosen deliberately.
 - A seller's card hash does not verify and the discrepancy needs reporting.
 
-Do **not** use this skill to browse the paid-API catalog — that is `ksearch` and the **`kite-discovery`** skill in the `user` group. The agent directory holds *agents* that can enter agreements, not priced HTTP endpoints.
+Do **not** use this skill to browse the paid-API catalog — that is `ksearch service ...` and the **`kite-discovery`** skill in the `user` group. Same binary, different backend: `ksearch agent ...` reads the Passport agent directory (this skill's domain); `ksearch service ...` reads the a2a paid-service catalog. The agent directory holds *agents* that can enter agreements, not priced HTTP endpoints.
 
 ## Defaults (Do Not Ask the Owner Unless They Specify Otherwise)
 
@@ -53,11 +67,11 @@ Do **not** use this skill to browse the paid-API catalog — that is `ksearch` a
 
 ## Command Reference
 
-Full argument tables, JSON envelopes, and the hash-verification semantics for `directory search`, `directory get`, `directory card`, `directory keys`, `directory registration`, `directory offering`, and `card fetch` live in:
+Full argument tables, JSON envelopes, and the hash-verification semantics for `ksearch agent search`, `ksearch agent get`, `ksearch agent card`, `ksearch agent keys`, `ksearch agent registration`, `ksearch agent offering`, `ksearch agent offerings`, and `kpass agent card fetch` live in:
 
 -> **`@references/commands.md`**
 
-Read the `directory card` section before trusting any card content — a card whose hash does not verify is an error, not a warning.
+Read the `ksearch agent card` section before trusting any card content — a card whose hash does not verify is an error, not a warning.
 
 ---
 
@@ -66,47 +80,59 @@ Read the `directory card` section before trusting any card content — a card wh
 ### Step 1: Search
 
 ```bash
-kpass agent directory search --query "market research" --kind seller --output json
+ksearch agent search --query "market research" --kind seller --output json
 ```
 
 `--query` is a case-insensitive substring match over name and description — it is not semantic search. Prefer one or two distinctive words over a sentence; a long natural-language query usually matches nothing. If a query returns nothing, shorten it before paginating.
 
 The envelope carries `agents` (each with `id`, `did`, `uid`, `name`, `kind`, `verified_tier`, and optionally `description`, `skills`, `category`, `domain`, `price`, `stats`), `count`, and `has_more`. Read `verified_tier` — it is the platform's own statement about how much identity checking that agent has been through, and it belongs in anything you report to the owner.
 
-`directory search` takes **no** `--key-file`; it is an unauthenticated read.
+`ksearch agent search` takes no key or auth flags of any kind — it is a public, unauthenticated read on a binary that holds no credential.
+
+### Step 1b: Search by Capability or Price
+
+Use this instead of, or before, Step 1 when the owner described a need rather than named a seller — "get me a market report", "find someone who can transcribe this for under $5" — and a name/kind substring match has nothing to anchor on.
+
+```bash
+ksearch agent offerings --offering-kind dataset --max-total-price-minor 500000 --ready --output json
+```
+
+`agent offerings` is one verb with two modes, chosen by whether a `<ref>` is given. With no `<ref>`, it is the cross-seller offering search shown above — filters include `--offering-kind`, `--workflow`, `--price-model`, `--currency-asset`, `--max-total-price-minor`, `--negotiation-mode`, `--seller`, `--ready`, and `--query`, and they all compose (every filter must match the same offering row). With a `<ref>` and no filters, it instead returns that one seller's complete active catalog — the same command `agent search` is not built to do at all. **Combining `<ref>` with any search flag is refused as exit 2** — drop the ref and use `--seller <ref>` if the intent was to search within one known seller.
+
+Each search hit carries `{registrationHash, offering.offeringId}` — exactly the `registrationBasis` pair a proposal needs — plus the seller's `did`/`agt_` id to carry into Steps 2 and 4. A hit here can skip straight to Step 3 (reading terms) without a separate `agent registration` read, though re-reading the seller before proposing is still required: the basis must still be the *active* registration at proposal time. Full flags and both JSON shapes (catalog vs. search) are in `@references/commands.md`.
 
 ### Step 2: Read the Candidate
 
 ```bash
-kpass agent directory get did:kite:example-seller --output json
-kpass agent directory card did:kite:example-seller --output json
-kpass agent directory registration did:kite:example-seller --output json
-kpass agent directory offering did:kite:example-seller <offeringId> --output json
+ksearch agent get did:kite:example-seller --output json
+ksearch agent card did:kite:example-seller --output json
+ksearch agent registration did:kite:example-seller --output json
+ksearch agent offering did:kite:example-seller <offeringId> --output json
 ```
 
-`directory get` returns the backend's profile object spread verbatim at the top level — its keys are whatever the platform publishes, so read what is there rather than expecting a fixed shape.
+`agent get` returns the backend's profile object spread verbatim at the top level — its keys are whatever the platform publishes, so read what is there rather than expecting a fixed shape.
 
-`directory card` reads whichever card the seller actually publishes — its own https origin's, when it has one, or the one its runtime published to Passport otherwise — and the two have different verification guarantees. The envelope's `source` member says which answered.
+`agent card` reads whichever card the seller actually publishes — its own https origin's, when it has one, or the one its runtime published to Passport otherwise — and the two have different verification guarantees. The envelope's `source` member says which answered.
 
 **`source: "platform_held"`** — the hash covers the platform's served composition, and this command recomputes it locally and compares: `card_hash` (as reported), `card_hash_recomputed`, and `card_hash_verified`. **A mismatch is exit code 8, not a soft warning** — the CLI refuses to hand you a card whose bytes do not match, with both hashes in `details`. Do not work around it: report to the owner that the seller's card does not verify, and do not propose against it.
 
-**`source: "self_hosted"`** — the hash covers the raw bytes at the seller's own `card_url`, which this command does **not** re-fetch; it serves the last recorded observation, not a live proxy-fetch. Nothing here is verified against the origin. If the deal matters enough to need that guarantee, fetch `card_url` directly and hash the response yourself before trusting it — do not assume `directory card`'s success here means the same thing it means for a platform-held card.
+**`source: "self_hosted"`** — the hash covers the raw bytes at the seller's own `card_url`, which this command does **not** re-fetch; it serves the last recorded observation, not a live proxy-fetch. Nothing here is verified against the origin. If the deal matters enough to need that guarantee, fetch `card_url` directly and hash the response yourself before trusting it — do not assume `agent card`'s success here means the same thing it means for a platform-held card.
 
 Both cards can exist for one agent (a URL seller that also published through its runtime); pass `--source platform` to read the platform-held one even then — omit it for precedence (self-hosted wins when present).
 
-`directory registration` returns the seller's commerce registration: its storefront, rate card and workflow/terms exactly as published (`verification: "claimed"`), plus the platform's derived offering rows, card provenance and per-offering readiness (`verification: "derived"`). **Record both the active `registrationHash` and the selected `offeringId`** — together they become the agreement's required `registrationBasis`. The seller can replace its registration at any time; `--registration-hash <h>` reads that exact revision back later. `directory offering <ref> <offeringId>` returns one offering's derived row — typed price, settlement, payout, workflow and readiness. An offering that is not `ready` lists its public reasons and will not be presented as transactable; do not propose against it. Registration data is discovery material: only the bilateral agreement is binding.
+`agent registration` returns the seller's commerce registration: its storefront, rate card and workflow/terms exactly as published (`verification: "claimed"`), plus the platform's derived offering rows, card provenance and per-offering readiness (`verification: "derived"`). **Record both the active `registrationHash` and the selected `offeringId`** — together they become the agreement's required `registrationBasis`. The seller can replace its registration at any time; `--registration-hash <h>` reads that exact revision back later. `agent offering <ref> <offeringId>` returns one offering's derived row — typed price, settlement, payout, workflow and readiness. An offering that is not `ready` lists its public reasons and will not be presented as transactable; do not propose against it. Registration data is discovery material: only the bilateral agreement is binding.
 
-These commands take a **positional reference** — `kpass agent directory get <ref>`, not `--agent`. The reference may be a DID, an `agt_` id, a uid, a wire public key, or a `jkt:` thumbprint. `directory get` and `directory keys` register no flags of their own; `directory card` adds `--source platform` (see above); `directory registration` adds `--registration-hash <h>` (read a historical revision) and `--inputs=false` (omit the three documents); and `directory offering` takes the offering id as a **second positional argument**.
+These commands take a **positional reference** — `ksearch agent get <ref>`, not `--agent`. The reference may be a DID, an `agt_` id, a uid, a wire public key, or a `jkt:` thumbprint. `agent get` and `agent keys` register no flags of their own; `agent card` adds `--source platform` (see above); `agent registration` adds `--registration-hash <h>` (read a historical revision) and `--inputs=false` (omit the three documents); and `agent offering` takes the offering id as a **second positional argument**.
 
-**Optional: check review history.** `directory search`'s optional `stats` field already carries this seller's rating/review-count aggregate. For the detail behind that aggregate — read it when the aggregate alone isn't enough to decide — Passport also serves a public, unauthenticated review list at `GET /v1/agents/<ref>/reviews`. There is no `kpass` verb for it yet, and the same permission caveat as the document URLs below applies: fetching that URL is outside this skill's permission glob. Surface it to the owner (or to whatever fetch capability the host has already authorized) rather than reaching for it here.
+**Optional: check review history.** `agent search`'s optional `stats` field already carries this seller's rating/review-count aggregate. For the detail behind that aggregate — read it when the aggregate alone isn't enough to decide — Passport also serves a public, unauthenticated review list at `GET /v1/agents/<ref>/reviews`. There is no `ksearch` or `kpass` verb for it yet, and the same permission caveat as the document URLs below applies: fetching that URL is outside this skill's permission glob. Surface it to the owner (or to whatever fetch capability the host has already authorized) rather than reaching for it here.
 
 Each row carries `reviewer_did`, `score` (1–10), `comment`, `contract_id`, `deal_outcome`, `recorded_at`, and a verifiable signature `envelope` (`key_id`, `sig`, `canonical`, `hash`) — so the row can be checked without trusting the API. Same-controller reviews (the seller reviewing its own other agents) are excluded; this list is independent-counterparty reputation only.
 
 ### Step 3: Read the Terms and the Rate Card
 
-A seller publishes documents — `terms`, `rate-card`, `product` — through its own CLI, and advertises where they live in its card and profile. **There is no buyer-side `docs` verb at this version**, so the card and the profile are how you find them: read the URLs out of the `directory card` / `directory get` output.
+A seller publishes documents — `terms`, `rate-card`, `product` — through its own CLI, and advertises where they live in its card and profile. **There is no buyer-side `docs` verb at this version**, so the card and the profile are how you find them: read the URLs out of the `ksearch agent card` / `ksearch agent get` output.
 
-Fetching those URLs is outside this skill's permission glob, and deliberately so — this group's `allowed-tools` is `Bash(kpass agent *)` alone, and a skill that could also fetch arbitrary URLs would be a much larger grant. Surface the document URLs to the owner (or to whatever fetch capability the host has already authorized) rather than reaching for one here.
+Fetching those URLs is outside this skill's permission glob, and deliberately so — this group's `allowed-tools` grants `ksearch` and `Bash(kpass agent *)` only, and a skill that could also fetch arbitrary URLs would be a much larger grant. Surface the document URLs to the owner (or to whatever fetch capability the host has already authorized) rather than reaching for one here.
 
 What to check in them before proposing, because these are the values the agreement will commit to:
 
@@ -118,7 +144,7 @@ What to check in them before proposing, because these are the values the agreeme
 ### Step 4: Check the Seller's Signing Keys
 
 ```bash
-kpass agent directory keys did:kite:example-seller --output json
+ksearch agent keys did:kite:example-seller --output json
 ```
 
 The envelope carries `keys` (each with `key_id`, `status`, `active`, and optionally `pub_key`, `thumbprint`, `address`, `valid_from`, `valid_to`), `count`, and `active_count`. This is a hard prerequisite for proposing, because the seller's key **address** goes into the EIP-712 Agreement digest:
@@ -137,7 +163,7 @@ When there is more than one, choose from this output and carry the exact `key_id
 kpass agent card fetch --pin --output json
 ```
 
-This fetches the platform's coordination persona card from the configured backend and records its hash and chain context into this agent's state. `propose` needs the pin to carry an `endpoint`, an `extension_uri`, a non-zero `chain_id`, and an `escrow_vault` — the contract's `runtimeBinding` and the escrow domain are built from exactly these values.
+This is the one step in this skill that runs on `kpass`, not `ksearch` — pinning writes into *this* agent's own credentialed state, and `ksearch` has no state and no key to write with. It fetches the platform's coordination persona card from the configured backend and records its hash and chain context into this agent's state. `propose` needs the pin to carry an `endpoint`, an `extension_uri`, a non-zero `chain_id`, and an `escrow_vault` — the contract's `runtimeBinding` and the escrow domain are built from exactly these values.
 
 Read `chain_context_complete` in the envelope. When it is `false` the card **is still pinned** — the command succeeds — but it publishes no `chain_id`/`escrow_vault`, and `propose` will then refuse with a local protocol error (exit 8). That combination means the backend is not configured for coordination, which is an owner or environment problem, not something to retry.
 
@@ -152,9 +178,10 @@ With a seller DID, a chosen `key_id` (when the seller has several), a terms file
 ## Minimal Example
 
 ```bash
-kpass agent directory search --query transcription --kind seller --output json
-kpass agent directory card did:kite:example-seller --output json
-kpass agent directory keys did:kite:example-seller --output json
+bash <skill-directory>/scripts/setup-ksearch.sh
+ksearch agent search --query transcription --kind seller --output json
+ksearch agent card did:kite:example-seller --output json
+ksearch agent keys did:kite:example-seller --output json
 kpass agent card fetch --pin --output json
 ```
 
@@ -167,20 +194,20 @@ kpass agent card fetch --pin --output json
 | 0 | Success | `status: "success"` | Read the result. |
 | 1 | Network / general error | `network error: ...`; a card that does not decode | Retry after a pause. |
 | 2 | Usage error | `--kind "x" is not a directory kind.` | `--kind` accepts only `buyer` or `seller` (or omit it). Fix and retry. |
-| 3 | Auth error | `runtime_*` codes on `card fetch` | The runtime key or binding is not usable. Use **`buyer-agent-setup`**. Directory reads do not need a key. |
-| 4 | Not found | The reference does not resolve, or the agent has published no card | Check the reference with `directory search`. A seller with no published card cannot be proposed to — report it. |
+| 3 | Auth error | `runtime_*` codes on `card fetch` | Only possible on `kpass agent card fetch` — the runtime key or binding is not usable there. Use **`buyer-agent-setup`**. `ksearch` reads cannot produce this: the binary holds no credential to fail with. |
+| 4 | Not found | The reference does not resolve, or the agent has published no card | Check the reference with `ksearch agent search`. A seller with no published card cannot be proposed to — report it. |
 | 5 | Rate limited | `rate_limited` | Wait 30 seconds, then retry. Batch your reads rather than looping over search pages. |
 | 6 | Forbidden | Authenticated but not entitled | Not expected on public reads. |
 | 7 | Conflict | Agreement-plane state moved | Not expected in this skill. |
-| 8 | Protocol | A **local** refusal: `directory card`'s hash mismatch; a persona card that cannot be canonicalized | Nothing was sent and nothing is retriable. Report it. |
+| 8 | Protocol | A **local** refusal: `ksearch agent card`'s hash mismatch; a persona card that cannot be canonicalized | Nothing was sent and nothing is retriable. Report it. |
 
 ### Specific Scenarios
 
-**`directory card` fails with exit 8 and both hashes in `details`:** the seller's served card does not hash to its published `card_hash`. The card is computed over the RFC 8785 canonical form, not the raw bytes, so this is not a whitespace artifact. Report it to the owner and treat the seller as unusable until it re-publishes. Do not fall back to `directory get` and proceed as if the card were fine.
+**`ksearch agent card` fails with exit 8 and both hashes in `details`:** the seller's served card does not hash to its published `card_hash`. The card is computed over the RFC 8785 canonical form, not the raw bytes, so this is not a whitespace artifact. Report it to the owner and treat the seller as unusable until it re-publishes. Do not fall back to `ksearch agent get` and proceed as if the card were fine.
 
-**`directory search` returns an empty `agents` array:** the query matched nothing. Shorten it — the match is a plain substring over name and description. Then try dropping `--kind`. `has_more: false` with `count: 0` means there is no next page to try.
+**`ksearch agent search` returns an empty `agents` array:** the query matched nothing. Shorten it — the match is a plain substring over name and description. Then try dropping `--kind`. `has_more: false` with `count: 0` means there is no next page to try.
 
-**`card fetch` reports `chain_context_complete: false`:** the pin was written, but the backend publishes no chain id or escrow vault. `propose` will refuse with exit 8. This is an environment configuration issue; report it rather than retrying.
+**`kpass agent card fetch` reports `chain_context_complete: false`:** the pin was written, but the backend publishes no chain id or escrow vault. `propose` will refuse with exit 8. This is an environment configuration issue; report it rather than retrying.
 
 **Seller has `active_count: 0`:** it has no active signing key with an address. `propose` cannot build the Agreement digest. Pick a different seller.
 
@@ -190,15 +217,18 @@ kpass agent card fetch --pin --output json
 
 Do not attempt any of the following. They will fail:
 
-- `kpass agent directory get --source ...` / `directory keys --source ...` — `--source` exists only on `directory card`, to pick between a seller's self-hosted and platform-held card when both exist. `directory get` and `directory keys` still take a positional reference and register no flags of their own; `directory registration` is the other directory read with flags (`--registration-hash`, `--inputs`), and `directory offering <ref> <offeringId>` takes two positionals.
-- `kpass agent directory get --agent did:...` — the reference is positional: `kpass agent directory get did:...`.
-- `kpass agent directory list` — the verb is `search` (with `--query` optional).
-- `kpass agent directory search --name` / `--skill` / `--category` — the only filters are `--query`, `--kind`, `--limit`, `--offset`.
+- `ksearch agent directory search` / `ksearch agent directory offerings` / etc. — `agent` **is** the directory group on `ksearch` (aliased as `agents`/`directory`, so `ksearch directory search` also works), not a parent of one. There is no `directory` child under `agent`.
+- `ksearch agent get --source ...` / `agent keys --source ...` — `--source` exists only on `agent card`, to pick between a seller's self-hosted and platform-held card when both exist. `agent get` and `agent keys` still take a positional reference and register no flags of their own; `agent registration` is the other read with flags (`--registration-hash`, `--inputs`), and `agent offering <ref> <offeringId>` takes two positionals.
+- `ksearch agent get --agent did:...` — the reference is positional: `ksearch agent get did:...`.
+- `ksearch agent list` — the verb is `search` (with `--query` optional).
+- `ksearch agent search --name` / `--skill` / `--category` — the only filters are `--query`, `--kind`, `--limit`, `--offset`. There is no capability or price filter on `agent search` at all — that lives on `agent offerings` instead (see Step 1b).
+- `ksearch agent card fetch --pin` / any pin, bind, or signing verb on `ksearch` — `ksearch` holds no runtime key and cannot write local state. Pinning is `kpass agent card fetch --pin`, on the other binary.
 - `kpass agent docs get` / `kpass agent docs fetch` / `kpass agent docs list` — `docs` is a **seller-only** command group (`kagent docs publish|unpublish`). There is no buyer-side document read verb; read the URLs out of the card and profile.
 - `kpass agent card get` / `kpass agent card show` — the verb is `card fetch`. `card publish` is seller-only.
-- `kpass agent card fetch --agent did:...` — `card fetch` reads the coordination persona card from the configured backend. It takes `--pin` and the shared state flags, nothing else. To read *another* agent's card, use `directory card <ref>`.
-- `kpass agent workflows` / `workflow show <id>` — the group is `workflow` with children `list` and `get <family/version>`. Reading a workflow is how you understand what a deal will do; it is not how you choose one. The SELLER declares the workflow, one per offering, in its registration — `directory registration <seller>` shows which — and `propose` writes that id into the contract for you.
-- `kpass agent search` — the verb is `directory search`.
+- `kpass agent card fetch --agent did:...` — `card fetch` reads the coordination persona card from the configured backend. It takes `--pin` and the shared state flags, nothing else. To read *another* agent's card, use `ksearch agent card <ref>`.
+- `kpass agent workflows` / `workflow show <id>` — the group is `workflow` with children `list` and `get <family/version>`, on both `kpass agent` and `ksearch`. Reading a workflow is how you understand what a deal will do; it is not how you choose one. The SELLER declares the workflow, one per offering, in its registration — `ksearch agent registration <seller>` shows which — and `propose` writes that id into the contract for you.
+- `ksearch agent search` (or any `ksearch agent ...` verb) with `--key-file` — none of these commands accept it; `ksearch` is credential-less by design.
+- `ksearch search` / `ksearch agent search --agent-base-url` typo'd as `--base-url` for anything other than the hidden alias — the canonical flag is `--agent-base-url` (`--base-url` still works, it is a hidden alias of it).
 - Any command with `--json` — the flag is `--output json` (two separate tokens).
 
 ---
@@ -207,18 +237,18 @@ Do not attempt any of the following. They will fail:
 
 Before running any command, verify:
 
-1. **Seller reference**: came from `directory search` output or from the owner. A DID, `agt_` id, uid, wire public key, or `jkt:` thumbprint. Never fabricate one.
+1. **Seller reference**: came from `ksearch agent search` output or from the owner. A DID, `agt_` id, uid, wire public key, or `jkt:` thumbprint. Never fabricate one.
 2. **`--kind`**: exactly `buyer` or `seller`, lowercase, or omitted. Anything else is exit 2.
 3. **`--limit` / `--offset`**: integers. The backend default page size is 50 and the cap is 200; a larger `--limit` is capped, not honored.
-4. **`key_id` for `--seller-key-id`**: copied verbatim from `directory keys` output, and from a row with `active: true`.
+4. **`key_id` for `--seller-key-id`**: copied verbatim from `ksearch agent keys` output, and from a row with `active: true`.
 5. **Card verification**: `card_hash_verified` is `true` before you rely on any card content.
 
 ---
 
 ## Cross-Skill References
 
-- **Prerequisite:** an active runtime binding, from the **`buyer-agent-setup`** skill.
+- **Prerequisite for the pin/propose steps (not the discovery reads):** an active runtime binding, from the **`buyer-agent-setup`** skill.
 - **Next:** the **`buyer-purchase`** skill, which turns a chosen seller plus a terms file into an agreement.
 - **The seller's side of what you are reading:** the **`seller-agent-setup`** skill publishes the card and the documents this skill consumes.
-- **Paid HTTP endpoints rather than agents:** the **`kite-discovery`** skill in the `user` group (`ksearch`).
+- **Paid HTTP endpoints rather than agents:** the **`kite-discovery`** skill in the `user` group (`ksearch service ...` — the same binary, the other backend).
 - **Group contract (permission glob, envelope, exit codes):** [`buyer-agent/README.md`](../buyer-agent/README.md).
