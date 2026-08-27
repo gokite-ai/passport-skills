@@ -131,7 +131,7 @@ Exit 4 on `--resume` means no journaled proposal by that id.
 | `FULFILLING` | Escrow funded; the seller's delivery is next | `""` |
 | `DELIVERED` | Verify the artifact against the `deliveryHash` in the signed command, then confirm or reject | `kpass agent agreement proofs --agreement-id <id> --verify --output json` |
 | `REJECTED` | Rejected by the buyer; the dispute branch is open | `""` |
-| `DISPUTED` | Under arbitration; the contract-named arbiter decides | `""` |
+| `DISPUTED` | Not currently reachable via either CLI — arbitration is not CLI-invocable; a `REJECTED` agreement resolves via seller `refund-consent` or the `appealResponseWindow` timeout instead (see Step 8) | `""` |
 | `ACCEPTED`, `RESOLVED` | Terminal. The proof chain records the outcome; a review is open for a bounded window | `kpass agent agreement proofs --agreement-id <id> --verify --output json` |
 | `CANCELLED`, `DEFAULTED`, `EXPIRED` | Terminal. No further command is legal | `""` |
 
@@ -524,6 +524,34 @@ Available on the buyer surface, though the enforced escalation kind (`acceptance
 `escalation status`: `--id` (required — not `--escalation-id`), `--wait`, `--timeout`.
 
 `--kind` has **no closed enum**: `acceptance-override` is the only reserved and enforced kind, and any other string produces an advisory escalation with `enforced: false`. Creating one returns `human_action_required` with an `approval_url` — the same passkey ceremony as a session request.
+
+---
+
+## `kpass agent work claim` / `work submit` / `work fail` / `work pending`
+
+The work plane's queue, this agent's side: after every committed transition the coordination engine states an obligation, Passport materializes it as a work item, and these four verbs are how the obligated party drains it. On the buyer surface the obligation that most commonly shows up here is the Activation signature due once an agreement reaches `COMMITTED` (Step 5). Unlike the seller surface (`kagent`), none of the four register a `--config-dir` flag here — buyer state is anchored to `.kite-passport/`, the same as everywhere else in this lane.
+
+An item carries two clocks that never merge: `deadline` is the agreement's (past it the vault settles without anyone's signature), `lease_expires_at` is the queue's (past it another attempt starts). Pace the work by the deadline, retries by the lease.
+
+| Verb | Flags | Notes |
+|---|---|---|
+| `work claim` | `--command <name>` (repeatable, narrows to items offering that act), `--max <n>` (default 25, cap 100), `--lease-seconds <n>` (30–3600, default 300), `--key-file` | Leases up to `--max` due items exclusively for `--lease-seconds`, and reads back the offered commands, the agreement deadline, and the verification anchors in one call. An EMPTY batch is success, not refusal. The claim token fences the whole batch; quote it back on `submit`/`fail`. |
+| `work submit` | `--item <wrk_id>`, `--claim-token <token>`, `--agreement-id` (with `--file`; read from the queue when absent), `--file`, `--evidence-id` + `--content-hash`, `--evidence-type`, `--content-type`, `--units`, `--key-file` | Records that bytes exist for an artifact-bearing obligation — deliberately nothing more. The agreement moves only once this party's own signed command reaches the coordination engine. On this lane, a non-artifact obligation (the Activation signature) is completed by running the offered signing verb directly (`agreement funding sign`), not by `work submit`. |
+| `work fail` | `--item`, `--claim-token`, `--reason` (closed enum: `upstream_unavailable`, `request_unpriced`, `capacity_exceeded`, `permanent_error`), `--retriable`, `--detail`, `--key-file` | An explicit, reasoned hand-back. `--retriable` requeues the item with a backoff and never touches the money plane. |
+| `work pending` | `--limit <n>` (cap 200), `--since <RFC3339>`, `--key-file` | Lists this agent's outstanding items regardless of what was notified or leased — the backstop half of "the doorbell is allowed to get lost". |
+
+Treat `work claim`'s offered commands as the authority on which verb to run next for a given item, rather than assuming `work submit` always applies.
+
+```bash
+kpass agent work pending --output json
+kpass agent work claim --max 5 --output json
+```
+
+Read the offered command name back from the claimed item and run whatever it names — for the Activation signature that is `agreement funding sign`:
+
+```bash
+kpass agent agreement funding sign --agreement-id agr_7f2a --output json
+```
 
 ---
 

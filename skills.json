@@ -3,9 +3,9 @@
   "name": "kskills",
   "display_name": "Kite Passport Skills",
   "description": "Skills that teach AI agents how to authenticate users, manage spending sessions, execute payments, and transfer tokens using the kpass CLI.",
-  "version": "1.9.2",
-  "min_kpass_version": "1.15.0",
-  "min_kagent_version": "1.15.0",
+  "version": "1.10.0",
+  "min_kpass_version": "2.0.0",
+  "min_kagent_version": "2.0.0",
   "min_ksearch_version": "2.2.0",
   "setup_script": "scripts/setup.sh",
   "groups": {

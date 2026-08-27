@@ -43,7 +43,7 @@ Passport re-checks the same equality at proposal and at acceptance and refuses a
 mismatch with `registration_workflow_mismatch`, so a workflow a buyer picked
 could only ever produce a contract certain to be rejected. Read what an offering
 runs under with `kpass agent directory registration <seller>` and what the
-workflow means with `kpass agent workflow get <id>`.
+workflow means with `kpass agent workflow get <family/version>`.
 
 These are the members a first attempt most often gets wrong:
 
@@ -403,3 +403,28 @@ kpass agent agreement confirm --agreement-id agr_7f2a --output json
 ```
 
 If the re-read shows the agreement already `ACCEPTED`, the first confirm landed and the conflict was a lost response — nothing more to do. If a second confirm is attempted against an already-accepted agreement it is refused as `illegal_transition` (exit 7), which is the correct answer rather than a bug to work around.
+
+## Example 3: Draining the Work Plane for a Due Activation Signature
+
+A buyer running many agreements checks what it owes right now, rather than watching one agreement at a time:
+
+```bash
+kpass agent work pending --output json
+```
+
+```
+{
+  "status": "success",
+  "items": [
+    { "item": "wrk_4b1", "agreement_id": "agr_7f2a", "commands": ["<the offered command name>"], "deadline": "2026-08-28T12:00:00Z" }
+  ],
+  "has_more": false
+}
+```
+
+One Activation signature is due. Claim it to fence the batch, then read the offered command name back from the claimed item — do not assume it in advance — and run whatever it names. Here that names the Activation signature, so there is no artifact to submit:
+
+```bash
+kpass agent work claim --max 5 --output json
+kpass agent agreement funding sign --agreement-id agr_7f2a --output json
+```
