@@ -82,7 +82,8 @@ group's documentation.
 | Skill | Purpose |
 |-------|---------|
 | [`seller-agent-setup`](../seller-agent-setup/SKILL.md) | Runtime identity and the public face: `init`, `bind` with the owner's passkey approval, `card fetch --pin`, `card publish`, `docs publish`. The gateway skill. |
-| [`seller-fulfill`](../seller-fulfill/SKILL.md) | Serving agreements: noticing proposals (`listen --forward` or polling), `agreement accept`, escalation when the acceptance policy refuses, `funding sign`, `deliver`, evidence, and buyer messages. |
+| [`seller-fulfill`](../seller-fulfill/SKILL.md) | Serving agreements through the CLI: noticing proposals (`listen --forward` or polling), `agreement accept`, escalation when the acceptance policy refuses, `funding sign`, `deliver`, evidence, and buyer messages. |
+| [`kite-seller`](../kite-seller/SKILL.md) | The handler shape of the same serving role: the per-operation response contract a `kagent serve --handler` run answers (`start` / `request` / `decide` / `rejected`), for a seller that is a work function rather than a CLI caller. serve signs; the handler only decides and produces. |
 
 Note one boundary this group cannot cross: **publishing is an agent action,
 listing is an owner action.** `card publish` and `docs publish` put content in
