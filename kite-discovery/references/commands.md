@@ -2,18 +2,18 @@
 
 Full per-command reference for the `kite-discovery` skill. Read this when constructing a `ksearch` command, validating flags, or interpreting an error. SKILL.md contains trigger logic and decision flow; this file contains command-level detail.
 
-## `services list` -- Search the Service Catalog
+## `service list` -- Search the Service Catalog
 
 Lists services from the catalog. Supports free-text search and structured filters.
 
 ```bash
-ksearch services list --output json
+ksearch service list --output json
 ```
 
 Full form with optional filters:
 
 ```bash
-ksearch services list \
+ksearch service list \
   --query <QUERY> \
   --tag <TAG> \
   --asset <ASSET> \
@@ -32,7 +32,7 @@ ksearch services list \
 | Asset filter | `--asset` | No | User preference (e.g., `USDC`) | Asset symbol string |
 | Payment approach | `--payment-approach` | No | Only if user requests a specific payment model | `x402` or `tempo_http` |
 | Limit | `--limit` | No | Default `100` | Positive integer, max 100 |
-| Cursor | `--cursor` | No | From prior `services list` response `next_cursor` field | Opaque pagination token string |
+| Cursor | `--cursor` | No | From prior `service list` response `next_cursor` field | Opaque pagination token string |
 | Output format | `--output json` | Yes | Always pass | Literal value `json` |
 
 ### Success Output (exit code 0)
@@ -70,7 +70,7 @@ ksearch services list \
 
 **Key fields:**
 - `services` -- Array of service summaries.
-- `services[].service_id` -- Stable identifier to use with `services get`.
+- `services[].service_id` -- Stable identifier to use with `service get`.
 - `services[].base_url` -- Root service URL for Passport handoff.
 - `services[].payment_approach` -- Payment model (`x402` or `tempo_http`). Both are Passport-settled rails handled transparently by `request-session`/`x402-execute` at execute time -- not a per-service decision the agent needs to make.
 - `services[].starting_price` -- Cheapest known endpoint price. Contains `amount`, `asset`, and `unit`.
@@ -118,23 +118,22 @@ More results available. Say "show more" to continue.
 
 ---
 
-## `services get` -- Inspect One Service
+## `service get` -- Inspect One Service
 
 Returns detailed metadata for one service, including featured endpoints and payment requirements.
 
 ```bash
-ksearch services get --service-id <SERVICE_ID> --output json
+ksearch service get <SERVICE_ID>
 ```
 
 ### Arguments
 
 | Argument | Flag | Required | Source | Validation |
 |----------|------|----------|--------|------------|
-| Service ID | `--service-id` | Yes (one of these two) | From `services list` output `service_id` field | String identifier |
-| Service host ID | `--service-host-id` | Yes (one of these two) | Alternative form, same identifier family | String identifier |
+| Service ID | positional `<SERVICE_ID>` | Yes | From `service list` output `service_id` field | String identifier |
 | Output format | `--output json` | Yes | Always pass | Literal value `json` |
 
-Prefer `--service-id`. The CLI also accepts `--service-host-id` but use `--service-id` consistently.
+The service id is the single positional argument; the old `--service-id`/`--service-host-id` flags were retired with the standalone binary.
 
 ### Success Output (exit code 0)
 
@@ -253,18 +252,18 @@ Ready to hand off into Passport approval and execution.
 
 ---
 
-## `export markdown` -- Export Catalog as Local Snapshot
+## `service export` -- Export Catalog as Local Snapshot
 
 Exports the discovery catalog as markdown files for local workspace search and LLM-assisted exploration.
 
 ```bash
-ksearch export markdown --output-dir ./.kite/catalog
+ksearch service export --output-dir ./.kite/catalog
 ```
 
 Full form with options:
 
 ```bash
-ksearch export markdown \
+ksearch service export \
   --output-dir <DIR> \
   --split <MODE> \
   --include-curated
@@ -273,7 +272,7 @@ ksearch export markdown \
 Single-file variant:
 
 ```bash
-ksearch export markdown --single-file ./.kite/catalog/catalog.md
+ksearch service export --single-file ./.kite/catalog/catalog.md
 ```
 
 ### Arguments
@@ -334,12 +333,12 @@ When `--single-file` is used, `manifest.json` may not exist. Show `Manifest: N/A
 
 ---
 
-## `health` -- Backend Connectivity Check
+## `service health` -- Backend Connectivity Check
 
 Quick diagnostic to verify the discovery backend is reachable.
 
 ```bash
-ksearch health --output json
+ksearch service health --output json
 ```
 
 ### Arguments

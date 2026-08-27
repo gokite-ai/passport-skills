@@ -26,6 +26,13 @@ allowed-tools:
 
 Browse, search, and inspect paid services in the Kite service catalog using the `ksearch` CLI. This skill is the discovery half of the Kite workflow -- `ksearch` finds and explains services, then Passport skills handle auth, session approval, and paid execution.
 
+> **The binary is consolidated.** `ksearch` ships from passport-cli alongside `kpass` and
+> `kagent`, and fronts two backends: `ksearch service …` (this skill's catalog) and
+> `ksearch agent …` (the Passport agent directory — the `buyer-find-seller` skill's domain).
+> Root `ksearch health` reports BOTH backends and fails when either is down; this skill's
+> backend check is `ksearch service health`. The service backend resolves from
+> `--service-base-url`, then `KSEARCH_SERVICE_BASE_URL`, then `DISCOVERY_BASE_URL`.
+
 ## Step 0: Ensure CLI is Installed
 
 Run the setup script before any `ksearch` command — without it, `ksearch` may not be on PATH or may resolve to a stale binary, and subsequent failures surface as obscure exit-1 / "command not found" errors rather than a clean setup signal.
@@ -65,7 +72,7 @@ If the setup script outputs `{"status":"ok",...}`, you may proceed. If it output
 | Tag filter | Omit | Only pass `--tag` if the user wants a category filter. Note: the CLI maps `--tag` to backend category filtering. |
 | Asset filter | Omit | Only pass `--asset` if the user cares about a specific payment asset (e.g., `USDC`). |
 | Payment approach | Omit | Only pass `--payment-approach` when the user requests a specific model like `x402` or `tempo_http`. |
-| Base URL | Omit (uses `DISCOVERY_BASE_URL` env var or built-in default) | Only pass `--base-url` if the user explicitly provides a custom backend URL. |
+| Base URL | Omit (uses `DISCOVERY_BASE_URL` env var or built-in default) | Only pass `--service-base-url` if the user explicitly provides a custom backend URL. |
 
 ## Payment Rails Are Not a Decision Point
 
@@ -86,7 +93,7 @@ If a command succeeds and has a display card template below, you MUST output tha
 
 ## Command Reference
 
-Full argument tables, JSON outputs, error envelopes, and per-command display cards for `services list`, `services get`, `export markdown`, and `health` live in:
+Full argument tables, JSON outputs, error envelopes, and per-command display cards for `service list`, `service get`, `service export`, and `health` live in:
 
 → **`@references/commands.md`**
 
@@ -107,20 +114,20 @@ End-to-end walkthroughs (browse then inspect a service; paginated catalog browsi
 | Exit Code | Meaning | Error Message Pattern | Recovery Action |
 |-----------|---------|----------------------|-----------------|
 | 0 | Success | `status: "success"` | Parse and present to user. |
-| 1 | Connection/timeout | `Could not reach discovery backend`, `Request timed out` | Check connectivity. Run `ksearch health --output json`. Verify `DISCOVERY_BASE_URL` if set. Retry after a brief pause. |
+| 1 | Connection/timeout | `Could not reach discovery backend`, `Request timed out` | Check connectivity. Run `ksearch service health --output json`. Verify `DISCOVERY_BASE_URL` if set. Retry after a brief pause. |
 | 2 | Invalid arguments | `unknown command`, `Only --output json is supported` | Fix command syntax. Check required flags. |
 | 3 | Auth required | `Authentication required` | Unexpected for discovery (public API). Check if the backend requires auth. |
-| 4 | Not found | `Service not found` | Verify the `service_id` is correct. Run `services list` to discover valid IDs. |
+| 4 | Not found | `Service not found` | Verify the `service_id` is correct. Run `service list` to discover valid IDs. |
 
 ### Specific Error Scenarios
 
 **Backend unreachable (exit code 1):**
-1. Run `ksearch health --output json` to diagnose.
+1. Run `ksearch service health --output json` to diagnose.
 2. If `DISCOVERY_BASE_URL` is set to a custom value, verify it points to a running backend.
 3. Show the error to the user and stop.
 
 **Service not found (exit code 4):**
-- The `service_id` does not exist or is stale. Run `ksearch services list --output json` to find valid IDs.
+- The `service_id` does not exist or is stale. Run `ksearch service list --output json` to find valid IDs.
 
 **No results from search (exit code 0, empty `services` array):**
 - Not an error. Tell the user no matches were found, then suggest:
@@ -137,17 +144,17 @@ End-to-end walkthroughs (browse then inspect a service; paginated catalog browsi
 
 Do NOT attempt any of the following. They will fail:
 
-- `ksearch list` -- must use `ksearch services list`
-- `ksearch get` -- must use `ksearch services get`
-- `ksearch search` -- does not exist; use `ksearch services list --query`
+- `ksearch list` -- must use `ksearch service list`
+- `ksearch get` -- must use `ksearch service get`
+- `ksearch search` -- does not exist; use `ksearch service list --query`
 - `ksearch discover` -- does not exist
-- `ksearch catalog` -- does not exist; use `ksearch services list`
-- `ksearch services search` -- does not exist; use `ksearch services list --query`
-- `ksearch services inspect` -- does not exist; use `ksearch services get`
-- `ksearch export json` -- does not exist; only `ksearch export markdown` is supported
-- `ksearch services list --category` -- the flag is `--tag`, not `--category`
-- `ksearch services list --filter` -- does not exist; use `--query`, `--tag`, `--asset`, or `--payment-approach`
-- `ksearch services get --id` -- the flag is `--service-id`, not `--id`
+- `ksearch catalog` -- does not exist; use `ksearch service list`
+- `ksearch service search` -- does not exist; use `ksearch service list --query`
+- `ksearch service inspect` -- does not exist; use `ksearch service get`
+- `ksearch export json` -- does not exist; only `ksearch service export` is supported
+- `ksearch service list --category` -- the flag is `--tag`, not `--category`
+- `ksearch service list --filter` -- does not exist; use `--query`, `--tag`, `--asset`, or `--payment-approach`
+- `ksearch service get --service-id X` -- the flags were retired; the service id is the single positional argument: `ksearch service get X`
 - `kpass services list` -- discovery is NOT a Passport CLI command; use `ksearch`
 - `kpass services get` -- discovery is NOT a Passport CLI command; use `ksearch`
 - Any command with `--json` -- the correct flag is `--output json` (two separate tokens)
@@ -159,7 +166,7 @@ Do NOT attempt any of the following. They will fail:
 Before running any command, verify:
 
 1. **Setup completed:** You ran `bash <path>/scripts/setup-ksearch.sh` and got `"status":"ok"`.
-2. **Service ID (`--service-id`):** Must come from a `services list` response. Do not fabricate or guess IDs.
+2. **Service ID (the positional argument):** Must come from a `service list` response. Do not fabricate or guess IDs.
 3. **Query (`--query`):** Non-empty string. If the user says "show me services" without specifics, omit the flag.
 4. **Tag (`--tag`):** Should match known categories from previous list results. Do not guess.
 5. **Asset (`--asset`):** Known asset symbol (e.g., `USDC`). Do not guess.

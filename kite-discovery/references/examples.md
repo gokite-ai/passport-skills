@@ -8,7 +8,7 @@ End-to-end walkthroughs for the `kite-discovery` skill. Per-command syntax lives
 
 **Step 1:** Search the catalog.
 ```bash
-ksearch services list --query "web search" --output json
+ksearch service list --query "web search" --output json
 ```
 Output:
 ```json
@@ -70,7 +70,7 @@ Display the catalog card:
 
 **Step 2:** User picks "Stable Search." Inspect it.
 ```bash
-ksearch services get --service-id stable-search --output json
+ksearch service get stable-search --output json
 ```
 Output:
 ```json
@@ -133,7 +133,7 @@ Then use the **`request-session`** skill to create a session with delegation tar
 
 **Step 1:** First page.
 ```bash
-ksearch services list --limit 5 --output json
+ksearch service list --limit 5 --output json
 ```
 Output includes `"count": 5, "total": 42, "next_cursor": "svc_page2_token"`.
 
@@ -141,7 +141,7 @@ Display the catalog card. Note "More results available."
 
 **Step 2:** User says "show more."
 ```bash
-ksearch services list --limit 5 --cursor svc_page2_token --output json
+ksearch service list --limit 5 --cursor svc_page2_token --output json
 ```
 Output includes `"count": 5, "total": 42, "next_cursor": "svc_page3_token"`.
 
@@ -154,7 +154,7 @@ Display the next catalog card. Continue until `next_cursor` is empty or the user
 **Context:** The user asks "export the service catalog so I can search it locally."
 
 ```bash
-ksearch export markdown --output-dir ./.kite/catalog --split both
+ksearch service export --output-dir ./.kite/catalog --split both
 ```
 
 Display the export card:
