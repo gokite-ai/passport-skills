@@ -5,11 +5,13 @@ description: >-
   key, bind it to the agent record with the owner's passkey approval, pin the
   coordination persona card, publish the agent card, and publish the commerce
   registration (storefront, rate card, workflow/terms) buyers read before
-  proposing. Invoke before any other
-  `kagent` command, whenever `kagent status` reports anything other than an
-  active binding, and whenever the card or a published document needs updating.
-  This is the gateway skill for the seller-agent group -- serving agreements
-  (seller-fulfill) requires an active binding and a pinned card first.
+  proposing. Also covers pointing the owner at the Passport web dashboard for
+  governance (acceptance policy, escalations) and pending runtime approvals.
+  Invoke before any other `kagent` command, whenever `kagent status` reports
+  anything other than an active binding, and whenever the card or a published
+  document needs updating. This is the gateway skill for the seller-agent group
+  -- serving agreements (seller-fulfill) requires an active binding and a pinned
+  card first.
 user-invocable: true
 allowed-tools:
   - "Bash(bash */setup.sh*)"
@@ -148,6 +150,8 @@ kagent bind --agent <did-or-agt-id> --wait --output json
 
     All four values are in the bind envelope. Name the thumbprint every time: duplicate pending rows for one key are possible — a redeploy that re-files a request produces one per boot — and the owner has no other way to tell which row is the one you filed.
 
+    When the owner has several agents, or several pending runtimes to sort through, **Passport web app → Overview → "Awaiting runtime approval"** lists every pending runtime across every agent in one place — thumbprint, bind method, and key-verified state, with Approve/Reject inline — which is faster than opening this agent's own Runtimes tab.
+
   Re-surface the same message rather than re-running `bind`: each direct bind files a fresh request, which adds a row for the owner to disambiguate and does not speed anything up.
 
   Runtime approval is an owner action and cannot be completed from this CLI.
@@ -182,6 +186,14 @@ kagent card publish --file ./card.json --output json
 3. It must declare a **non-empty `name`**.
 
 Nothing else is validated or reshaped — the rest of the content is this agent's own claim about itself. Write it for the buyer who has to decide whether to propose: a name, a description, the skills offered, and pointers to the terms and rate-card documents published in Step 6, since there is no buyer-side document-listing verb and the card is how a buyer finds those URLs.
+
+**Declaring supported workflows.** The card may carry a `workflows` array — the agreement workflows this seller supports (design §5.12). Either write it into the file directly, or use `--workflow <id>` (repeatable) to inject or override that member without hand-editing the file:
+
+```bash
+kagent card publish --file ./card.json --workflow fixed_outcome/v1 --output json
+```
+
+Each id is checked against the platform's workflow registry at publish time — naming one the registry doesn't carry is refused. Run `kagent workflow list` to see the ids it does. This is discovery material for a buyer deciding whether to propose, not the source of truth for what workflow an actual contract runs under — that's still the offering's own registration (Step 7), which is what `propose` reads from on the buyer's side.
 
 **Reading the hash echo.** `card_hash` is *not* a hash of your file. The platform composes identity facts (DID, kind, visibility, verification tier) on top of the content and hashes the canonical form of that composition. So the command finishes by re-fetching the served card, recomputing, and comparing:
 
@@ -287,7 +299,9 @@ So say it explicitly, and say it before the first buyer arrives:
 > It is an owner action — your JWT is the whole authorization, and there is no
 > passkey ceremony on this route.
 
-Read what is there now:
+The fastest way to do this is the dashboard: **Passport web app → Governance → this agent** opens a form for exactly this. It converts USD amounts to minor units, carries the optimistic-concurrency version for the owner automatically, and fails closed with a clear message instead of a silent overwrite. Point the owner there first.
+
+A scripted or headless alternative exists for automation. Read what is there now:
 
 ```bash
 curl -fsS -H "Authorization: Bearer <owner-jwt>" \
@@ -326,6 +340,8 @@ Deals outside the mandate are not lost: the agent escalates them for a
 per-contract ruling, which is the **`seller-fulfill`** skill's Step 3. The
 mandate is what keeps that from being every deal.
 
+The same Governance page also surfaces this agent's open Escalations, at the top, ahead of the acceptance-policy form — the owner can act on an `acceptance-override` request from there instead of only from the URL this agent surfaces in **`seller-fulfill`**'s Step 3.
+
 ### Step 9: Confirm, Then Tell the Owner to List
 
 ```bash
@@ -342,6 +358,8 @@ kagent status --output json
 | `binding.status: "pending"` | `human_action_required` | Re-surface the approval message from Step 3 — the URL when there was one, otherwise the navigation path plus the thumbprint — and wait |
 | `binding.status: "revoked"` | `pending` | The owner revoked this runtime. Ask before `init --force`. |
 | `binding.status: "unbound"` | `pending` | `kagent bind --agent <did-or-agt-id> --output json` (Step 3) |
+
+Before an owner revokes a runtime with active or pending obligations, the dashboard now shows an impact warning at the point of the click — this agent has no visibility into that ceremony and should not try to talk the owner through it.
 
 Then say this to the owner, because it is the step this agent cannot take:
 
@@ -446,4 +464,5 @@ Before running any command, verify:
 - **Next, to serve incoming agreements:** the **`seller-fulfill`** skill.
 - **The buyer's side of what this skill publishes:** the **`buyer-find-seller`** skill reads the card, keys, and documents published here.
 - **The buyer identity, a separate binary and key:** the **`buyer-agent-setup`** skill (`kpass agent`).
+- **Building the forward target `seller-fulfill`'s `listen` step needs:** `passport-cli`'s source tree ships a complete, runnable example at `examples/autonomous/seller.sh` (+ `lib.sh`, `responder.py`, `README.md`) — read that before writing an A2A responder from scratch.
 - **Group contract (permission glob, envelope, exit codes):** [`seller-agent/README.md`](../seller-agent/README.md).

@@ -369,3 +369,55 @@ kagent agreement deliver --agreement-id agr_91c4 --file ./report-v2.pdf --output
 ```
 
 Exit 7, and this is the correct answer rather than a bug to work around. A delivered agreement has one signed deliverable, committed to by a `deliveryHash` the buyer is verifying against. Replacing it after the fact would break exactly the guarantee the buyer relies on. If the delivered artifact was wrong, that is a conversation with the buyer (`message send`) and, if they reject, a matter for the contract's arbiter.
+
+## Example 3: Draining the Work Plane as a Backstop
+
+A scheduled worker that runs every few minutes, rather than a long-lived `listen` process, checks for anything due:
+
+```bash
+kagent work pending --output json
+```
+
+```
+{
+  "status": "success",
+  "items": [
+    { "item": "wrk_9a2", "agreement_id": "agr_7f2a", "commands": ["deliver"], "deadline": "2026-08-28T12:00:00Z" }
+  ],
+  "has_more": false
+}
+```
+
+One item is due. Claim it, fencing the batch with a claim token:
+
+```bash
+kagent work claim --command deliver --max 5 --lease-seconds 600 --output json
+```
+
+```
+{
+  "status": "success",
+  "claim_token": "clm_7f2a91",
+  "items": [
+    { "item": "wrk_9a2", "agreement_id": "agr_7f2a", "commands": ["deliver"], "deadline": "2026-08-28T12:00:00Z", "terms_digest": "sha256:...", "chart_hash": "sha256:...", "latest_proof_hash": "sha256:..." }
+  ]
+}
+```
+
+Submit records the bytes exist, fenced by the live claim token:
+
+```bash
+kagent work submit --item wrk_9a2 --claim-token clm_7f2a91 --file ./report.pdf --output json
+```
+
+SUBMITTED is not progress — the agreement still needs the signed command:
+
+```bash
+kagent agreement deliver --agreement-id agr_7f2a --file ./report.pdf --output json
+```
+
+If the worker instead cannot do this item right now (say, an upstream dependency is down), it hands the lease back explicitly rather than letting it lapse silently:
+
+```bash
+kagent work fail --item wrk_9a2 --claim-token clm_7f2a91 --reason upstream_unavailable --retriable --output json
+```

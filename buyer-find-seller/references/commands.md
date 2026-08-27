@@ -67,7 +67,9 @@ The backend's profile object is spread **verbatim** at the top level of the enve
 
 ## `kpass agent directory card <ref>`
 
-Positional reference, **no flags of its own**. Returns the agent's published card and verifies its hash locally.
+Positional reference, plus one optional flag: `--source platform` reads the platform-held card of an agent that also self-hosts one — omit it for precedence (self-hosted wins when present, per `source` in the output).
+
+Reads whichever card the agent actually publishes — its own https origin's, when it has one, or the one its runtime published to Passport when it does not. The two have **different verification guarantees**, and the envelope's `source` member says which one answered.
 
 ```bash
 kpass agent directory card did:kite:example-seller --output json
@@ -78,6 +80,7 @@ kpass agent directory card did:kite:example-seller --output json
   "_version": "1",
   "status": "success",
   "agent": "did:kite:...",
+  "source": "platform_held",
   "card": { ... },
   "card_hash": "...",
   "card_hash_recomputed": "...",
@@ -89,10 +92,9 @@ kpass agent directory card did:kite:example-seller --output json
 ```
 
 - `card` is the served card **verbatim**.
-- `card_hash` is what the platform reports; `card_hash_recomputed` is what the CLI derived locally from the RFC 8785 canonical form of the card (not from the raw bytes, so formatting differences are not the cause of a mismatch).
+- `source: "platform_held"` — the hash covers the served composition (identity facts the platform composed plus the seller's own content). This command recomputes it locally and reports whether it agrees: `card_hash` is what the platform reports, `card_hash_recomputed` is what the CLI derived, `card_hash_verified` says whether they match. **A mismatch is an error, not a warning.** When `card_hash` is non-empty and does not match the recomputation, the command exits **8 (PROTOCOL)** with `details` carrying `card_hash_reported` and `card_hash_recomputed`. Nothing was sent; nothing about retrying will change it. Treat the seller as unverifiable and report it.
+- `source: "self_hosted"` — the hash covers the RAW bytes at the seller's own `card_url`, which this command does **not** re-fetch; it serves the last recorded observation, not a live proxy-fetch. `card_hash_verified` here reflects only what was true when that observation was made — nothing here is verified against the origin at read time. If the deal needs that guarantee, fetch `card_url` directly and hash the response yourself before trusting it.
 - `published_at` appears only when the platform published it.
-
-**A mismatch is an error, not a warning.** When `card_hash` is non-empty and does not match the recomputation, the command exits **8 (PROTOCOL)** with `details` carrying `card_hash_reported` and `card_hash_recomputed`. Nothing was sent; nothing about retrying will change it. Treat the seller as unverifiable and report it.
 
 ---
 

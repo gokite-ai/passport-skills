@@ -129,6 +129,8 @@ Two outcomes, and the difference is the whole ceremony:
 
     All four values are in the bind envelope. Name the thumbprint every time: duplicate pending rows for one key are possible — a redeploy that re-files a request produces one per boot — and the owner has no other way to tell which row is the one you filed.
 
+    When the owner has several agents, or several pending runtimes to sort through, **Passport web app → Overview → "Awaiting runtime approval"** lists every pending runtime across every agent in one place — thumbprint, bind method, and key-verified state, with Approve/Reject inline — which is faster than opening this agent's own Runtimes tab.
+
   Re-surface the same message rather than re-running `bind`: each direct bind files a fresh request, which adds a row for the owner to disambiguate and does not speed anything up.
 
   Nothing this agent can do advances the binding; `--wait` polls every 3 seconds up to the timeout and returns the last observation.
@@ -198,7 +200,7 @@ The buyer lane uses the standard table extended with two agent-plane codes (7 an
 
 **Binding stuck at `pending`:** Expected, and not an error. The owner has not approved it yet, or has not finished the passkey ceremony. Re-surface the approval message — including the thumbprint, so they can pick the right row. Do not re-run `bind` in a loop: each direct bind files a fresh request, and a key with several pending rows is harder to approve, not easier. It also outlives the moment — an agent that re-filed on every restart can leave a column of duplicate rows behind, and once approved they all count, which makes the key ambiguous to counterparties.
 
-**`runtime_revoked` (exit 3):** The owner revoked this runtime in Passport, deliberately. The key is dead for signing. Ask before running `init --force`: a new key orphans agreements pinned to the old one.
+**`runtime_revoked` (exit 3):** The owner revoked this runtime in Passport, deliberately. The key is dead for signing. Ask before running `init --force`: a new key orphans agreements pinned to the old one. (The dashboard now shows an impact warning at the point of the revoke click when the runtime has active or pending obligations — this agent has no visibility into that ceremony.)
 
 **Commands work from one directory but not another:** Buyer state is discovered from the working directory upward. Pin the key with `--key-file` or `KPASS_RUNTIME_KEY_FILE`, or always run from the same project root.
 
