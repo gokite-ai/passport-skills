@@ -49,7 +49,7 @@ not inference:
 
 ## Findings and fixes
 
-### 1. `kpass agent bind` gained three undocumented flags
+### 1. `kpass agent bind` gained three undocumented flags — false positive, no-op
 
 Live `kpass agent bind --help` now lists `--device`, `--env`, `--software`
 (all optional strings, recorded on the binding — device description,
@@ -59,12 +59,13 @@ defaulting to the binary+version) alongside the previously-documented
 to let an owner disambiguate between several pending or active runtime
 bindings for the same agent.
 
-**Fix:** `buyer-agent-setup/references/commands.md`'s `## kpass agent bind`
-section gets a new flag-table row for each, plus one sentence on when to use
-them (an agent running on multiple machines/environments should pass
-`--env`/`--device` so the owner's approval screen — and the "Pending Runtime
-Approvals" dashboard panel this repo's last round pointed to — can tell the
-bindings apart).
+**Resolution: no-op, confirmed during plan-writing.** Direct verification of
+`buyer-agent-setup/references/commands.md`'s `## kpass agent bind` flag
+table found `--device`, `--env`, and `--software` already documented there,
+correctly, untouched since before either gap-analysis round — this finding
+was a false positive. The implementation plan for this spec touches no file
+in `buyer-agent-setup/` for this reason; see that plan's Global Constraints
+for the same note.
 
 ### 2. `buyer-find-seller` actively misdocuments card verification (highest severity)
 
@@ -248,10 +249,12 @@ cross-check used then, not a harness run.
 
 ## Files touched
 
-- `buyer-agent-setup/references/commands.md` (finding #1)
 - `buyer-find-seller/SKILL.md` (finding #2)
 - `seller-fulfill/SKILL.md`, `seller-fulfill/references/commands.md`
   (findings #3, #5, #6, #7, #8)
 - `seller-agent-setup/SKILL.md` (findings #4, #8)
 - `buyer-purchase/SKILL.md` (findings #6, #7)
 - `skills.json` (finding #9)
+
+`buyer-agent-setup/` is deliberately absent from this list — finding #1 is a
+confirmed false positive; see that finding above.

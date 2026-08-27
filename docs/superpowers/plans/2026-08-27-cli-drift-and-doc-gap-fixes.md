@@ -156,7 +156,7 @@
   Edit `seller-fulfill/SKILL.md`. Find Step 8 ("Watch for Settlement") and its content:
 
   Old:
-  ```
+  ````
   ### Step 8: Watch for Settlement
 
   ```bash
@@ -164,9 +164,9 @@
   ```
 
   `ACCEPTED` means the buyer confirmed and the escrow released. `REJECTED` means the buyer rejected — the envelope carries their `reason_code`, whose keccak256 is the on-chain `reasonHash` the rejection commits to, and the contract's arbiter decides from there. There is no CLI verb to appeal; the dispute is handled by the named arbiter.
-  ```
+  ````
   New:
-  ```
+  ````
   ### Step 8: Watch for Settlement
 
   ```bash
@@ -186,13 +186,13 @@
     `--agreement-id` is the only flag. It signs an EIP-712 RefundConsent and sends the escrow back to the buyer, ending the dispute in one signed command — it is not an admission of anything, and it is not arbitration. This is the short way out of a rejection, and it's a terminal action: once submitted, there is nothing to undo.
 
   - **This agent disagrees, and the deal names an arbiter:** the contract still requires and names one (`arbiter_agent_id` in `agreement status`, checked in Step 2), but there is **no CLI verb to invoke arbitration today** — `agreement appeal` does not exist, on either binary. In practice, a `REJECTED` agreement neither party acts on resolves on its own: the contract's `appealResponseWindow` elapsing without a `refund-consent` also ends in a refund to the buyer. Know who the arbiter is before signing (Step 2) because the contract still names one, but do not tell a buyer or an owner that this agent can escalate a disputed rejection to arbitration right now — it cannot.
-  ```
+  ````
 
 - [ ] **Step 5: Add `refund-consent` to `references/commands.md`**
 
   Edit `seller-fulfill/references/commands.md`. Insert a new section right after the end of `## kagent agreement deliver` and its subsections, before `## kagent agreement evidence add` (find the `---` separator between them, or insert immediately before the `## kagent agreement evidence add` header if no separator exists — check the file's own convention for section breaks and match it):
 
-  ```markdown
+  ````markdown
   ## `kagent agreement refund-consent`
 
   | Flag | Type | Default | Required |
@@ -208,7 +208,7 @@
   ```
 
   Only valid from `REJECTED`. Running it on an agreement in any other state is refused.
-  ```
+  ````
 
 - [ ] **Step 6: Add a starter-kit pointer to Cross-Skill References**
 
@@ -269,7 +269,7 @@
   Nothing else is validated or reshaped — the rest of the content is this agent's own claim about itself. Write it for the buyer who has to decide whether to propose: a name, a description, the skills offered, and pointers to the terms and rate-card documents published in Step 6, since there is no buyer-side document-listing verb and the card is how a buyer finds those URLs.
   ```
   New:
-  ```
+  ````
   Nothing else is validated or reshaped — the rest of the content is this agent's own claim about itself. Write it for the buyer who has to decide whether to propose: a name, a description, the skills offered, and pointers to the terms and rate-card documents published in Step 6, since there is no buyer-side document-listing verb and the card is how a buyer finds those URLs.
 
   **Declaring supported workflows.** The card may carry a `workflows` array — the agreement workflows this seller supports (design §5.12). Either write it into the file directly, or use `--workflow <id>` (repeatable) to inject or override that member without hand-editing the file:
@@ -279,7 +279,7 @@
   ```
 
   Each id is checked against the platform's workflow registry at publish time — naming one the registry doesn't carry is refused. Run `kagent workflow list` to see the ids it does. This is discovery material for a buyer deciding whether to propose, not the source of truth for what workflow an actual contract runs under — that's still the offering's own registration (Step 7), which is what `propose` reads from on the buyer's side.
-  ```
+  ````
 
 - [ ] **Step 2: Add a starter-kit pointer to Cross-Skill References**
 
@@ -402,7 +402,7 @@
     "min_kagent_version": "2.0.0",
   ```
 
-  Do not touch `min_ksearch_version` or the top-level `version` field — neither was flagged by planning and neither is in scope.
+  Do not touch `min_ksearch_version` — not flagged by planning, not in scope. (`version` itself is a separate matter: this plan's own drafting left it untouched, but the final whole-branch review later found that stale and bumped it to `1.10.0` in the same round, matching this repo's precedent of bumping `version` alongside a floor change — see the verify step below.)
 
 - [ ] **Step 2: Verify**
 
@@ -410,7 +410,7 @@
   ```bash
   python3 -c "import json; d = json.load(open('skills.json')); print(d['min_kpass_version'], d['min_kagent_version'], d['min_ksearch_version'], d['version'])"
   ```
-  Expected output: `2.0.0 2.0.0 1.0.2 1.9.2` — confirms both target fields changed and nothing else moved. Also run `python3 -m json.tool skills.json > /dev/null` to confirm the file is still valid JSON after the edit.
+  Expected output: `2.0.0 2.0.0 1.0.2 1.10.0` — confirms both target fields changed, `version` was bumped alongside them (per the final review's correction), and `min_ksearch_version` moved not at all. Also run `python3 -m json.tool skills.json > /dev/null` to confirm the file is still valid JSON after the edit.
 
 - [ ] **Step 3: Stop for manual review and commit**
 
@@ -421,12 +421,14 @@
 ### Task 6: Cross-file consistency verification
 
 **Files:**
-- Read only: all five files touched by Tasks 1-5.
+- Read only: all six files touched by Tasks 1-5 — `buyer-find-seller/SKILL.md`,
+  `seller-fulfill/SKILL.md`, `seller-fulfill/references/commands.md`,
+  `seller-agent-setup/SKILL.md`, `buyer-purchase/SKILL.md`, `skills.json`.
 - No files modified in this task.
 
 **Interfaces:**
 - Consumes: the output of Tasks 1-5.
-- Produces: a pass/fail verdict on whether the five files' cross-references and shared claims stay mutually consistent.
+- Produces: a pass/fail verdict on whether the touched skill files' cross-references and shared claims stay mutually consistent.
 
 - [ ] **Step 1: Confirm the seller-fulfill/buyer-purchase dispute-language rewrite says the same thing on both sides**
 

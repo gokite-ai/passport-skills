@@ -43,7 +43,7 @@ Passport re-checks the same equality at proposal and at acceptance and refuses a
 mismatch with `registration_workflow_mismatch`, so a workflow a buyer picked
 could only ever produce a contract certain to be rejected. Read what an offering
 runs under with `kpass agent directory registration <seller>` and what the
-workflow means with `kpass agent workflow get <id>`.
+workflow means with `kpass agent workflow get <family/version>`.
 
 These are the members a first attempt most often gets wrong:
 

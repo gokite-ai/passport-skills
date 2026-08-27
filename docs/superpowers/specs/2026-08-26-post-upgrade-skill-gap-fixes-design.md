@@ -114,14 +114,21 @@ field)` entry (previously the later entry silently won).
 **Fix:** add this error to the local validation error catalog in
 `seller-agent-setup/references/commands.md` (~line 426).
 
-### 7. `manage-agents`: missing risky-action warning mention
+### 7. `seller-agent-setup` / `buyer-agent-setup`: missing risky-action warning mention
 
 passport-web added impact warnings on the agent detail page for risky
 runtime actions (e.g. revoking a runtime that's actively in use) — commits
 `eaf03b2`, `f57cb4f`, `0015157`.
 
-**Fix:** one line in `manage-agents/SKILL.md` noting the dashboard now
-warns on revocation impact, when walking an owner through revocation.
+**Fix:** one line each in `seller-agent-setup/SKILL.md` and
+`buyer-agent-setup/SKILL.md`, attached to each file's existing
+runtime-revocation scenario text, noting the dashboard now warns on
+revocation impact. **Not `manage-agents`**, despite that being this gap's
+original placement below: `manage-agents/SKILL.md` is explicitly read-only
+and has no revocation workflow of its own to attach the note to — the
+relocation to the setup skills (which do walk an owner through revocation)
+was decided during planning and `manage-agents` was correctly left
+untouched.
 
 ### 8. `buyer-find-seller`: missing reviews in vetting checklist
 
@@ -179,5 +186,7 @@ gap list above, not by the harness.
   `buyer-purchase/references/examples.md`
 - `seller-agent-setup/SKILL.md`, `seller-agent-setup/references/commands.md`
 - `buyer-agent-setup/SKILL.md`
-- `manage-agents/SKILL.md`
 - `buyer-find-seller/SKILL.md`
+
+`manage-agents/SKILL.md` is deliberately **not** in this list — see gap #7
+above for why.

@@ -126,7 +126,7 @@
 
   Edit `seller-fulfill/references/commands.md`. Insert a new section between the end of `## kagent listen` (the line `---` immediately before `## Error Envelope`) and `## Error Envelope`:
 
-  ```markdown
+  ````markdown
   ## `kagent work claim` / `work submit` / `work fail` / `work pending`
 
   The work plane's queue, this agent's side: after every committed transition the coordination engine states an obligation, Passport materializes it as a work item, and these four verbs are how the obligated party drains it. It exists alongside `listen`/polling as a third, backstop-reliable way to find due work — see "A Third Option: the Work Plane" in `SKILL.md` for when to prefer it.
@@ -147,13 +147,13 @@
   kagent work submit --item wrk_9a2 --claim-token clm_7f... --file ./report.pdf --output json
   kagent agreement deliver --agreement-id agr_7f2a --file ./report.pdf --output json
   ```
-  ```
+  ````
 
 - [ ] **Step 7: Add a worked work-plane example**
 
   Edit `seller-fulfill/references/examples.md`. Append a new section at the end of the file, after the last line (`...that is a conversation with the buyer (\`message send\`) and, if they reject, a matter for the contract's arbiter.`):
 
-  ```markdown
+  ````markdown
 
   ## Example 3: Draining the Work Plane as a Backstop
 
@@ -206,7 +206,7 @@
   ```bash
   kagent work fail --item wrk_9a2 --claim-token clm_7f2a91 --reason upstream_unavailable --retriable --output json
   ```
-  ```
+  ````
 
 - [ ] **Step 8: Verify**
 
@@ -279,7 +279,7 @@
 
   Edit `buyer-purchase/references/commands.md`. Insert a new section between the end of `## kpass agent escalate` / `kpass agent escalation status` (the line `---` immediately before `## Error Envelope`) and `## Error Envelope`:
 
-  ```markdown
+  ````markdown
   ## `kpass agent work claim` / `work submit` / `work fail` / `work pending`
 
   The work plane's queue, this agent's side: after every committed transition the coordination engine states an obligation, Passport materializes it as a work item, and these four verbs are how the obligated party drains it. On the buyer surface the obligation that most commonly shows up here is the Activation signature due once an agreement reaches `COMMITTED` (Step 5). Unlike the seller surface (`kagent`), `work claim` and `work pending` register no `--config-dir` flag here — buyer state is anchored to `.kite-passport/`, the same as everywhere else in this lane.
@@ -299,13 +299,13 @@
   kpass agent work claim --command fundingSign --max 5 --output json
   kpass agent agreement funding sign --agreement-id agr_7f2a --output json
   ```
-  ```
+  ````
 
 - [ ] **Step 4: Add a worked work-plane example**
 
   Edit `buyer-purchase/references/examples.md`. Append a new section at the end of the file, after the last line (`...which is the correct answer rather than a bug to work around.`):
 
-  ```markdown
+  ````markdown
 
   ## Example 3: Draining the Work Plane for a Due Activation Signature
 
@@ -331,7 +331,7 @@
   kpass agent work claim --command fundingSign --max 5 --output json
   kpass agent agreement funding sign --agreement-id agr_7f2a --output json
   ```
-  ```
+  ````
 
 - [ ] **Step 5: Verify**
 
@@ -374,7 +374,7 @@
   A scripted or headless alternative exists for automation:
   ```
 
-  Then, after the existing PUT curl block and its field table (ending `...the engine converts the contract rather than the policy, so a floor of \`"1"\` means one minor unit and not one dollar.`), before `Deals outside the mandate are not lost:`, insert:
+  Then, after the existing PUT curl block and its field table (ending ``...the engine converts the contract rather than the policy, so a floor of `"1"` means one minor unit and not one dollar.``), before `Deals outside the mandate are not lost:`, insert:
 
   ```markdown
 
@@ -387,7 +387,7 @@
   ```
       All four values are in the bind envelope. Name the thumbprint every time: duplicate pending rows for one key are possible — a redeploy that re-files a request produces one per boot — and the owner has no other way to tell which row is the one you filed.
   ```
-  and before `  Re-surface the same message rather than re-running \`bind\`:`, insert:
+  and before ``Re-surface the same message rather than re-running `bind`:``, insert:
 
   ```markdown
 
@@ -396,7 +396,7 @@
 
 - [ ] **Step 3: Note the dashboard's revocation impact warning**
 
-  Edit `seller-agent-setup/SKILL.md`, Step 9 ("Confirm, Then Tell the Owner to List"), in the status table row `| \`binding.status: "revoked"\` | \`pending\` | The owner revoked this runtime. Ask before \`init --force\`. |`. After the table (before `Then say this to the owner...`), insert:
+  Edit `seller-agent-setup/SKILL.md`, Step 9 ("Confirm, Then Tell the Owner to List"), in the status table row ``| `binding.status: "revoked"` | `pending` | The owner revoked this runtime. Ask before `init --force`. |``. After the table (before `Then say this to the owner...`), insert:
 
   ```markdown
 
@@ -476,7 +476,7 @@
   ```
       All four values are in the bind envelope. Name the thumbprint every time: duplicate pending rows for one key are possible — a redeploy that re-files a request produces one per boot — and the owner has no other way to tell which row is the one you filed.
   ```
-  and before `  Re-surface the same message rather than re-running \`bind\`:`, insert:
+  and before ``Re-surface the same message rather than re-running `bind`:``, insert:
 
   ```markdown
 
@@ -521,16 +521,14 @@
 
   Edit `buyer-find-seller/SKILL.md`. After the paragraph ending `...\`directory offering <ref> <offeringId>\` returns one offering's derived row... Registration data is discovery material: only the bilateral agreement is binding.` and before `### Step 3: Read the Terms and the Rate Card`, insert:
 
-  ```markdown
+  ````markdown
 
-  **Optional: check review history.** `directory search`'s optional `stats` field already carries this seller's rating/review-count aggregate. For the detail behind that aggregate — read it when the aggregate alone isn't enough to decide — Passport also serves a public, unauthenticated review list. There is no `kpass` verb for it yet; call it directly:
-
-  ```bash
-  curl -fsS "$KITE_PASSPORT_BASE_URL/v1/agents/did:kite:example-seller/reviews?limit=20"
-  ```
+  **Optional: check review history.** `directory search`'s optional `stats` field already carries this seller's rating/review-count aggregate. For the detail behind that aggregate — read it when the aggregate alone isn't enough to decide — Passport also serves a public, unauthenticated review list at `GET /v1/agents/<ref>/reviews`. There is no `kpass` verb for it yet, and the same permission caveat as the document URLs below applies: fetching that URL is outside this skill's permission glob. Surface it to the owner (or to whatever fetch capability the host has already authorized) rather than reaching for it here.
 
   Each row carries `reviewer_did`, `score` (1–10), `comment`, `contract_id`, `deal_outcome`, `recorded_at`, and a verifiable signature `envelope` (`key_id`, `sig`, `canonical`, `hash`) — so the row can be checked without trusting the API. Same-controller reviews (the seller reviewing its own other agents) are excluded; this list is independent-counterparty reputation only.
-  ```
+  ````
+
+  (Note, recorded during a later documentation-accuracy pass: this step's original text instructed the agent to call the reviews endpoint directly with `curl` — a violation of this skill's `Bash(kpass agent *)`-only permission glob, mirroring the fallback-fetch pattern already documented one section later, in "Read the Terms and the Rate Card." The text above reflects the corrected instruction that actually shipped; see `buyer-find-seller/SKILL.md`'s review-history paragraph for the live version.)
 
 - [ ] **Step 2: Verify**
 
