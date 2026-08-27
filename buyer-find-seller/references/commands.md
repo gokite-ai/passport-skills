@@ -2,11 +2,14 @@
 
 Every command takes `--output json`. All flags are long-form.
 
-`--base-url`, `--output`, and `--no-interactive` are persistent root flags available everywhere. `--key-file` is registered on `card fetch` but **not** on any `directory` verb — directory reads are unauthenticated.
+Two binaries, split by whether the command needs a credential:
+
+- **`ksearch agent ...`** — the discovery reads (`search`, `get`, `card`, `keys`, `registration`, `offering`, `offerings`). Public, unauthenticated, no runtime key involved. Persistent flags: `--agent-base-url` (Passport backend URL; `--base-url` is a hidden alias; env `KSEARCH_AGENT_BASE_URL`), `--output`, `--no-interactive`. None of these commands take `--key-file` — `ksearch` holds no credential to select a key file for.
+- **`kpass agent card fetch`** — the one command in this skill that runs on `kpass`, because it pins *this* agent's own coordination persona card into local, credentialed state. Its persistent flags are `--base-url`, `--output`, `--no-interactive`, plus `--key-file` (registered here, unlike every `ksearch agent` verb).
 
 ---
 
-## `kpass agent directory search`
+## `ksearch agent search`
 
 | Flag | Type | Default | Notes |
 |---|---|---|---|
@@ -16,7 +19,7 @@ Every command takes `--output json`. All flags are long-form.
 | `--offset <n>` | int | `0` | Page offset. |
 
 ```bash
-kpass agent directory search --query transcription --kind seller --output json
+ksearch agent search --query transcription --kind seller --output json
 ```
 
 ```
@@ -43,36 +46,36 @@ kpass agent directory search --query transcription --kind seller --output json
   "count": 1,
   "has_more": false,
   "hint": "...",
-  "next_command": "kpass agent directory get <did-or-agt-id> --output json"
+  "next_command": "ksearch agent get <did-or-agt-id> --output json"
 }
 ```
 
-Optional per-agent members (`description`, `skills`, `category`, `domain`, `price`, `stats`, `profile_truncated`) appear only when the platform published them. `profile_truncated` warns that the row is abridged — read the full record with `directory get`.
+Optional per-agent members (`description`, `skills`, `category`, `domain`, `price`, `stats`, `profile_truncated`) appear only when the platform published them. `profile_truncated` warns that the row is abridged — read the full record with `agent get`.
 
 When `has_more` is `true`, `next_command` is the same search with the next `--offset`.
 
 ---
 
-## `kpass agent directory get <ref>`
+## `ksearch agent get <ref>`
 
 Positional reference, **no flags of its own**. The reference accepts a DID, an `agt_...` id, a uid, a wire public key, or a `jkt:` thumbprint.
 
 ```bash
-kpass agent directory get did:kite:example-seller --output json
+ksearch agent get did:kite:example-seller --output json
 ```
 
-The backend's profile object is spread **verbatim** at the top level of the envelope, so the keys are whatever the platform publishes — do not code against a fixed shape. `next_command` is `kpass agent directory keys <ref> --output json`.
+The backend's profile object is spread **verbatim** at the top level of the envelope, so the keys are whatever the platform publishes — do not code against a fixed shape. `next_command` is `ksearch agent keys <ref> --output json`.
 
 ---
 
-## `kpass agent directory card <ref>`
+## `ksearch agent card <ref>`
 
 Positional reference, plus one optional flag: `--source platform` reads the platform-held card of an agent that also self-hosts one — omit it for precedence (self-hosted wins when present, per `source` in the output).
 
 Reads whichever card the agent actually publishes — its own https origin's, when it has one, or the one its runtime published to Passport when it does not. The two have **different verification guarantees**, and the envelope's `source` member says which one answered.
 
 ```bash
-kpass agent directory card did:kite:example-seller --output json
+ksearch agent card did:kite:example-seller --output json
 ```
 
 ```
@@ -98,12 +101,12 @@ kpass agent directory card did:kite:example-seller --output json
 
 ---
 
-## `kpass agent directory keys <ref>`
+## `ksearch agent keys <ref>`
 
 Positional reference, **no flags of its own**.
 
 ```bash
-kpass agent directory keys did:kite:example-seller --output json
+ksearch agent keys did:kite:example-seller --output json
 ```
 
 ```
@@ -136,7 +139,7 @@ Why this matters for proposing: the seller key's **address** is what goes into t
 
 ---
 
-## `kpass agent directory registration <ref>`
+## `ksearch agent registration <ref>`
 
 | Flag | Type | Default | Notes |
 |---|---|---|---|
@@ -144,7 +147,7 @@ Why this matters for proposing: the seller key's **address** is what goes into t
 | `--inputs` | bool | `true` | `--inputs=false` omits the three input documents (`storefront`, `rateCard`, `workflowTerms`) from the response. |
 
 ```bash
-kpass agent directory registration did:kite:example-seller --output json
+ksearch agent registration did:kite:example-seller --output json
 ```
 
 ```
@@ -169,7 +172,7 @@ kpass agent directory registration did:kite:example-seller --output json
     "workflowTerms": { ... }
   },
   "hint": "The `registration` half is the seller's claim; the `projection` half is platform-derived. Record registrationHash before acting on either.",
-  "next_command": "kpass agent directory registration did:kite:example-seller --registration-hash sha256:... --output json"
+  "next_command": "ksearch agent registration did:kite:example-seller --registration-hash sha256:... --output json"
 }
 ```
 
@@ -181,12 +184,12 @@ kpass agent directory registration did:kite:example-seller --output json
 
 ---
 
-## `kpass agent directory offering <ref> <offeringId>`
+## `ksearch agent offering <ref> <offeringId>`
 
 Two positional arguments, **no flags of its own**.
 
 ```bash
-kpass agent directory offering did:kite:example-seller tract-slices --output json
+ksearch agent offering did:kite:example-seller tract-slices --output json
 ```
 
 ```
@@ -208,20 +211,20 @@ kpass agent directory offering did:kite:example-seller tract-slices --output jso
 }
 ```
 
-- This is one row of what `directory registration <ref>`'s projection already lists — read it directly when only one offering's detail is needed, without re-reading the whole registration.
+- This is one row of what `agent registration <ref>`'s projection already lists — read it directly when only one offering's detail is needed, without re-reading the whole registration.
 - `sourcePointers` traces each published field back into the seller's raw input documents.
 - An offering with `ready: false` will not be presented as transactable; do not propose against it. `next_command` is always empty here — there is nothing this read naturally chains into.
 
 ---
 
-## `kpass agent directory offerings [<ref>]`
+## `ksearch agent offerings [<ref>]`
 
 One verb, two mutually exclusive modes, chosen by whether `<ref>` is given:
 
 | Mode | Invocation | What it returns |
 |---|---|---|
-| Catalog | `directory offerings <ref>` | One seller's complete active offering projection — every row in full. |
-| Search | `directory offerings [--filters...]` (no `<ref>`) | The cross-seller offering search — "find a seller that does X for under $Y." |
+| Catalog | `agent offerings <ref>` | One seller's complete active offering projection — every row in full. |
+| Search | `agent offerings [--filters...]` (no `<ref>`) | The cross-seller offering search — "find a seller that does X for under $Y." |
 
 Passing `<ref>` together with any search flag is refused as **exit 2 (usage)**: `<flags> does not apply to a single seller's catalog read.` — with a hint to drop `<ref>` and use `--seller <ref>` instead if the intent was to search within one seller.
 
@@ -239,12 +242,12 @@ Passing `<ref>` together with any search flag is refused as **exit 2 (usage)**: 
 | `--seller <ref>` | string | `""` | Restrict the search to one seller (`agt_` id or DID) while still using search-mode filters and paging. |
 | `--ready` | bool | `false` | Filter on readiness, **re-derived at query time** against the seller's current card, binding, and owner policy — not stale publish-time data. Pass `--ready=false` to see not-ready rows. |
 | `--limit <n>` | int | `0` (backend default 20, cap 100) | Rows per page. |
-| `--cursor <c>` | string | `""` | Resume position from a previous page's `nextCursor`. There is no `--offset` here — pagination is cursor-based only, unlike `directory search`. |
+| `--cursor <c>` | string | `""` | Resume position from a previous page's `nextCursor`. There is no `--offset` here — pagination is cursor-based only, unlike `agent search`. |
 
 All filters compose (AND, not OR) — every one must match the same offering row.
 
 ```bash
-kpass agent directory offerings --offering-kind dataset --max-total-price-minor 1000000 --output json
+ksearch agent offerings --offering-kind dataset --max-total-price-minor 1000000 --output json
 ```
 
 ```
@@ -274,15 +277,15 @@ kpass agent directory offerings --offering-kind dataset --max-total-price-minor 
     "nextCursor": "abc123"
   },
   "hint": "1 offering(s) on this page; more may follow.",
-  "next_command": "kpass agent directory offerings --offering-kind dataset --max-total-price-minor 1000000 --cursor abc123 --output json"
+  "next_command": "ksearch agent offerings --offering-kind dataset --max-total-price-minor 1000000 --cursor abc123 --output json"
 }
 ```
 
-- Each row's `{registrationHash, offering.offeringId}` is exactly the `registrationBasis` pair a proposal needs — a hit here can skip straight to reading terms (Step 3 of the Discovery Flow) without a separate `directory registration` read. Re-reading the seller before proposing is still required: the basis must still be the *active* registration at proposal time.
+- Each row's `{registrationHash, offering.offeringId}` is exactly the `registrationBasis` pair a proposal needs — a hit here can skip straight to reading terms (Step 3 of the Discovery Flow) without a separate `agent registration` read. Re-reading the seller before proposing is still required: the basis must still be the *active* registration at proposal time.
 - `next_command` **always carries every active filter, not just the cursor** — a continuation that dropped the filters and kept only the cursor would silently turn a filtered search into an unfiltered global one. When a page comes back empty but `hasMore` is `true`, follow `next_command` anyway; the directory is not exhausted.
 
 ```bash
-kpass agent directory offerings did:kite:example-seller --output json
+ksearch agent offerings did:kite:example-seller --output json
 ```
 
 ```
@@ -308,7 +311,7 @@ kpass agent directory offerings did:kite:example-seller --output json
     ]
   },
   "hint": "The seller's complete active catalog, platform-derived. Record registrationHash before acting on a row.",
-  "next_command": "kpass agent directory registration did:kite:example-seller --output json"
+  "next_command": "ksearch agent registration did:kite:example-seller --output json"
 }
 ```
 
@@ -318,7 +321,7 @@ kpass agent directory offerings did:kite:example-seller --output json
 
 ## `kpass agent card fetch`
 
-Fetch the coordination persona card from the configured backend, and optionally pin it.
+Fetch the coordination persona card from the configured backend, and optionally pin it. **This is the only command in this skill that runs on `kpass`, not `ksearch`** — it writes into this agent's own credentialed state, which `ksearch` has none of.
 
 | Flag | Type | Default | Notes |
 |---|---|---|---|
@@ -352,7 +355,7 @@ kpass agent card fetch --pin --output json
 }
 ```
 
-- This is **not** a seller's card. It reads `/.well-known/agent-card.json` from the backend named by `--base-url`, which is the coordination persona whose chain context the agreement lane signs against. To read another agent's card, use `directory card <ref>`.
+- This is **not** a seller's card. It reads `/.well-known/agent-card.json` from the backend named by `--base-url`, which is the coordination persona whose chain context the agreement lane signs against. To read another agent's card, use `ksearch agent card <ref>`.
 - `card_hash` is computed over the RFC 8785 canonical form. A card that cannot be canonicalized is exit 8; a card that does not decode is exit 1.
 - `pinned` is `false` without `--pin`, `true` with it. `pin_file` appears with `--pin`.
 - The optional members (`persona_did`, `card_version`, `endpoint`, `escrow_vault`, `extension_uri`, `chain_id`, `templates`, `signature_profiles`) appear only when the card publishes them.
@@ -381,4 +384,4 @@ kpass agent card fetch --pin --output json
 
 `error_code`, `details`, and `retriable` are omitted when absent. `retriable` absent means nobody ruled — not `false`.
 
-Exit codes: 0 success, 1 network, 2 usage, 3 auth, 4 not found, 5 rate limited, 6 forbidden, 7 conflict, 8 local protocol refusal.
+Exit codes: 0 success, 1 network, 2 usage, 3 auth, 4 not found, 5 rate limited, 6 forbidden, 7 conflict, 8 local protocol refusal. Exit 3 (auth) cannot occur on any `ksearch agent` command — the binary holds no credential to fail with — so seeing it there means the wrong binary was invoked.

@@ -42,8 +42,9 @@ signed, and there is no flag for it:
 Passport re-checks the same equality at proposal and at acceptance and refuses a
 mismatch with `registration_workflow_mismatch`, so a workflow a buyer picked
 could only ever produce a contract certain to be rejected. Read what an offering
-runs under with `kpass agent directory registration <seller>` and what the
-workflow means with `kpass agent workflow get <family/version>`.
+runs under with `ksearch agent registration <seller>` and what the
+workflow means with `ksearch workflow get <family/version>` (`workflow` is a
+top-level group on `ksearch`, a sibling of `agent`, not nested under it).
 
 These are the members a first attempt most often gets wrong:
 
@@ -51,7 +52,7 @@ These are the members a first attempt most often gets wrong:
 |---|---|---|
 | `deliverable` | **string** | What is being bought, in one line. Not an object. |
 | `acceptanceCriteria` | **string**, a sibling of `deliverable` | What settles acceptance. Not nested inside the deliverable. |
-| `registrationBasis` | `{ registrationHash, offeringId }` | **`kpass agent directory registration <seller>`.** It names the ACTIVE seller-registration snapshot and selected offering. |
+| `registrationBasis` | `{ registrationHash, offeringId }` | **`ksearch agent registration <seller>`.** It names the ACTIVE seller-registration snapshot and selected offering. |
 | `priceSchedule` | `{}` or `{ request, overrides, resolved }` | Optional. `{}` makes no line-level assertion. A non-empty value is the selected offering's exact rate-card entry, made concrete with request quantities and permitted overrides. |
 | `price` | `{ amount, asset }` | The signed settlement amount when `priceSchedule` is omitted or `{}`. With a non-empty schedule, it must be the decimal USDC form of the resolved escrow. |
 | `escrow.payoutAddress` | `0x…` | The seller's published payout address (its storefront). Sellers refuse a contract that pays somewhere else. |
@@ -60,7 +61,7 @@ These are the members a first attempt most often gets wrong:
 Read the basis before drafting:
 
 ```bash
-kpass agent directory registration did:kite:example-seller --output json
+ksearch agent registration did:kite:example-seller --output json
 ```
 
 The registrationHash is nested (`registration.registration.registrationHash`), and the same read carries the rate card used to assess the 25 USDC price. A seller reprices by publishing a new registration, which changes the hash — so read it when drafting, not from an earlier note. The CLI rechecks the active registration and offering before signing. If a non-empty schedule is supplied, it also rechecks the exact derivation before signing.

@@ -65,7 +65,7 @@ Preconditions: the runtime key resolves and its binding is `active` (else exit 3
 | 2 | The contract names **this agent** as seller | Exit **6** — `Agreement <id> names seller <did>, not this agent (<did>).` |
 | 3 | The terms hash **re-derives** from the verbatim proposal bytes and matches what the runtime reports | Exit **8** — the runtime reports one hash, the stored contract derives another |
 | 4 | A buyer signature entry exists for the buyer agent id | Exit **8** |
-| 5 | The buyer's `keyId` is in the buyer's **published** key set | Exit **8**, `error_code: "unknown_key"`, `next_command: "kagent directory keys <ref> --output json"` |
+| 5 | The buyer's `keyId` is in the buyer's **published** key set | Exit **8**, `error_code: "unknown_key"`, `next_command: "kagent directory keys <ref> --output json"` (also readable credential-less via `ksearch agent keys <ref> --output json`) |
 | 6 | The buyer's terms signature recovers to that key's address | Exit **8** |
 | 7 | The relayed EIP-712 Agreement co-signature is present | Exit **1**, `next_command: "kagent agreement status --agreement-id <id> --watch --output json"` |
 | 8 | The co-signature names **this agent's** key, not a sibling | Exit **8** |

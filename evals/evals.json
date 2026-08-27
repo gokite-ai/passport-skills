@@ -680,9 +680,9 @@
   {
     "id": 67,
     "prompt": "Find me a seller who can transcribe audio recordings.",
-    "expected_output": "Agent runs kpass agent directory search --query transcription --kind seller --output json and lists matching sellers, reading each one's verified_tier before reporting it.",
+    "expected_output": "Agent runs ksearch agent search --query transcription --kind seller --output json (the credential-less discovery binary, not kpass) and lists matching sellers, reading each one's verified_tier before reporting it.",
     "assertions": [
-      "kpass agent directory search",
+      "ksearch agent search",
       "--query",
       "--kind seller",
       "--output json"
@@ -691,9 +691,9 @@
   {
     "id": 68,
     "prompt": "Find a seller that can produce a dataset for under $10, ready to transact right now.",
-    "expected_output": "Agent recognizes this needs a capability/price search rather than a name search, and runs kpass agent directory offerings --offering-kind dataset --max-total-price-minor 10000000 --ready --output json, reading each hit's registrationHash and offering.offeringId as the registrationBasis for a later proposal.",
+    "expected_output": "Agent recognizes this needs a capability/price search rather than a name search, and runs ksearch agent offerings --offering-kind dataset --max-total-price-minor 10000000 --ready --output json, reading each hit's registrationHash and offering.offeringId as the registrationBasis for a later proposal.",
     "assertions": [
-      "kpass agent directory offerings",
+      "ksearch agent offerings",
       "--offering-kind dataset",
       "--max-total-price-minor",
       "--ready"
@@ -702,9 +702,9 @@
   {
     "id": 69,
     "prompt": "Before I propose to did:kite:example-seller, check that its card actually verifies.",
-    "expected_output": "Agent runs kpass agent directory card did:kite:example-seller --output json and checks card_hash_verified. A mismatch is treated as a hard stop — exit 8, not a soft warning — and reported to the owner rather than worked around.",
+    "expected_output": "Agent runs ksearch agent card did:kite:example-seller --output json and checks card_hash_verified. A mismatch is treated as a hard stop — exit 8, not a soft warning — and reported to the owner rather than worked around.",
     "assertions": [
-      "kpass agent directory card did:kite:example-seller",
+      "ksearch agent card did:kite:example-seller",
       "card_hash_verified",
       "exit 8"
     ]
@@ -712,9 +712,9 @@
   {
     "id": 70,
     "prompt": "This seller has more than one active signing key — which one do I use to propose?",
-    "expected_output": "Agent runs kpass agent directory keys did:kite:example-seller --output json, finds active_count greater than one, and picks the --seller-key-id from a row with active: true rather than guessing or defaulting to the first entry.",
+    "expected_output": "Agent runs ksearch agent keys did:kite:example-seller --output json, finds active_count greater than one, and picks the --seller-key-id from a row with active: true rather than guessing or defaulting to the first entry.",
     "assertions": [
-      "kpass agent directory keys",
+      "ksearch agent keys",
       "active_count",
       "--seller-key-id"
     ]
@@ -792,7 +792,7 @@
   {
     "id": 78,
     "prompt": "Propose a $25 market-report deal to did:kite:example-seller.",
-    "expected_output": "Agent drafts a terms file with deliverable, acceptanceCriteria, price, an empty priceSchedule, escrow.payoutAddress, disputePolicy.arbiterAgentId, and a registrationBasis read fresh from kpass agent directory registration did:kite:example-seller, then runs kpass agent agreement propose --seller did:kite:example-seller --terms-file ./terms.json --output json.",
+    "expected_output": "Agent drafts a terms file with deliverable, acceptanceCriteria, price, an empty priceSchedule, escrow.payoutAddress, disputePolicy.arbiterAgentId, and a registrationBasis read fresh from ksearch agent registration did:kite:example-seller (the credential-less discovery binary), then runs kpass agent agreement propose --seller did:kite:example-seller --terms-file ./terms.json --output json.",
     "assertions": [
       "kpass agent agreement propose --seller did:kite:example-seller",
       "--terms-file",

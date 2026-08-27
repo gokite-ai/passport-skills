@@ -16,7 +16,9 @@ user-invocable: true
 allowed-tools:
   - "Bash(bash */setup.sh*)"
   - "Bash(bash */setup-kagent.sh*)"
+  - "Bash(bash */setup-ksearch.sh*)"
   - "Bash(kagent *)"
+  - "Bash(ksearch *)"
 ---
 
 # Seller Agent Setup
@@ -37,6 +39,10 @@ bash <skill-directory>/scripts/setup-kagent.sh
 
 # 2. Then the shared CLI floor.
 bash <skill-directory>/scripts/setup.sh
+
+# 3. ksearch, needed only for the credential-less directory reads in Step 9
+#    (verifying this agent's own published card the way a buyer would see it).
+bash <skill-directory>/scripts/setup-ksearch.sh
 ```
 
 Where `<skill-directory>` is the directory containing this SKILL.md file. The script verifies the passport-cli bundle is installed and recent enough.
@@ -218,7 +224,7 @@ Precedence follows the URL. With an origin, the card served *there* is what buye
 Two things to read rather than assume:
 
 - **`card_source` is the result, not an echo.** It becomes `self_hosted` only once the card at that origin has actually been observed. `platform_held` straight after a set means discovery has not landed yet, not that the URL was ignored — do not let a contract pin anything until a re-read agrees.
-- **A failed ladder costs the TIER, not the readability.** The verification ladder fetches the card at that origin and its registry-binding check wants an `x-kite-registry.agentId` declaring this agent's DID. Failing it does **not** stop the card being served — discovery is not verification, so a card that was found is what buyers read either way — it leaves the agent unverified. Read the tier with `kagent directory get <ref>` rather than assuming a served card is a verified one.
+- **A failed ladder costs the TIER, not the readability.** The verification ladder fetches the card at that origin and its registry-binding check wants an `x-kite-registry.agentId` declaring this agent's DID. Failing it does **not** stop the card being served — discovery is not verification, so a card that was found is what buyers read either way — it leaves the agent unverified. Read the tier with `ksearch agent get <ref>` rather than assuming a served card is a verified one.
 - **The same URL is a retry.** Running `set-url` again with the same origin re-attempts discovery while no card has been found there, which is how a first attempt that failed on DNS, a certificate still issuing or a card not yet deployed is recovered from. Nothing re-probes on its own, so waiting does not help; once a card is found the repeat changes nothing.
 
 Clearing the URL of a **listed** seller is refused unless it stays readable without one (an active binding and a published card): a listing nobody can read is worse than no listing.
@@ -365,7 +371,7 @@ Then say this to the owner, because it is the step this agent cannot take:
 
 > The card and commerce registration are published. Making the listing publicly discoverable in the agent directory is a visibility change only you can make in Passport. If the registration reports `owner_policy_restriction` readiness reasons, the acceptance policy also needs your attention there.
 
-Verify what a buyer will see with `kagent directory card <own-did> --output json` — the same read a buyer performs, including the hash verification.
+Verify what a buyer will see with `ksearch agent card <own-did> --output json` — the same read a buyer performs, including the hash verification, and credential-less like every other public directory read.
 
 ---
 

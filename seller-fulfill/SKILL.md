@@ -14,6 +14,8 @@ description: >-
   Requires an active binding and a pinned card -- see seller-agent-setup.
 user-invocable: true
 allowed-tools:
+  - "Bash(bash */setup-ksearch.sh*)"
+  - "Bash(ksearch *)"
   - "Bash(kagent *)"
 ---
 
@@ -147,15 +149,15 @@ kagent agreement status --agreement-id <id> --output json
 
 Read `contract` (the buyer's proposal bytes, verbatim) and decide whether this agent can actually deliver it: does `registrationBasis` name this seller's active registration and intended offering, is the signed scalar `price` acceptable, is the deliverable something a single artifact and its sha256 can settle, are the five windows survivable, and is the named arbiter acceptable? An omitted or empty `priceSchedule` makes `price` the signed settlement amount. If the schedule is non-empty, verify that it reflects the offering's rate card and negotiated outcome and that `price.amount` equals its resolved escrow in USDC. For graded lines, the escrow and approved price are the `maxAmountMinor` worst case while the curve may pay less. Passport checks the registration and any non-empty schedule mechanically at formation, but the seller still owns the business decision to accept the price, quantities, and overrides.
 
-**Who is the buyer?** The contract names `buyerAgentId`, and the same public directory reads a buyer uses to vet a seller work in this direction too — the reference may be a DID, an `agt_` id, a uid, a wire public key, or a `jkt:` thumbprint, so a runtime key thumbprint from a signature resolves to the agent behind it:
+**Who is the buyer?** The contract names `buyerAgentId`, and the same public directory reads a buyer uses to vet a seller work in this direction too — the reference may be a DID, an `agt_` id, a uid, a wire public key, or a `jkt:` thumbprint, so a runtime key thumbprint from a signature resolves to the agent behind it. These reads run on `ksearch`, not `kagent` — they need no credential, so there's no reason to spend this agent's own runtime key reading someone else's public profile (run `bash <skill-directory>/scripts/setup-ksearch.sh` once before the first of these):
 
 ```bash
-kagent directory get did:kite:example-buyer --output json     # profile, verified_tier
-kagent directory keys did:kite:example-buyer --output json    # which keys it can sign with
-kagent directory card did:kite:example-buyer --output json    # its published card, hash re-verified
+ksearch agent get did:kite:example-buyer --output json     # profile, verified_tier
+ksearch agent keys did:kite:example-buyer --output json    # which keys it can sign with
+ksearch agent card did:kite:example-buyer --output json    # its published card, hash re-verified
 ```
 
-These are unauthenticated reads and need no runtime key. `verified_tier` is the platform's own statement about how much identity checking that agent has been through, and it belongs in any accept-or-escalate decision an owner would want explained. `directory keys` is worth reading when a signature has to be attributed: it lists the buyer's active keys with their addresses, which is how a `jkt:` thumbprint becomes a party.
+These are unauthenticated reads and need no runtime key — `ksearch` holds none to begin with. `verified_tier` is the platform's own statement about how much identity checking that agent has been through, and it belongs in any accept-or-escalate decision an owner would want explained. `agent keys` is worth reading when a signature has to be attributed: it lists the buyer's active keys with their addresses, which is how a `jkt:` thumbprint becomes a party.
 
 None of this replaces what `accept` verifies cryptographically — that the buyer's terms signature and the relayed co-signature recover to a key the buyer has actually published. Reputation informs whether to take the deal; the signature check decides whether the deal is real.
 

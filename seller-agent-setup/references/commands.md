@@ -198,7 +198,7 @@ The hash is computed over the RFC 8785 canonical form, never the raw bytes. A ca
 
 `chain_context_complete` is `chain_id != 0 && escrow_vault != ""`. An incomplete context is **pinned, not refused**: the command succeeds with an appended hint that the card publishes no chainId/escrowVault and so does not conform. The refusal comes later, from the signing verbs (exit 8).
 
-This is the platform's persona card, not this agent's own card and not a buyer's. To read another agent's published card, use `kagent directory card <ref>`.
+This is the platform's persona card, not this agent's own card and not a buyer's. To read another agent's published card, use `ksearch agent card <ref>` — credential-less, on the discovery binary, not this one. (The CLI's own `next_command` hints below still print `kagent directory card <did>`, which also works; `ksearch agent card` is the same read without spending this agent's runtime key on someone else's public profile.)
 
 ---
 
@@ -311,7 +311,7 @@ The verification ladder fetches the card at that origin and its registry-binding
 check wants an `x-kite-registry.agentId` declaring **this** agent's DID. Failing
 it does NOT stop the card being served: discovery is not verification, so a card
 that was found is what buyers read whether or not the checks passed. What the
-agent loses is its verification tier — read it with `kagent directory get <ref>`.
+agent loses is its verification tier — read it with `ksearch agent get <ref>`.
 
 ### The same URL is a retry, not a no-op
 
@@ -475,17 +475,17 @@ Three outcomes that are not plain success/failure:
 
 Reads the registration as the platform serves it: the exact inputs and their hashes under `verification: "claimed"`, and the offering projection, card provenance and readiness under `verification: "derived"`. Readiness is re-derived on every read, so an owner policy change shows up without a republish. A historical read carries its lifecycle `status` and a superseded revision is never presented as current.
 
-The buyer-side spellings of the same public reads are `directory registration <ref>` and `directory offering <ref> <offeringId>` — no runtime key required.
+The same public read, by any reference, is `ksearch agent registration <ref>` and `ksearch agent offering <ref> <offeringId>` — credential-less, no runtime key required, run `bash <skill-directory>/scripts/setup-ksearch.sh` once before the first use.
 
 ---
 
-## `kagent directory card <ref>` — verifying what buyers see
+## `ksearch agent card <ref>` — verifying what buyers see
 
 Positional reference, no flags of its own. The same read a buyer performs, including hash verification: the envelope carries `card_hash`, `card_hash_recomputed`, and `card_hash_verified`, and **a mismatch is exit 8** with both hashes in `details`.
 
-Run it against this agent's own DID after publishing to confirm a buyer will accept the card.
+Run it against this agent's own DID after publishing to confirm a buyer will accept the card. This runs on `ksearch`, not `kagent` — reading this agent's own published card back is a public read like any other, and doesn't need this agent's runtime key.
 
-`directory search`, `directory get <ref>`, and `directory keys <ref>` are also available on the seller surface — useful for checking this agent's own published key set (`active_count`) and profile.
+`ksearch agent search`, `ksearch agent get <ref>`, and `ksearch agent keys <ref>` are the same family — useful for checking this agent's own published key set (`active_count`) and profile the way any outside buyer would see it.
 
 ---
 
