@@ -53,7 +53,7 @@
     {
       "slug": "upgrade-passport",
       "name": "Upgrade Passport",
-      "description": "Detect and apply kpass CLI updates automatically. Invoke whenever a `kpass --output json` response carries an `update_available` field, or when the user asks to \"update kpass\", \"upgrade\", \"is my CLI up to date?\". On POSIX (macOS, Linux), the agent SHOULD upgrade automatically after the user's current task completes \u2014 no permission prompt needed. On Windows, the agent surfaces the manual install command for the user to run; the agent must NOT auto-execute PowerShell install scripts. Auto-upgrade is on by default; `KPASS_AUTO_UPGRADE=1` is the explicit form, `=0` disables it (agent surfaces the update to the user but doesn't apply it without confirmation). `KPASS_NO_UPDATE_CHECK=1` disables detection entirely.",
+      "description": "Detect and apply kpass CLI updates automatically. Invoke whenever a `kpass --output json` response carries an `update_available` field, or when the user asks to \"update kpass\", \"upgrade\", \"is my CLI up to date?\". On POSIX (macOS, Linux), the agent SHOULD upgrade automatically after the user's current task completes — no permission prompt needed. On Windows, the agent surfaces the manual install command for the user to run; the agent must NOT auto-execute PowerShell install scripts. Auto-upgrade is on by default; `KPASS_AUTO_UPGRADE=1` is the explicit form, `=0` disables it (agent surfaces the update to the user but doesn't apply it without confirmation). `KPASS_NO_UPDATE_CHECK=1` disables detection entirely.",
       "path": "upgrade-passport/SKILL.md",
       "group": "user",
       "tags": [
@@ -121,7 +121,7 @@
     {
       "slug": "attach-session",
       "name": "Attach Session",
-      "description": "Attach an existing attachable session to this agent by session ID \u2014 typically a session pre-created in the Passport web dashboard. Binds the session with owner passkey approval; does not create sessions (use request-session for that).",
+      "description": "Attach an existing attachable session to this agent by session ID — typically a session pre-created in the Passport web dashboard. Binds the session with owner passkey approval; does not create sessions (use request-session for that).",
       "path": "attach-session/SKILL.md",
       "group": "user",
       "tags": [
@@ -178,7 +178,7 @@
     {
       "slug": "wallet-send",
       "name": "Wallet Send",
-      "description": "Check a multichain wallet balance, send crypto on a specific chain (base/polygon/avalanche/tempo/solana/robinhood on mainnet; the dev environment serves arc testnet only \u2014 balance and address lookups; Passport dev exposes no direct sends, and its faucet cannot fund arc), look up per-chain wallet addresses, or get test tokens from the faucet (staging/testnet only). Proactively invoke for any task involving token transfers, balance inquiries, \"how much do I have?\", \"what's my address?\", or funding a wallet on testnet. No spending session required -- works directly with the user's wallet. Sends require a passkey approval in the browser.",
+      "description": "Check a multichain wallet balance, send crypto on a specific chain (base/polygon/avalanche/tempo/solana/robinhood on mainnet; the dev environment serves arc testnet only — balance and address lookups; Passport dev exposes no direct sends, and its faucet cannot fund arc), look up per-chain wallet addresses, or get test tokens from the faucet (staging/testnet only). Proactively invoke for any task involving token transfers, balance inquiries, \"how much do I have?\", \"what's my address?\", or funding a wallet on testnet. No spending session required -- works directly with the user's wallet. Sends require a passkey approval in the browser.",
       "path": "wallet-send/SKILL.md",
       "group": "user",
       "tags": [
@@ -390,6 +390,27 @@
         "evidence",
         "escalation",
         "listen",
+        "fulfillment"
+      ],
+      "dependencies": [
+        "seller-agent-setup"
+      ]
+    },
+    {
+      "slug": "kite-seller",
+      "name": "Kite Seller",
+      "description": "Respond to one Kite platform work item as a seller running under `kagent serve --handler`: the per-operation response contract the standard handler (kite-agent-handler) expects on stdout. Produce a deliverable for a start, a typed reply or quote frame for a request, an accept/decline/escalate for a decide, or one arm of the rejected fork — a revised delivery, an appeal, or a refund consent — for a rejected. Invoke whenever the task prompt is a JSON item envelope carrying an operation field. Judgment and production are yours; serve validates and signs. Requires the active binding from seller-agent-setup.",
+      "path": "kite-seller/SKILL.md",
+      "group": "seller-agent",
+      "tags": [
+        "agent",
+        "agreement",
+        "seller",
+        "kagent",
+        "serve",
+        "handler",
+        "deliver",
+        "decide",
         "fulfillment"
       ],
       "dependencies": [
