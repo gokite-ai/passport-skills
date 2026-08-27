@@ -352,13 +352,50 @@ The signed command's payload carries `evidenceId`, `deliveryHash`, `sellerDelive
 
 Nothing else. Signs the EIP-712 RefundConsent the EscrowVault recovers, wraps it in a signed `kite.contract.refund_consented` command, and submits it. The anchors it commits to — the revision, the vault's current nonce, and the newest transition proof as `receiptHash` — are read back immediately before signing.
 
-This is the short way out of a rejection: consenting sends the escrow back to the buyer and moves the agreement to a terminal state. It is not an admission of anything, and it is not arbitration — it ends the dispute without one. The alternative is appealing to the contract-named arbiter, which costs both parties the arbitration window; there is currently no CLI verb to do that. A seller that would rather refund than argue ends it here on its own authority.
+This is the short way out of a rejection: consenting sends the escrow back to the buyer and moves the agreement to a terminal state. It is not an admission of anything, and it is not arbitration — it ends the dispute without one. The alternative is `agreement appeal`, below, which costs both parties the arbitration window. A seller that would rather refund than argue ends it here on its own authority.
 
 ```bash
 kagent agreement refund-consent --agreement-id agr_7f2a --output json
 ```
 
 Only valid from `REJECTED`. Running it on an agreement in any other state is refused.
+
+---
+
+## `kagent agreement appeal`
+
+| Flag | Type | Default | Required |
+|---|---|---|---|
+| `--agreement-id <id>` | string | `""` | **yes** |
+
+Nothing else. Signs the EIP-712 Appeal the EscrowVault recovers, wraps it in a signed `kite.contract.appeal` command, and submits it. The anchors it commits to — the revision, the vault's current nonce, and the newest transition proof as `receiptHash` — are read back immediately before signing, same as every other settlement command.
+
+The long way out of a rejection: appealing stops the appeal-response window (whose expiry refunds the buyer by default) and starts the arbitration window, in which the contract-named arbiter decides. There is still no CLI verb on either binary to invoke the arbiter's decision itself — this command only opens the window it decides in.
+
+```bash
+kagent agreement appeal --agreement-id agr_7f2a --output json
+```
+
+```json
+{
+  "agreement_id": "agr_7f2a",
+  "command_id": "...",
+  "command_type": "kite.contract.appeal",
+  "state": "DISPUTED",
+  "revision": "...",
+  "settlement_sig": "...",
+  "expected_revision": "...",
+  "vault_deal_id": "...",
+  "vault_nonce": "...",
+  "receipt_hash": "...",
+  "expiry": "...",
+  "receipt": { ... },
+  "hint": "Appealed. The arbitration window is running; the contract-named arbiter decides.",
+  "next_command": "kagent agreement status --agreement-id agr_7f2a --watch --output json"
+}
+```
+
+Only valid from `REJECTED`, and only for this contract's own seller — the engine authorizes `kite.contract.appeal` for that role alone, so a buyer's attempt (there is no buyer-surface `agreement appeal` command at all) would be refused locally before anything is sent.
 
 ---
 

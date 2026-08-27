@@ -131,7 +131,7 @@ Exit 4 on `--resume` means no journaled proposal by that id.
 | `FULFILLING` | Escrow funded; the seller's delivery is next | `""` |
 | `DELIVERED` | Verify the artifact against the `deliveryHash` in the signed command, then confirm or reject | `kpass agent agreement proofs --agreement-id <id> --verify --output json` |
 | `REJECTED` | Rejected by the buyer; the dispute branch is open | `""` |
-| `DISPUTED` | Not currently reachable via either CLI — arbitration is not CLI-invocable; a `REJECTED` agreement resolves via seller `refund-consent` or the `appealResponseWindow` timeout instead (see Step 8) | `""` |
+| `DISPUTED` | The seller appealed (`kagent agreement appeal`, seller-only — not reachable from this buyer surface). The arbitration window is running; there is still no CLI verb for the arbiter to render its decision through (see Step 8) | `""` |
 | `ACCEPTED`, `RESOLVED` | Terminal. The proof chain records the outcome; a review is open for a bounded window | `kpass agent agreement proofs --agreement-id <id> --verify --output json` |
 | `CANCELLED`, `DEFAULTED`, `EXPIRED` | Terminal. No further command is legal | `""` |
 
