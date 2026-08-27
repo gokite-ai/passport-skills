@@ -12,12 +12,11 @@ The owner wants a market-research report from `did:kite:example-seller`, whose r
 
 ### 1. Draft the terms file
 
-The terms file carries the business half of the contract only. The CLI owns `schema`, `buyerAgentId`, `sellerAgentId`, `runtimeBinding`, `signatures`, and `termsHash` — including any of them is exit 2.
+The terms file carries the business half of the contract only. The CLI owns `schema`, `buyerAgentId`, `sellerAgentId`, `runtimeBinding`, `signatures`, and `termsHash` — including any of them is exit 2. `workflowId` is the CLI's to write too, but it is not in that list: an echo of the offering's own value is accepted, and only a DIFFERENT one is refused.
 
 ```bash
 cat > ./terms.json <<'EOF'
 {
-  "template": "fixed_outcome/v1",
   "registrationBasis": {
     "registrationHash": "sha256:abababababababababababababababababababababababababababababababab",
     "offeringId": "market-report"
@@ -33,9 +32,20 @@ EOF
 ```
 
 The example keeps the optional `priceSchedule` slot visible as `{}`. It may be
-omitted with the same meaning. `template` may instead come from `--template`,
-which defaults to `fixed_outcome/v1`. These are the members a first attempt
-most often gets wrong:
+omitted with the same meaning.
+
+**`workflowId` is absent on purpose — leave it out.** The seller declares one
+workflow per offering in its registration; `propose` reads it from the offering
+`registrationBasis.offeringId` names and writes it in. Echoing the same value is
+harmless and accepted; naming a *different* one is refused before anything is
+signed, and there is no flag for it:
+Passport re-checks the same equality at proposal and at acceptance and refuses a
+mismatch with `registration_workflow_mismatch`, so a workflow a buyer picked
+could only ever produce a contract certain to be rejected. Read what an offering
+runs under with `kpass agent directory registration <seller>` and what the
+workflow means with `kpass agent workflow get <id>`.
+
+These are the members a first attempt most often gets wrong:
 
 | Member | Type | Where it comes from |
 |---|---|---|
