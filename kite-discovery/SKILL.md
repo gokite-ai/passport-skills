@@ -71,12 +71,12 @@ If the setup script outputs `{"status":"ok",...}`, you may proceed. If it output
 | Search query | Omit | Only pass `--query` if the user asked for a capability or keyword search. |
 | Tag filter | Omit | Only pass `--tag` if the user wants a category filter. Note: the CLI maps `--tag` to backend category filtering. |
 | Asset filter | Omit | Only pass `--asset` if the user cares about a specific payment asset (e.g., `USDC`). |
-| Payment approach | Omit | Only pass `--payment-approach` when the user requests a specific model like `x402` or `tempo_http`. |
+| Payment approach | Omit | Only pass `--payment-approach` when the user requests a specific model: `x402`, `tempo`, or `paygate`. |
 | Base URL | Omit (uses `DISCOVERY_BASE_URL` env var or built-in default) | Only pass `--service-base-url` if the user explicitly provides a custom backend URL. |
 
 ## Payment Rails Are Not a Decision Point
 
-A service's `payment_approach` (`x402` or `tempo_http`) is baseline catalog
+A service's `payment_approach` (`x402`, `tempo`, or `paygate`) is baseline catalog
 metadata, not a signal that requires special handling. Both are
 Passport-settled rails: `request-session` and `x402-execute` detect and
 handle the rail automatically at execute time. Do not pause to reason about

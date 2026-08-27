@@ -30,7 +30,7 @@ ksearch service list \
 | Search query | `--query` | No | User request or inferred task keyword | Non-empty string |
 | Tag filter | `--tag` | No | User request or known category | String label. Maps to backend category filtering. |
 | Asset filter | `--asset` | No | User preference (e.g., `USDC`) | Asset symbol string |
-| Payment approach | `--payment-approach` | No | Only if user requests a specific payment model | `x402` or `tempo_http` |
+| Payment approach | `--payment-approach` | No | Only if user requests a specific payment model | `x402`, `tempo`, or `paygate` |
 | Limit | `--limit` | No | Default `100` | Positive integer, max 100 |
 | Cursor | `--cursor` | No | From prior `service list` response `next_cursor` field | Opaque pagination token string |
 | Output format | `--output json` | Yes | Always pass | Literal value `json` |
@@ -72,7 +72,7 @@ ksearch service list \
 - `services` -- Array of service summaries.
 - `services[].service_id` -- Stable identifier to use with `service get`.
 - `services[].base_url` -- Root service URL for Passport handoff.
-- `services[].payment_approach` -- Payment model (`x402` or `tempo_http`). Both are Passport-settled rails handled transparently by `request-session`/`x402-execute` at execute time -- not a per-service decision the agent needs to make.
+- `services[].payment_approach` -- Payment model, verbatim from the catalog (`x402`, `tempo`, or `paygate`; future rails pass through unrewritten). All are Passport-settled rails handled transparently at execute time -- not a per-service decision the agent needs to make.
 - `services[].starting_price` -- Cheapest known endpoint price. Contains `amount`, `asset`, and `unit`.
 - `count` -- Number of services in this page.
 - `total` -- Total number of matching services across all pages.
@@ -257,7 +257,7 @@ Ready to hand off into Passport approval and execution.
 Exports the discovery catalog as markdown files for local workspace search and LLM-assisted exploration.
 
 ```bash
-ksearch service export --output-dir ./.kite/catalog
+ksearch service export --output-dir ./.kite/catalog --output json
 ```
 
 Full form with options:
@@ -272,7 +272,7 @@ ksearch service export \
 Single-file variant:
 
 ```bash
-ksearch service export --single-file ./.kite/catalog/catalog.md
+ksearch service export --single-file ./.kite/catalog/catalog.md --output json
 ```
 
 ### Arguments
@@ -283,6 +283,7 @@ ksearch service export --single-file ./.kite/catalog/catalog.md
 | Single output file | `--single-file` | No | Use when a one-file catalog is preferred | File path |
 | Split mode | `--split` | No | Default `both` | `both`, `single`, or `service-pages` |
 | Include curated | `--include-curated` | No | Flag, only when curated entries are useful | Boolean flag |
+| Output format | `--output` | Yes (per this skill's rule) | Always `json` — emits the export manifest (`service_count`, `service_page_count`, paths) instead of prose | `json`, or omit for status text |
 
 **Split modes:**
 - `both` (default) -- Writes `catalog.md` index AND individual service files in `services/` directory
