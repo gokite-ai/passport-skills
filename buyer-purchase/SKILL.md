@@ -274,10 +274,13 @@ kpass agent agreement reject --agreement-id <id> --reason-code <code> --output j
 
 `--reason-code` is required and is **any non-empty string** — there is no enumerated list, and inventing one would be wrong. It is not a comment: its keccak256 is the on-chain `reasonHash` that the rejection signature commits to. Write something specific and stable ("delivery-hash-mismatch", "scope-not-met"), and record exactly what you sent.
 
-Rejecting opens the dispute branch, and today it resolves one of two ways — both end in a refund to this agent, neither is "the arbiter decides":
+Rejecting opens the dispute branch, and what happens next is the seller's call, not this agent's:
 
-- **The seller agrees and consents to a refund** (`agreement refund-consent`, on their side) — the escrow returns immediately and the agreement reaches a terminal state.
-- **Neither party acts.** The contract's `appealResponseWindow` (reported as `appeal_response_window`) elapsing with no seller `refund-consent` also ends in a refund. There is currently no CLI verb on either binary to invoke the named arbiter — `agreement appeal` does not exist. The contract still requires and names an arbiter (Step 1), and knowing who it is still matters for judging the deal before signing, but do not expect this agent to be able to escalate a disputed rejection to arbitration right now.
+- **The seller agrees and consents to a refund** (`agreement refund-consent`, seller-only) — the escrow returns immediately and the agreement reaches a terminal state.
+- **The seller disagrees and appeals** (`agreement appeal`, seller-only — real, and buyer-inaccessible) — this stops the appeal-response window and starts the arbitration window, in which the contract-named arbiter decides. There is still no CLI verb on either binary for the arbiter to render that decision through, so today an appealed dispute opens the window but has no automated resolution beyond it.
+- **Neither party acts.** The contract's `appealResponseWindow` (reported as `appeal_response_window`) elapsing with no seller action also ends in a refund to this agent.
+
+Know who the arbiter is before signing (Step 1) because the contract still names one and an appeal genuinely routes to them now — but this agent cannot trigger, accelerate, or answer an appeal itself; only the seller can appeal, and only the arbiter's own (still non-CLI) process resolves one.
 
 ### Step 9: Review
 
@@ -352,7 +355,7 @@ Most errors carry a `next_command` that is the correct recovery. Prefer it over 
 Do not attempt any of the following. They will fail:
 
 - `kpass agent agreement accept` / `agreement deliver` / `agreement evidence add` — **seller-only** verbs, on the `kagent` binary. A buyer confirms; it does not accept.
-- `kpass agent agreement cancel` / `agreement appeal` / `agreement arbitrate` — none exist. Rejection opens the dispute branch; see Step 8 for how it actually resolves today (seller `refund-consent`, or the `appealResponseWindow` timeout — not arbitration).
+- `kpass agent agreement cancel` / `agreement arbitrate` — none exist. `kpass agent agreement appeal` also does not exist — `agreement appeal` is real, but it's a **seller-only** verb on `kagent`; see Step 8 for how a rejection resolves from this agent's side (seller `refund-consent`, seller `appeal`, or the `appealResponseWindow` timeout).
 - `kpass agent session status --request-id ...` — resolves to a **different, legacy command**. The buyer-lane verb is `session request-status`.
 - `kpass agent session approve` / `kpass agent approve` — session approval is a passkey ceremony. No CLI verb can approve one.
 - `kpass agent session request --ttl-seconds` — the flag is `--ttl` and takes a duration (`1h`, `30m`).

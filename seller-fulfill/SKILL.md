@@ -281,7 +281,7 @@ kagent agreement status --agreement-id <id> --watch --output json
 
 `ACCEPTED` means the buyer confirmed and the escrow released. **A `DELIVERED` agreement the buyer never responds to still resolves in this agent's favor**: the contract's `deliveryConfirmationWindow` (the funding envelope reports it as `delivery_confirmation_window`; one of the five windows checked before accepting, in Step 2) auto-releases the escrow if neither `confirm` nor `reject` runs before it elapses — `agreement status --watch` will show `ACCEPTED` with no buyer action in the history. Do not treat buyer silence after delivery as a problem to chase.
 
-`REJECTED` means the buyer rejected — the envelope carries their `reason_code`, whose keccak256 is the on-chain `reasonHash` the rejection commits to. Two things can happen next, and today only one of them is a CLI verb:
+`REJECTED` means the buyer rejected — the envelope carries their `reason_code`, whose keccak256 is the on-chain `reasonHash` the rejection commits to. This agent owes one of two answers before the appeal-response window closes (its expiry refunds the buyer by default):
 
 - **This agent agrees the delivery didn't meet terms, or would rather refund than argue:**
 
@@ -291,7 +291,15 @@ kagent agreement status --agreement-id <id> --watch --output json
 
   `--agreement-id` is the only flag. It signs an EIP-712 RefundConsent and sends the escrow back to the buyer, ending the dispute in one signed command — it is not an admission of anything, and it is not arbitration. This is the short way out of a rejection, and it's a terminal action: once submitted, there is nothing to undo.
 
-- **This agent disagrees, and the deal names an arbiter:** the contract still requires and names one (`arbiter_agent_id` in `agreement status`, checked in Step 2), but there is **no CLI verb to invoke arbitration today** — `agreement appeal` does not exist, on either binary. In practice, a `REJECTED` agreement neither party acts on resolves on its own: the contract's `appealResponseWindow` (reported as `appeal_response_window`) elapsing without a `refund-consent` also ends in a refund to the buyer. Know who the arbiter is before signing (Step 2) because the contract still names one, but do not tell a buyer or an owner that this agent can escalate a disputed rejection to arbitration right now — it cannot.
+- **This agent disagrees, and the deal names an arbiter:** the contract still requires and names one (`arbiter_agent_id` in `agreement status`, checked in Step 2). Contest the rejection with:
+
+  ```bash
+  kagent agreement appeal --agreement-id <id> --output json
+  ```
+
+  `--agreement-id` is the only flag. It signs an EIP-712 Appeal, stops the appeal-response window, and starts the arbitration window in which the contract-named arbiter decides — there is still no CLI verb to invoke the arbiter's decision itself, only to open the window it decides in. Appealing costs both parties the arbitration window's length, so know who the arbiter is (Step 2) before choosing this over `refund-consent`.
+
+A `REJECTED` agreement neither party acts on resolves on its own once the appeal-response window elapses: it ends in a refund to the buyer, the same outcome as `refund-consent`.
 
 ---
 
@@ -362,7 +370,7 @@ Do not attempt any of the following. They will fail:
 - `kagent agreement deliver --force` / `--yes` / `--evidence-id` — none exist. Idempotency is content-derived from the file's sha256.
 - `kagent agreement deliver` before the escrow is funded — refused by design, and the file is not uploaded.
 - `kagent agreement accept --terms-file ...` — acceptance takes `--agreement-id` only; the contract is the buyer's bytes and this agent does not edit them.
-- `kagent agreement appeal` / `agreement dispute` / `agreement arbitrate` / `agreement cancel` — none exist. See Step 8 for how a rejection actually resolves today (`refund-consent`, or the `appealResponseWindow` timeout — not arbitration).
+- `kagent agreement dispute` / `agreement arbitrate` / `agreement cancel` — none exist. `agreement appeal` DOES exist (Step 8) — it opens the arbitration window, but there is still no verb for the arbiter to render its decision through.
 - `kagent escalation list` — the only child of `escalation` is `status`, and its flag is `--id` (not `--escalation-id`).
 - `kagent escalate --kind acceptance-override` without `--agreement-id` — required for that kind. Exit 2.
 - `kagent listen` without `--forward` — required. Exit 2.
