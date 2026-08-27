@@ -188,7 +188,15 @@ The service id is the single positional argument; the old `--service-id`/`--serv
 - `service.service_id` -- Stable identifier.
 - `service.base_url` -- Root service URL for Passport handoff.
 - `service.auth_requirements.mode` -- Currently `payment_only`.
-- `service.featured_endpoints[]` -- Up to 5 candidate endpoints, ordered by price (cheapest first). Each has `method`, `path`, and `summary`, plus four optional verification fields (omitted when unset):
+- `service.featured_endpoints[]` -- Up to 5 candidate endpoints, ordered by price (cheapest first). Each has `method`, `path`, and `summary`, plus the invocation and payment metadata (omitted when unset):
+  - `endpoint_url` -- The full callable URL; prefer it over joining `base_url` + `path` by hand.
+  - `query_params` -- The declared parameters, verbatim from the catalog, including `required` and defaults. **When there is no `example_request`, this is how the request is constructed** -- an endpoint declaring `city: required` is buildable without guessing.
+  - `request_body_schema` -- The declared body schema, verbatim, for endpoints that take one.
+  - `response_content_type` -- What a successful response returns.
+  - `payment_approach` / `payment_chain` / `payment_asset` -- The rail this endpoint settles on, verbatim from the catalog.
+  - `starting_price` -- `{amount, asset, unit}`; `unit` changes what the number MEANS (`exact` vs `upto`, an upper bound), so surface it with the amount.
+
+  And the verification fields:
   - `example_request` -- A minimal request (`body` + optional **non-secret** `headers` -- the catalog never publishes `Authorization`, `Cookie`, or API-key headers) that provably succeeded against this endpoint. **This is the correct starting point for building the paid request** -- pass it to `x402-execute` and change only what the task requires. Do not invent extra parameters from knowledge of the merchant's public API: on MPP charge endpoints, payment settles before the merchant validates, so a rejected request still costs money.
   - `probe_status` -- `works` / `broken` / `unknown`, set by daily paid verification probes. `broken` means the endpoint failed its most recent probe: keep it listed, but prefer an alternative provider.
   - `last_verified_at` -- When the endpoint last passed a probe (RFC 3339).
@@ -203,10 +211,11 @@ The service id is the single positional argument; the old `--service-id`/`--serv
 4. If an endpoint's `probe_status` is `broken`, or its `pitfalls` are relevant to the user's task, say so before recommending execution.
 5. If the user wants to proceed, hand off to Passport skills with this context:
    - Service name and base URL
-   - Chosen endpoint method and path
+   - Chosen endpoint method, path, and `endpoint_url` when present
    - The endpoint's `example_request` and `pitfalls`, when present (x402-execute starts from the example body)
-   - Payment approach and asset(s)
-   - Pricing context
+   - The invocation schema -- `query_params`, `request_body_schema`, `response_content_type` -- ALWAYS when present; with no `example_request` this is the only non-guessing way to build the call
+   - Payment approach, chain, and asset(s), verbatim
+   - Pricing context, including each price's `unit` (`exact` vs `upto`)
 
 Then use **`request-session`** to prepare approval and **`x402-execute`** to perform the paid call.
 

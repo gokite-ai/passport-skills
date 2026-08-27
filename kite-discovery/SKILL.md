@@ -77,7 +77,7 @@ If the setup script outputs `{"status":"ok",...}`, you may proceed. If it output
 ## Payment Rails Are Not a Decision Point
 
 A service's `payment_approach` (`x402`, `tempo`, or `paygate`) is baseline catalog
-metadata, not a signal that requires special handling. Both are
+metadata, not a signal that requires special handling. All three are
 Passport-settled rails: `request-session` and `x402-execute` detect and
 handle the rail automatically at execute time. Do not pause to reason about
 which rail a service uses, and do not surface the difference to the user as
@@ -173,14 +173,14 @@ Before running any command, verify:
 6. **Cursor (`--cursor`):** Must come from a previous response's `next_cursor` field. Do not fabricate.
 7. **Output format:** Always `--output json`. Never omit.
 8. **Pricing shown:** You surfaced pricing and payment approach before recommending execution.
-9. **Handoff context:** You provided base URL, endpoint, pricing, and (when present) the endpoint's `example_request` and `pitfalls` to Passport skills.
+9. **Handoff context:** You provided base URL, endpoint (`endpoint_url` when present), pricing, the invocation schema (`query_params`, `request_body_schema`, `response_content_type`) and payment metadata (`payment_approach`, `payment_chain`, `payment_asset`), and — when present — the endpoint's `example_request` and `pitfalls` to Passport skills.
 
 ---
 
 ## Cross-Skill References
 
 - **No prerequisite skills.** Discovery is a public API -- no authentication or session is required.
-- **After finding a service:** To set up a spending session for a discovered service, use the **`request-session`** skill. Pass the service's `base_url` and `featured_endpoints` as the merchant URL and preflight targets. Carry each chosen endpoint's `example_request` and `pitfalls` (when present) forward too — **`x402-execute`** builds the paid request from the example body instead of inventing parameters.
+- **After finding a service:** To set up a spending session for a discovered service, use the **`request-session`** skill. Pass the service's `base_url` and `featured_endpoints` as the merchant URL and preflight targets. Carry each chosen endpoint's invocation metadata forward too: `example_request` and `pitfalls` when present, and ALWAYS the `query_params` / `request_body_schema` / `response_content_type` schema — **`x402-execute`** builds the paid request from the example body when there is one, and from the declared schema when there is not; an endpoint with `query_params` saying a field is required is constructible without guessing, and guessing is forbidden.
 - **After session is active:** To execute paid API requests through the session, use the **`x402-execute`** skill.
 - **For direct wallet transfers (no session):** Use the **`wallet-send`** skill.
 - **For diagnostics on agents/sessions:** Use the **`manage-agents`** skill.
