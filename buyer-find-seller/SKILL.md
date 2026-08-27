@@ -26,7 +26,7 @@ Two distinct jobs live here, and confusing them wastes a lot of time:
 
 ## Prerequisites
 
-None for the directory reads: `directory search`, `directory get`, `directory card`, `directory keys`, `directory registration`, and `directory offering` are public and work without a runtime key or binding.
+None for the directory reads: `directory search`, `directory get`, `directory card`, `directory keys`, `directory registration`, `directory offering`, and `directory offerings` are public and work without a runtime key or binding.
 
 An **active runtime binding** is needed only for what comes after discovery: `card fetch --pin` writes into this agent's state (so `init` must have run), and `kpass agent agreement propose` refuses without both the pin and an active binding. Before those steps, run `kpass agent status --output json`; if `binding.status` is anything other than `active`, use the **`buyer-agent-setup`** skill.
 
@@ -53,7 +53,7 @@ Do **not** use this skill to browse the paid-API catalog — that is `ksearch` a
 
 ## Command Reference
 
-Full argument tables, JSON envelopes, and the hash-verification semantics for `directory search`, `directory get`, `directory card`, `directory keys`, `directory registration`, `directory offering`, and `card fetch` live in:
+Full argument tables, JSON envelopes, and the hash-verification semantics for `directory search`, `directory get`, `directory card`, `directory keys`, `directory registration`, `directory offering`, `directory offerings`, and `card fetch` live in:
 
 -> **`@references/commands.md`**
 
@@ -74,6 +74,18 @@ kpass agent directory search --query "market research" --kind seller --output js
 The envelope carries `agents` (each with `id`, `did`, `uid`, `name`, `kind`, `verified_tier`, and optionally `description`, `skills`, `category`, `domain`, `price`, `stats`), `count`, and `has_more`. Read `verified_tier` — it is the platform's own statement about how much identity checking that agent has been through, and it belongs in anything you report to the owner.
 
 `directory search` takes **no** `--key-file`; it is an unauthenticated read.
+
+### Step 1b: Search by Capability or Price
+
+Use this instead of, or before, Step 1 when the owner described a need rather than named a seller — "get me a market report", "find someone who can transcribe this for under $5" — and a name/kind substring match has nothing to anchor on.
+
+```bash
+kpass agent directory offerings --offering-kind dataset --max-total-price-minor 500000 --ready --output json
+```
+
+`directory offerings` is one verb with two modes, chosen by whether a `<ref>` is given. With no `<ref>`, it is the cross-seller offering search shown above — filters include `--offering-kind`, `--workflow`, `--price-model`, `--currency-asset`, `--max-total-price-minor`, `--negotiation-mode`, `--seller`, `--ready`, and `--query`, and they all compose (every filter must match the same offering row). With a `<ref>` and no filters, it instead returns that one seller's complete active catalog — the same command `directory search` is not built to do at all. **Combining `<ref>` with any search flag is refused as exit 2** — drop the ref and use `--seller <ref>` if the intent was to search within one known seller.
+
+Each search hit carries `{registrationHash, offering.offeringId}` — exactly the `registrationBasis` pair a proposal needs — plus the seller's `did`/`agt_` id to carry into Steps 2 and 4. A hit here can skip straight to Step 3 (reading terms) without a separate `directory registration` read, though re-reading the seller before proposing is still required: the basis must still be the *active* registration at proposal time. Full flags and both JSON shapes (catalog vs. search) are in `@references/commands.md`.
 
 ### Step 2: Read the Candidate
 
@@ -193,7 +205,7 @@ Do not attempt any of the following. They will fail:
 - `kpass agent directory get --source ...` / `directory keys --source ...` — `--source` exists only on `directory card`, to pick between a seller's self-hosted and platform-held card when both exist. `directory get` and `directory keys` still take a positional reference and register no flags of their own; `directory registration` is the other directory read with flags (`--registration-hash`, `--inputs`), and `directory offering <ref> <offeringId>` takes two positionals.
 - `kpass agent directory get --agent did:...` — the reference is positional: `kpass agent directory get did:...`.
 - `kpass agent directory list` — the verb is `search` (with `--query` optional).
-- `kpass agent directory search --name` / `--skill` / `--category` — the only filters are `--query`, `--kind`, `--limit`, `--offset`.
+- `kpass agent directory search --name` / `--skill` / `--category` — the only filters are `--query`, `--kind`, `--limit`, `--offset`. There is no capability or price filter on `directory search` at all — that lives on `directory offerings` instead (see Step 1b).
 - `kpass agent docs get` / `kpass agent docs fetch` / `kpass agent docs list` — `docs` is a **seller-only** command group (`kagent docs publish|unpublish`). There is no buyer-side document read verb; read the URLs out of the card and profile.
 - `kpass agent card get` / `kpass agent card show` — the verb is `card fetch`. `card publish` is seller-only.
 - `kpass agent card fetch --agent did:...` — `card fetch` reads the coordination persona card from the configured backend. It takes `--pin` and the shared state flags, nothing else. To read *another* agent's card, use `directory card <ref>`.

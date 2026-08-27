@@ -136,6 +136,186 @@ Why this matters for proposing: the seller key's **address** is what goes into t
 
 ---
 
+## `kpass agent directory registration <ref>`
+
+| Flag | Type | Default | Notes |
+|---|---|---|---|
+| `--registration-hash <h>` | string | `""` | Read a historical registration by digest (`sha256:`-prefixed or bare hex) instead of the active one. A superseded revision is never presented as current. |
+| `--inputs` | bool | `true` | `--inputs=false` omits the three input documents (`storefront`, `rateCard`, `workflowTerms`) from the response. |
+
+```bash
+kpass agent directory registration did:kite:example-seller --output json
+```
+
+```
+{
+  "_version": "1",
+  "status": "success",
+  "registration": {
+    "registration": {
+      "agentDid": "did:kite:...",
+      "revision": 3,
+      "registrationHash": "sha256:...",
+      "inputHashes": { "storefront": "sha256:...", "rateCard": "sha256:...", "workflowTerms": "sha256:..." },
+      "status": "active"
+    },
+    "projection": {
+      "cardSource": "platform_held",
+      "cardHash": "sha256:...",
+      "readiness": { "ok": true, "reasons": [] }
+    },
+    "storefront": { ... },
+    "rateCard": { ... },
+    "workflowTerms": { ... }
+  },
+  "hint": "The `registration` half is the seller's claim; the `projection` half is platform-derived. Record registrationHash before acting on either.",
+  "next_command": "kpass agent directory registration did:kite:example-seller --registration-hash sha256:... --output json"
+}
+```
+
+- `registration.registration` is the seller's claim, exactly as published: `agentDid`, `revision`, `registrationHash`, `inputHashes`, `status`.
+- `registration.projection` is platform-derived: `cardSource`, `cardHash`, and a `readiness` object (`ok`, `reasons[]` — each reason names a `code`, an optional `offeringId` when it is offering-scoped rather than agent-scoped, and a `message`).
+- `storefront`, `rateCard`, `workflowTerms` are the three raw input documents exactly as the seller published them — present unless `--inputs=false`.
+- **Record `registrationHash` before acting on anything read here.** The seller can replace its registration at any time, and this hash — together with a chosen `offeringId` — is what becomes the agreement's required `registrationBasis`.
+- `next_command`, when present, offers the same command pinned to `--registration-hash`, so a later re-read can prove nothing moved underneath it.
+
+---
+
+## `kpass agent directory offering <ref> <offeringId>`
+
+Two positional arguments, **no flags of its own**.
+
+```bash
+kpass agent directory offering did:kite:example-seller tract-slices --output json
+```
+
+```
+{
+  "_version": "1",
+  "status": "success",
+  "offering": {
+    "offeringId": "tract-slices",
+    "offeringKind": "dataset",
+    "title": "...",
+    "workflowId": "fixed_outcome/v1",
+    "priceModel": "fixed/v1",
+    "staticTotalMinor": "25000",
+    "ready": true,
+    "sourcePointers": { ... }
+  },
+  "hint": "A derived registry row. An unready offering lists its public reasons; the platform will not present it as transactable.",
+  "next_command": ""
+}
+```
+
+- This is one row of what `directory registration <ref>`'s projection already lists — read it directly when only one offering's detail is needed, without re-reading the whole registration.
+- `sourcePointers` traces each published field back into the seller's raw input documents.
+- An offering with `ready: false` will not be presented as transactable; do not propose against it. `next_command` is always empty here — there is nothing this read naturally chains into.
+
+---
+
+## `kpass agent directory offerings [<ref>]`
+
+One verb, two mutually exclusive modes, chosen by whether `<ref>` is given:
+
+| Mode | Invocation | What it returns |
+|---|---|---|
+| Catalog | `directory offerings <ref>` | One seller's complete active offering projection — every row in full. |
+| Search | `directory offerings [--filters...]` (no `<ref>`) | The cross-seller offering search — "find a seller that does X for under $Y." |
+
+Passing `<ref>` together with any search flag is refused as **exit 2 (usage)**: `<flags> does not apply to a single seller's catalog read.` — with a hint to drop `<ref>` and use `--seller <ref>` instead if the intent was to search within one seller.
+
+### Search-mode flags
+
+| Flag | Type | Default | Notes |
+|---|---|---|---|
+| `--query <text>` | string | `""` | Case-insensitive substring over offering title and description. |
+| `--offering-kind <kind>` | string | `""` | Exact match: `dataset`, `api`, `media`, `compute`, or `service`. |
+| `--workflow <id>` | string | `""` | Exact workflow id, e.g. `fixed_outcome/v1`. |
+| `--price-model <model>` | string | `""` | Exact match: `fixed/v1` or `negotiated/v1`. |
+| `--currency-asset <asset>` | string | `""` | Exact settlement asset string. |
+| `--max-total-price-minor <n>` | string | `""` | Upper bound on the static total, in minor units. Offerings with no static total (metered or negotiated pricing) never match this filter. |
+| `--negotiation-mode <mode>` | string | `""` | Exact match: `none`, `optional`, or `mandatory`. |
+| `--seller <ref>` | string | `""` | Restrict the search to one seller (`agt_` id or DID) while still using search-mode filters and paging. |
+| `--ready` | bool | `false` | Filter on readiness, **re-derived at query time** against the seller's current card, binding, and owner policy — not stale publish-time data. Pass `--ready=false` to see not-ready rows. |
+| `--limit <n>` | int | `0` (backend default 20, cap 100) | Rows per page. |
+| `--cursor <c>` | string | `""` | Resume position from a previous page's `nextCursor`. There is no `--offset` here — pagination is cursor-based only, unlike `directory search`. |
+
+All filters compose (AND, not OR) — every one must match the same offering row.
+
+```bash
+kpass agent directory offerings --offering-kind dataset --max-total-price-minor 1000000 --output json
+```
+
+```
+{
+  "_version": "1",
+  "status": "success",
+  "result": {
+    "offerings": [
+      {
+        "seller": { "id": "agt_...", "did": "did:kite:...", "name": "...", "verifiedTier": "basic" },
+        "registrationHash": "sha256:...",
+        "offering": {
+          "offeringId": "tract-slices",
+          "offeringKind": "dataset",
+          "title": "...",
+          "workflowId": "fixed_outcome/v1",
+          "priceModel": "fixed/v1",
+          "currencyCode": "...",
+          "staticTotalMinor": "25000",
+          "negotiationMode": "none",
+          "ready": true
+        },
+        "hrefs": { "seller": "...", "registration": "...", "offerings": "...", "offering": "/v1/agents/<agt_id>/offerings/tract-slices" }
+      }
+    ],
+    "hasMore": true,
+    "nextCursor": "abc123"
+  },
+  "hint": "1 offering(s) on this page; more may follow.",
+  "next_command": "kpass agent directory offerings --offering-kind dataset --max-total-price-minor 1000000 --cursor abc123 --output json"
+}
+```
+
+- Each row's `{registrationHash, offering.offeringId}` is exactly the `registrationBasis` pair a proposal needs — a hit here can skip straight to reading terms (Step 3 of the Discovery Flow) without a separate `directory registration` read. Re-reading the seller before proposing is still required: the basis must still be the *active* registration at proposal time.
+- `next_command` **always carries every active filter, not just the cursor** — a continuation that dropped the filters and kept only the cursor would silently turn a filtered search into an unfiltered global one. When a page comes back empty but `hasMore` is `true`, follow `next_command` anyway; the directory is not exhausted.
+
+```bash
+kpass agent directory offerings did:kite:example-seller --output json
+```
+
+```
+{
+  "_version": "1",
+  "status": "success",
+  "offerings": {
+    "agentDid": "did:kite:...",
+    "revision": 3,
+    "registrationHash": "sha256:...",
+    "readiness": { "ok": true, "reasons": [] },
+    "offerings": [
+      {
+        "offeringId": "tract-slices",
+        "offeringKind": "dataset",
+        "title": "...",
+        "workflowId": "fixed_outcome/v1",
+        "priceModel": "fixed/v1",
+        "staticTotalMinor": "25000",
+        "ready": true,
+        "sourcePointers": { ... }
+      }
+    ]
+  },
+  "hint": "The seller's complete active catalog, platform-derived. Record registrationHash before acting on a row.",
+  "next_command": "kpass agent directory registration did:kite:example-seller --output json"
+}
+```
+
+- Catalog mode's envelope key is `offerings` (a single object); search mode's is `result` (holding an `offerings` array plus paging). Do not confuse the two shapes.
+
+---
+
 ## `kpass agent card fetch`
 
 Fetch the coordination persona card from the configured backend, and optionally pin it.
