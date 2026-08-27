@@ -32,7 +32,7 @@ if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
   echo "Usage: bash scripts/setup-ksearch.sh"
   echo ""
   echo "Lookup / install order:"
-  echo "  1. Check if ksearch is already on PATH"
+  echo "  1. Check if a CONSOLIDATED ksearch is on PATH (probed with: ksearch service list --help)"
   echo "  2. Check \${KPASS_INSTALL_DIR:-\$HOME/.kpass}/bin/ksearch"
   echo "  3. Check \$HOME/.local/bin/ksearch"
   echo "  4. Try: curl -fsSL https://cli.gokite.ai/install.sh | bash"
@@ -67,22 +67,35 @@ report_binary() {
 # 1 (no output) if ksearch isn't found anywhere. INSTALLED_VIA labels a match
 # in one of the bundle locations, so callers can distinguish "already there"
 # from "just installed" (a PATH match is always reported as "path").
+# is_consolidated BINARY — capability-probes a candidate: the skill's commands
+# exist only in the consolidated ksearch (shipped from passport-cli), whose
+# service group answers `service list --help` with exit 0. A standalone binary
+# (≤ v1.1.0) passes a bare --version check and then fails every command in the
+# skill, so a candidate that flunks the probe is skipped, not accepted.
+is_consolidated() {
+  local binary="$1"
+  "$binary" service list --help &>/dev/null
+}
+
 try_locate() {
   local installed_via="$1"
 
-  if command -v ksearch &>/dev/null; then
+  # Every candidate is capability-probed, and a failing candidate does NOT
+  # end the search: a stale standalone ksearch on PATH must not shadow the
+  # consolidated binary sitting in the bundle directory.
+  if command -v ksearch &>/dev/null && is_consolidated "$(command -v ksearch)"; then
     report_binary "$(command -v ksearch)" "path"
     return 0
   fi
 
   local passport_binary="${KPASS_INSTALL_DIR:-$HOME/.kpass}/bin/ksearch"
-  if [[ -x "$passport_binary" ]]; then
+  if [[ -x "$passport_binary" ]] && is_consolidated "$passport_binary"; then
     report_binary "$passport_binary" "$installed_via"
     return 0
   fi
 
   local local_binary="$HOME/.local/bin/ksearch"
-  if [[ -x "$local_binary" ]]; then
+  if [[ -x "$local_binary" ]] && is_consolidated "$local_binary"; then
     report_binary "$local_binary" "$installed_via"
     return 0
   fi
@@ -116,5 +129,5 @@ echo "Installer did not produce a ksearch binary in any known location." >&2
 # Step 3: Nothing worked
 # ---------------------------------------------------------------------------
 # shellcheck disable=SC2016 # single-quoted on purpose: \n and $HOME must stay literal in this JSON string, not expand
-printf '%s\n' '{"status":"error","error":"Could not install ksearch. Install manually:\n\n  macOS / Linux:  curl -fsSL https://cli.gokite.ai/install.sh | bash\n  Windows:        irm https://cli.gokite.ai/install.ps1 | iex\n\nThen restart your shell or add $HOME/.local/bin to PATH."}'
+printf '%s\n' '{"status":"error","error":"Could not find or install a consolidated ksearch (the standalone binary, if present, is incompatible with this skill). Install manually:\n\n  macOS / Linux:  curl -fsSL https://cli.gokite.ai/install.sh | bash\n  Windows:        irm https://cli.gokite.ai/install.ps1 | iex\n\nThen restart your shell or add $HOME/.local/bin to PATH."}'
 exit 1

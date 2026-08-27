@@ -2,18 +2,18 @@
 
 Full per-command reference for the `kite-discovery` skill. Read this when constructing a `ksearch` command, validating flags, or interpreting an error. SKILL.md contains trigger logic and decision flow; this file contains command-level detail.
 
-## `services list` -- Search the Service Catalog
+## `service list` -- Search the Service Catalog
 
 Lists services from the catalog. Supports free-text search and structured filters.
 
 ```bash
-ksearch services list --output json
+ksearch service list --output json
 ```
 
 Full form with optional filters:
 
 ```bash
-ksearch services list \
+ksearch service list \
   --query <QUERY> \
   --tag <TAG> \
   --asset <ASSET> \
@@ -30,9 +30,9 @@ ksearch services list \
 | Search query | `--query` | No | User request or inferred task keyword | Non-empty string |
 | Tag filter | `--tag` | No | User request or known category | String label. Maps to backend category filtering. |
 | Asset filter | `--asset` | No | User preference (e.g., `USDC`) | Asset symbol string |
-| Payment approach | `--payment-approach` | No | Only if user requests a specific payment model | `x402` or `tempo_http` |
+| Payment approach | `--payment-approach` | No | Only if user requests a specific payment model | `x402`, `tempo`, or `paygate` |
 | Limit | `--limit` | No | Default `100` | Positive integer, max 100 |
-| Cursor | `--cursor` | No | From prior `services list` response `next_cursor` field | Opaque pagination token string |
+| Cursor | `--cursor` | No | From prior `service list` response `next_cursor` field | Opaque pagination token string |
 | Output format | `--output json` | Yes | Always pass | Literal value `json` |
 
 ### Success Output (exit code 0)
@@ -70,9 +70,9 @@ ksearch services list \
 
 **Key fields:**
 - `services` -- Array of service summaries.
-- `services[].service_id` -- Stable identifier to use with `services get`.
+- `services[].service_id` -- Stable identifier to use with `service get`.
 - `services[].base_url` -- Root service URL for Passport handoff.
-- `services[].payment_approach` -- Payment model (`x402` or `tempo_http`). Both are Passport-settled rails handled transparently by `request-session`/`x402-execute` at execute time -- not a per-service decision the agent needs to make.
+- `services[].payment_approach` -- Payment model, verbatim from the catalog (`x402`, `tempo`, or `paygate`; future rails pass through unrewritten). All are Passport-settled rails handled transparently at execute time -- not a per-service decision the agent needs to make.
 - `services[].starting_price` -- Cheapest known endpoint price. Contains `amount`, `asset`, and `unit`.
 - `count` -- Number of services in this page.
 - `total` -- Total number of matching services across all pages.
@@ -118,23 +118,22 @@ More results available. Say "show more" to continue.
 
 ---
 
-## `services get` -- Inspect One Service
+## `service get` -- Inspect One Service
 
 Returns detailed metadata for one service, including featured endpoints and payment requirements.
 
 ```bash
-ksearch services get --service-id <SERVICE_ID> --output json
+ksearch service get <SERVICE_ID>
 ```
 
 ### Arguments
 
 | Argument | Flag | Required | Source | Validation |
 |----------|------|----------|--------|------------|
-| Service ID | `--service-id` | Yes (one of these two) | From `services list` output `service_id` field | String identifier |
-| Service host ID | `--service-host-id` | Yes (one of these two) | Alternative form, same identifier family | String identifier |
+| Service ID | positional `<SERVICE_ID>` | Yes | From `service list` output `service_id` field | String identifier |
 | Output format | `--output json` | Yes | Always pass | Literal value `json` |
 
-Prefer `--service-id`. The CLI also accepts `--service-host-id` but use `--service-id` consistently.
+The service id is the single positional argument; the old `--service-id`/`--service-host-id` flags were retired with the standalone binary.
 
 ### Success Output (exit code 0)
 
@@ -189,7 +188,15 @@ Prefer `--service-id`. The CLI also accepts `--service-host-id` but use `--servi
 - `service.service_id` -- Stable identifier.
 - `service.base_url` -- Root service URL for Passport handoff.
 - `service.auth_requirements.mode` -- Currently `payment_only`.
-- `service.featured_endpoints[]` -- Up to 5 candidate endpoints, ordered by price (cheapest first). Each has `method`, `path`, and `summary`, plus four optional verification fields (omitted when unset):
+- `service.featured_endpoints[]` -- Up to 5 candidate endpoints, ordered by price (cheapest first). Each has `method`, `path`, and `summary`, plus the invocation and payment metadata (omitted when unset):
+  - `endpoint_url` -- The full callable URL; prefer it over joining `base_url` + `path` by hand.
+  - `query_params` -- The declared parameters, verbatim from the catalog, including `required` and defaults. **When there is no `example_request`, this is how the request is constructed** -- an endpoint declaring `city: required` is buildable without guessing.
+  - `request_body_schema` -- The declared body schema, verbatim, for endpoints that take one.
+  - `response_content_type` -- What a successful response returns.
+  - `payment_approach` / `payment_chain` / `payment_asset` -- The rail this endpoint settles on, verbatim from the catalog.
+  - `starting_price` -- `{amount, asset, unit}`; `unit` changes what the number MEANS (`exact` vs `upto`, an upper bound), so surface it with the amount.
+
+  And the verification fields:
   - `example_request` -- A minimal request (`body` + optional **non-secret** `headers` -- the catalog never publishes `Authorization`, `Cookie`, or API-key headers) that provably succeeded against this endpoint. **This is the correct starting point for building the paid request** -- pass it to `x402-execute` and change only what the task requires. Do not invent extra parameters from knowledge of the merchant's public API: on MPP charge endpoints, payment settles before the merchant validates, so a rejected request still costs money.
   - `probe_status` -- `works` / `broken` / `unknown`, set by daily paid verification probes. `broken` means the endpoint failed its most recent probe: keep it listed, but prefer an alternative provider.
   - `last_verified_at` -- When the endpoint last passed a probe (RFC 3339).
@@ -204,10 +211,11 @@ Prefer `--service-id`. The CLI also accepts `--service-host-id` but use `--servi
 4. If an endpoint's `probe_status` is `broken`, or its `pitfalls` are relevant to the user's task, say so before recommending execution.
 5. If the user wants to proceed, hand off to Passport skills with this context:
    - Service name and base URL
-   - Chosen endpoint method and path
+   - Chosen endpoint method, path, and `endpoint_url` when present
    - The endpoint's `example_request` and `pitfalls`, when present (x402-execute starts from the example body)
-   - Payment approach and asset(s)
-   - Pricing context
+   - The invocation schema -- `query_params`, `request_body_schema`, `response_content_type` -- ALWAYS when present; with no `example_request` this is the only non-guessing way to build the call
+   - Payment approach, chain, and asset(s), verbatim
+   - Pricing context, including each price's `unit` (`exact` vs `upto`)
 
 Then use **`request-session`** to prepare approval and **`x402-execute`** to perform the paid call.
 
@@ -253,18 +261,18 @@ Ready to hand off into Passport approval and execution.
 
 ---
 
-## `export markdown` -- Export Catalog as Local Snapshot
+## `service export` -- Export Catalog as Local Snapshot
 
 Exports the discovery catalog as markdown files for local workspace search and LLM-assisted exploration.
 
 ```bash
-ksearch export markdown --output-dir ./.kite/catalog
+ksearch service export --output-dir ./.kite/catalog --output json
 ```
 
 Full form with options:
 
 ```bash
-ksearch export markdown \
+ksearch service export \
   --output-dir <DIR> \
   --split <MODE> \
   --include-curated
@@ -273,7 +281,7 @@ ksearch export markdown \
 Single-file variant:
 
 ```bash
-ksearch export markdown --single-file ./.kite/catalog/catalog.md
+ksearch service export --single-file ./.kite/catalog/catalog.md --output json
 ```
 
 ### Arguments
@@ -284,6 +292,7 @@ ksearch export markdown --single-file ./.kite/catalog/catalog.md
 | Single output file | `--single-file` | No | Use when a one-file catalog is preferred | File path |
 | Split mode | `--split` | No | Default `both` | `both`, `single`, or `service-pages` |
 | Include curated | `--include-curated` | No | Flag, only when curated entries are useful | Boolean flag |
+| Output format | `--output` | Yes (per this skill's rule) | Always `json` — emits the export manifest (`service_count`, `service_page_count`, paths) instead of prose | `json`, or omit for status text |
 
 **Split modes:**
 - `both` (default) -- Writes `catalog.md` index AND individual service files in `services/` directory
@@ -303,7 +312,7 @@ ksearch export markdown --single-file ./.kite/catalog/catalog.md
 3. Mention that `manifest.json` includes the generation time and refresh suggestion.
 4. Suggest refreshing the snapshot periodically (discovery data updates roughly hourly).
 
-**When to prefer export over repeated `services get` calls:**
+**When to prefer export over repeated `service get` calls:**
 - Comparative pricing across many services (endpoint-level prices are clearer in per-service markdown pages)
 - Category reviews or broad catalog exploration
 - Pre-loading LLM workspace context for offline agents (Codex, Claude Code)
@@ -334,12 +343,12 @@ When `--single-file` is used, `manifest.json` may not exist. Show `Manifest: N/A
 
 ---
 
-## `health` -- Backend Connectivity Check
+## `service health` -- Backend Connectivity Check
 
 Quick diagnostic to verify the discovery backend is reachable.
 
 ```bash
-ksearch health --output json
+ksearch service health --output json
 ```
 
 ### Arguments
