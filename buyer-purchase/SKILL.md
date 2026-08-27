@@ -88,7 +88,7 @@ funding get / funding sign               (both parties' Activation signatures)
   seller delivers        -> DELIVERED
 proofs --verify + artifact check
 confirm                  -> ACCEPTED     (escrow releases to the seller)
-  or reject              -> REJECTED     (dispute branch opens; the arbiter decides)
+  or reject              -> REJECTED     (dispute branch opens; resolves via seller refund-consent or a timeout)
 review                                   (bounded window after a terminal state)
 ```
 
@@ -139,7 +139,7 @@ This bites when picking one by name: the directory carries agents called "arbite
 "disputePolicy": { "arbiterAgentId": "did:kite:corp-kite:kite-coordination-engine" }
 ```
 
-Whoever it is, know who it is before signing: a dispute goes to that agent, not to Passport.
+Whoever it is, know who it is before signing: a dispute goes to that agent, not to Passport — though there is no CLI verb to invoke them today (see Step 8).
 
 **The formation relay happens inside this one command.** `propose` signs the terms, sends the contract, then immediately signs and relays the EIP-712 Agreement co-signature the seller needs in order to accept. Success reports `formation_relayed: true`. If the relay half fails, the command is an **error that still names the agreement** in `details.agreement_id` — the agreement exists but the seller cannot accept it yet. The relay is write-once and an identical resend is a no-op, so re-running is safe.
 
@@ -256,6 +256,8 @@ kpass agent agreement evidence list --agreement-id <id> --output json
 
 Then check the artifact itself: the signed delivery command commits to a `deliveryHash` (`sha256:<hex>`), and the evidence record carries the same digest in its `hash` member along with a `url`. **Download the artifact, recompute its sha256, and compare.** A mismatch means the bytes are not what the seller signed for. Fetching that URL is outside this skill's permission glob — hand the URL and the expected hash to the owner or to whatever fetch capability the host has authorized, and do not confirm until the comparison is done.
 
+**This step is time-bound, not just procedural.** The contract's `deliveryConfirmationWindow` (the funding envelope reports it as `delivery_confirmation_window`) — one of the five windows the **`buyer-find-seller`** skill checks before proposing — auto-releases the escrow to the seller if neither `confirm` nor `reject` runs before it elapses — a `DELIVERED` agreement left unattended does not stay pending indefinitely, it becomes `ACCEPTED` on its own. Verify and decide promptly once delivery lands; do not treat this step as something that can wait.
+
 ### Step 8: Confirm or Reject
 
 ```bash
@@ -268,9 +270,12 @@ Confirming releases the escrow to the seller. It is not reversible.
 kpass agent agreement reject --agreement-id <id> --reason-code <code> --output json
 ```
 
-`--reason-code` is required and is **any non-empty string** — there is no enumerated list, and inventing one would be wrong. It is not a comment: its keccak256 is the on-chain `reasonHash` that the rejection signature commits to. Write something specific and stable ("delivery-hash-mismatch", "scope-not-met"), record exactly what you sent, and expect the arbiter to read it.
+`--reason-code` is required and is **any non-empty string** — there is no enumerated list, and inventing one would be wrong. It is not a comment: its keccak256 is the on-chain `reasonHash` that the rejection signature commits to. Write something specific and stable ("delivery-hash-mismatch", "scope-not-met"), and record exactly what you sent.
 
-Rejecting opens the dispute branch. The arbiter named in the contract decides — not Passport, and not this agent.
+Rejecting opens the dispute branch, and today it resolves one of two ways — both end in a refund to this agent, neither is "the arbiter decides":
+
+- **The seller agrees and consents to a refund** (`agreement refund-consent`, on their side) — the escrow returns immediately and the agreement reaches a terminal state.
+- **Neither party acts.** The contract's `appealResponseWindow` (reported as `appeal_response_window`) elapsing with no seller `refund-consent` also ends in a refund. There is currently no CLI verb on either binary to invoke the named arbiter — `agreement appeal` does not exist. The contract still requires and names an arbiter (Step 1), and knowing who it is still matters for judging the deal before signing, but do not expect this agent to be able to escalate a disputed rejection to arbitration right now.
 
 ### Step 9: Review
 
@@ -345,7 +350,7 @@ Most errors carry a `next_command` that is the correct recovery. Prefer it over 
 Do not attempt any of the following. They will fail:
 
 - `kpass agent agreement accept` / `agreement deliver` / `agreement evidence add` — **seller-only** verbs, on the `kagent` binary. A buyer confirms; it does not accept.
-- `kpass agent agreement cancel` / `agreement appeal` / `agreement arbitrate` — none exist. Rejection opens the dispute branch and the contract's arbiter decides.
+- `kpass agent agreement cancel` / `agreement appeal` / `agreement arbitrate` — none exist. Rejection opens the dispute branch; see Step 8 for how it actually resolves today (seller `refund-consent`, or the `appealResponseWindow` timeout — not arbitration).
 - `kpass agent session status --request-id ...` — resolves to a **different, legacy command**. The buyer-lane verb is `session request-status`.
 - `kpass agent session approve` / `kpass agent approve` — session approval is a passkey ceremony. No CLI verb can approve one.
 - `kpass agent session request --ttl-seconds` — the flag is `--ttl` and takes a duration (`1h`, `30m`).

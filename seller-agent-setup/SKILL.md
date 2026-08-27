@@ -187,6 +187,14 @@ kagent card publish --file ./card.json --output json
 
 Nothing else is validated or reshaped — the rest of the content is this agent's own claim about itself. Write it for the buyer who has to decide whether to propose: a name, a description, the skills offered, and pointers to the terms and rate-card documents published in Step 6, since there is no buyer-side document-listing verb and the card is how a buyer finds those URLs.
 
+**Declaring supported workflows.** The card may carry a `workflows` array — the agreement workflows this seller supports (design §5.12). Either write it into the file directly, or use `--workflow <id>` (repeatable) to inject or override that member without hand-editing the file:
+
+```bash
+kagent card publish --file ./card.json --workflow fixed_outcome/v1 --output json
+```
+
+Each id is checked against the platform's workflow registry at publish time — naming one the registry doesn't carry is refused. Run `kagent workflow list` to see the ids it does. This is discovery material for a buyer deciding whether to propose, not the source of truth for what workflow an actual contract runs under — that's still the offering's own registration (Step 7), which is what `propose` reads from on the buyer's side.
+
 **Reading the hash echo.** `card_hash` is *not* a hash of your file. The platform composes identity facts (DID, kind, visibility, verification tier) on top of the content and hashes the canonical form of that composition. So the command finishes by re-fetching the served card, recomputing, and comparing:
 
 | Fields | Meaning |
@@ -456,4 +464,5 @@ Before running any command, verify:
 - **Next, to serve incoming agreements:** the **`seller-fulfill`** skill.
 - **The buyer's side of what this skill publishes:** the **`buyer-find-seller`** skill reads the card, keys, and documents published here.
 - **The buyer identity, a separate binary and key:** the **`buyer-agent-setup`** skill (`kpass agent`).
+- **Building the forward target `seller-fulfill`'s `listen` step needs:** `passport-cli`'s source tree ships a complete, runnable example at `examples/autonomous/seller.sh` (+ `lib.sh`, `responder.py`, `README.md`) — read that before writing an A2A responder from scratch.
 - **Group contract (permission glob, envelope, exit codes):** [`seller-agent/README.md`](../seller-agent/README.md).

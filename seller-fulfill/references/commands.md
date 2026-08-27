@@ -344,6 +344,24 @@ The signed command's payload carries `evidenceId`, `deliveryHash`, `sellerDelive
 
 ---
 
+## `kagent agreement refund-consent`
+
+| Flag | Type | Default | Required |
+|---|---|---|---|
+| `--agreement-id <id>` | string | `""` | **yes** |
+
+Nothing else. Signs the EIP-712 RefundConsent the EscrowVault recovers, wraps it in a signed `kite.contract.refund_consented` command, and submits it. The anchors it commits to — the revision, the vault's current nonce, and the newest transition proof as `receiptHash` — are read back immediately before signing.
+
+This is the short way out of a rejection: consenting sends the escrow back to the buyer and moves the agreement to a terminal state. It is not an admission of anything, and it is not arbitration — it ends the dispute without one. The alternative is appealing to the contract-named arbiter, which costs both parties the arbitration window; there is currently no CLI verb to do that. A seller that would rather refund than argue ends it here on its own authority.
+
+```bash
+kagent agreement refund-consent --agreement-id agr_7f2a --output json
+```
+
+Only valid from `REJECTED`. Running it on an agreement in any other state is refused.
+
+---
+
 ## `kagent agreement evidence add`
 
 Same flags as `deliver`: `--agreement-id`, `--file`, `--content-type`, `--evidence-type`.
@@ -430,10 +448,11 @@ On this lane a 409 is exit 7 and a 410 is exit **2** (the TTL elapsed — not an
 
 | Flag | Type | Default | Required | Notes |
 |---|---|---|---|---|
-| `--forward <url>` | string | `""` | **yes** | The local A2A JSON-RPC endpoint each notification is POSTed to. |
+| `--forward <url>` | string | `""` | **yes** | The local A2A JSON-RPC endpoint each notification is POSTed to. Loopback only unless `--allow-remote-forward` is also set. |
 | `--from <event-id>` | uint64 | `0` | no | Resume after this event id instead of the persisted cursor. |
+| `--allow-remote-forward` | bool | `false` | no | Permits a non-loopback `--forward` target. Also requires `KAGENT_ALLOW_REMOTE_FORWARD=1` in the environment — the flag alone cannot authorize it. |
 
-Exactly two flags of its own. **No filters, no `--events`, no `--timeout`.**
+Three flags of its own. **No filters, no `--events`, no `--timeout`.**
 
 `--forward` missing is exit 2: `--forward is required.`, hint `Name the local A2A JSON-RPC endpoint notifications are handed to. Without one this process would read the stream and discard it, which is worse than not running: the cursor would advance past events nothing acted on.`
 

@@ -71,6 +71,8 @@ Neither is the correctness mechanism. The stream is a latency optimization: ever
 
 `--forward` is **required** on `listen`. Without a target the process would read the stream and discard it, which is worse than not running: the cursor would advance past events nothing acted on.
 
+`--forward` must be a loopback target unless `--allow-remote-forward` is also passed — and even then, the flag alone does not authorize it: `KAGENT_ALLOW_REMOTE_FORWARD=1` must also be set in the environment. Both gates exist because forwarding notifications off-box is a real trust-boundary change — the stream can carry proposal and message content, and enabling this means "everything this stream carries then leaves the machine." Leave both unset unless the forward target is genuinely remote by design.
+
 ### A Third Option: the Work Plane
 
 `kagent work claim` and `kagent work pending` answer a third question: "what does Passport say I owe right now, across every agreement, regardless of whether I was ever notified?" The coordination engine states an obligation after every committed transition — for this seller, a delivery obligation appears the moment an agreement reaches `FULFILLING`. `work claim` leases a batch of due items and reads back their offered commands, deadline, and verification anchors in one call; `work pending` is the backstop sweep that finds anything a dropped `work.available` notification stranded, without leasing it.
@@ -117,7 +119,7 @@ agreement funding get/sign               (both parties' Activation signatures)
   buyer funds the escrow  -> FULFILLING
 agreement deliver         -> DELIVERED    (refused until the escrow is funded)
   buyer confirms          -> ACCEPTED     (escrow releases here)
-  or buyer rejects        -> REJECTED     (the contract's arbiter decides)
+  or buyer rejects        -> REJECTED     (dispute branch opens; resolves via refund-consent or a timeout)
 ```
 
 ### Step 1: Notice the Proposal
@@ -275,7 +277,19 @@ Inbound messages are **not** a polling verb: they arrive through `listen` as `me
 kagent agreement status --agreement-id <id> --watch --output json
 ```
 
-`ACCEPTED` means the buyer confirmed and the escrow released. `REJECTED` means the buyer rejected — the envelope carries their `reason_code`, whose keccak256 is the on-chain `reasonHash` the rejection commits to, and the contract's arbiter decides from there. There is no CLI verb to appeal; the dispute is handled by the named arbiter.
+`ACCEPTED` means the buyer confirmed and the escrow released. **A `DELIVERED` agreement the buyer never responds to still resolves in this agent's favor**: the contract's `deliveryConfirmationWindow` (the funding envelope reports it as `delivery_confirmation_window`; one of the five windows checked before accepting, in Step 2) auto-releases the escrow if neither `confirm` nor `reject` runs before it elapses — `agreement status --watch` will show `ACCEPTED` with no buyer action in the history. Do not treat buyer silence after delivery as a problem to chase.
+
+`REJECTED` means the buyer rejected — the envelope carries their `reason_code`, whose keccak256 is the on-chain `reasonHash` the rejection commits to. Two things can happen next, and today only one of them is a CLI verb:
+
+- **This agent agrees the delivery didn't meet terms, or would rather refund than argue:**
+
+  ```bash
+  kagent agreement refund-consent --agreement-id <id> --output json
+  ```
+
+  `--agreement-id` is the only flag. It signs an EIP-712 RefundConsent and sends the escrow back to the buyer, ending the dispute in one signed command — it is not an admission of anything, and it is not arbitration. This is the short way out of a rejection, and it's a terminal action: once submitted, there is nothing to undo.
+
+- **This agent disagrees, and the deal names an arbiter:** the contract still requires and names one (`arbiter_agent_id` in `agreement status`, checked in Step 2), but there is **no CLI verb to invoke arbitration today** — `agreement appeal` does not exist, on either binary. In practice, a `REJECTED` agreement neither party acts on resolves on its own: the contract's `appealResponseWindow` (reported as `appeal_response_window`) elapsing without a `refund-consent` also ends in a refund to the buyer. Know who the arbiter is before signing (Step 2) because the contract still names one, but do not tell a buyer or an owner that this agent can escalate a disputed rejection to arbitration right now — it cannot.
 
 ---
 
@@ -346,11 +360,11 @@ Do not attempt any of the following. They will fail:
 - `kagent agreement deliver --force` / `--yes` / `--evidence-id` — none exist. Idempotency is content-derived from the file's sha256.
 - `kagent agreement deliver` before the escrow is funded — refused by design, and the file is not uploaded.
 - `kagent agreement accept --terms-file ...` — acceptance takes `--agreement-id` only; the contract is the buyer's bytes and this agent does not edit them.
-- `kagent agreement appeal` / `agreement dispute` / `agreement arbitrate` / `agreement cancel` — none exist. A rejection is decided by the contract's named arbiter.
+- `kagent agreement appeal` / `agreement dispute` / `agreement arbitrate` / `agreement cancel` — none exist. See Step 8 for how a rejection actually resolves today (`refund-consent`, or the `appealResponseWindow` timeout — not arbitration).
 - `kagent escalation list` — the only child of `escalation` is `status`, and its flag is `--id` (not `--escalation-id`).
 - `kagent escalate --kind acceptance-override` without `--agreement-id` — required for that kind. Exit 2.
 - `kagent listen` without `--forward` — required. Exit 2.
-- `kagent listen --events ...` / `--filter` / `--timeout` — `listen` has exactly two flags of its own: `--forward` and `--from`.
+- `kagent listen --events ...` / `--filter` / `--timeout` — `listen` has three flags of its own: `--forward`, `--from`, and `--allow-remote-forward`. None of `--events`/`--filter`/`--timeout` exist.
 - `kagent agreement funding sign --amount ...` — no amount flag; the amount comes from the signed contract.
 - Any command with `--json` — the flag is `--output json` (two separate tokens).
 
@@ -378,4 +392,5 @@ Before running any command, verify:
 - **Reading a counterparty:** the directory verbs above are the same ones **`buyer-find-seller`** documents from the other side; that skill also covers reference forms and the card-hash verification semantics.
 - **The buyer's side of this flow:** the **`buyer-purchase`** skill — what the buyer does between the proposal and the confirmation.
 - **What buyers read before proposing to this agent:** published by the **`seller-agent-setup`** skill, consumed by **`buyer-find-seller`**.
+- **A working reference implementation of this whole flow:** `passport-cli`'s source tree ships `examples/autonomous/seller.sh` (+ `lib.sh`, `responder.py`, `README.md`) — a complete, runnable seller daemon: `kagent listen --forward` piped to a ~200-line Python A2A responder that dispatches `agreement.proposed` / `agreement.funding.updated` / `work.available` / `message.received` to the corresponding `kagent` verbs. Read its `README.md` before writing a forward target from scratch.
 - **Group contract (permission glob, envelope, exit codes):** [`seller-agent/README.md`](../seller-agent/README.md).
