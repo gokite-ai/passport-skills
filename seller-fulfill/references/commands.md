@@ -304,7 +304,7 @@ The digest is derived once, in two spellings: bare lowercase hex for the signed 
 
 Any failed step annotates the error **in place** rather than re-classifying it, appending how far it got — either `nothing was stored yet` or `the artifact is stored (<id>) and registered as evidence <id>` — and setting `next_command` to the identical deliver command with the same `--file`. Re-running resumes rather than duplicating.
 
-**After the delivered command lands, a second is refused as `illegal_transition` (exit 7)** — the correct answer, not a bug to work around.
+**After the deliver command lands, a second is refused as `illegal_transition` (exit 7)** — the correct answer, not a bug to work around.
 
 ```bash
 kagent agreement deliver --agreement-id agr_7f2a --file ./report.pdf --output json

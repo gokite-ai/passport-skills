@@ -250,7 +250,7 @@ The digest appears in three spellings, all the same value: bare hex in the signe
 
 **Keep the local file until the escrow releases.** The buyer settles by downloading the artifact, recomputing its sha256, and comparing against the `deliveryHash` inside the signed command. If they report a mismatch, the local file is the only way to tell whose bytes moved.
 
-Once the delivered command lands, a second delivery is refused as `illegal_transition` (exit 7). That is the correct answer, not a bug to work around — a delivered agreement has one signed deliverable.
+Once the deliver command lands, a second delivery is refused as `illegal_transition` (exit 7). That is the correct answer, not a bug to work around — a delivered agreement has one signed deliverable.
 
 ### Step 6: Register Extra Evidence, If Any
 
