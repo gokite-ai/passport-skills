@@ -17,6 +17,8 @@ allowed-tools:
   - "Bash(bash */setup-ksearch.sh*)"
   - "Bash(ksearch *)"
   - "Bash(kpass agent *)"
+  - "Bash(kpass wallet balance*)"
+  - "Bash(kpass wallet address*)"
 ---
 
 # Buyer: Purchase Under an Agreement
@@ -200,6 +202,23 @@ One session request may be awaiting a decision at a time. A second request with 
 `--agreement-id`, `--seller`, and `--template` **narrow together** (they AND, they do not OR). At least one of the four is required. A scope cannot be widened after approval: a session approved for a narrower scope will refuse a wider agreement at the funding chokepoint, and the only fix is a new request the owner approves again. That is the reason to prefer `--agreement-id` — a wasted narrow approval costs one ceremony, while a habitually over-broad grant costs the owner their ability to see what they authorized.
 
 ### Step 4: Fund
+
+**Before funding: confirm the Arc balance covers the escrow.**
+
+```bash
+kpass wallet balance --output json
+```
+
+Find the `USDC` entry in `assets[]`, then its `arc` row inside `chains[]` — that `amount` is what this wallet can spend on Arc testnet, the only chain a dev backend serves for escrow. Compare it against this agreement's `price.amount` (the amount from Step 1's terms file). If the Arc balance is missing, `0`, or less than `price.amount`, **stop before running `fund`** and tell the owner:
+
+> This agreement needs `<price.amount>` USDC on Arc testnet to fund, but this wallet only has `<balance>`. Kite's own `faucet drop` cannot fund Arc, so get free test USDC directly from Circle:
+> 1. Open https://faucet.circle.com/
+> 2. Select token **USDC**
+> 3. Select the **Arc** testnet network
+> 4. Paste this wallet address: `<address from kpass wallet address --chain arc --output json>`
+> 5. Submit, wait for confirmation, then re-run `kpass wallet balance --output json` and retry `fund` once the balance covers the amount.
+
+Do not run `fund` against a balance you know is short — a rejected funding attempt is the same wasted round trip this check exists to avoid, and if the backend does not report the shortfall as clearly as this check does, the owner is left guessing why the deal stalled.
 
 ```bash
 kpass agent fund --agreement-id <id> --output json
@@ -394,4 +413,5 @@ Before running any command, verify:
 - **Prerequisites:** the **`buyer-agent-setup`** skill (active binding) and the **`buyer-find-seller`** skill (seller reference, published terms, pinned persona card).
 - **The counterparty's side of this flow:** the **`seller-fulfill`** skill (`kagent`) — what the seller does between your propose and your confirm.
 - **Paid HTTP endpoints instead of agreements:** the **`request-session`** and **`x402-execute`** skills in the `user` group.
+- **Full wallet reference (balance, address, faucet) beyond Step 4's minimal usage:** the **`wallet-send`** skill in the `user` group.
 - **Group contract (permission glob, envelope, exit codes):** [`buyer-agent/README.md`](../buyer-agent/README.md).

@@ -39,14 +39,20 @@ invoke `kpass signup`, `kpass login`, or other human-account commands through
 this permission, even if it's running in the same sandbox as user-facing
 skills.
 
-**Named exception:** `buyer-agent-setup` additionally carries
+**Named exceptions:** `buyer-agent-setup` additionally carries
 `"Bash(kpass identifier *)"` and `"Bash(kpass onboarding *)"`, scoped to the
 one-time owner identity/KYC bootstrap documented in its
 `references/owner-bootstrap.md` (claiming a controller identifier and
-submitting KYC before an agent can be created — see that skill's Step 2). No
-other skill in this group carries this grant, and `buyer-agent-setup` still
-cannot invoke `kpass signup`, `kpass login`, or any other human-account
-command outside that named path.
+submitting KYC before an agent can be created — see that skill's Step 2).
+Both `buyer-agent-setup` and `buyer-purchase` additionally carry
+`"Bash(kpass wallet balance*)"` and `"Bash(kpass wallet address*)"` — never
+the full `Bash(kpass wallet *)`, which would also grant `wallet send` —
+scoped to checking whether the owner's Arc-testnet balance covers a purchase
+before funding fails on it (see `buyer-agent-setup` Step 5 and
+`buyer-purchase` Step 4). No other skill in this group carries any of these
+grants, and neither skill gains access to `kpass signup`, `kpass login`,
+`kpass wallet send`, or any other human-account/spending command outside
+these two named paths.
 
 ## JSON output / exit-code contract
 
