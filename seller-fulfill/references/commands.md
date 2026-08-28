@@ -276,7 +276,7 @@ There is no `--force`, no `--yes`, and no `--evidence-id`.
 2. **Hash locally** — sha256 of the file on this disk, **before** anything is uploaded.
 3. **Upload** content-addressed, idempotent on (agreement, sha256).
 4. **Register as evidence**, reading existing records before writing.
-5. **Sign** the EIP-712 Delivery and submit the `kite.contract.delivered` command.
+5. **Sign** the EIP-712 Delivery and submit the `kite.contract.deliver` command.
 
 ### The guards
 
@@ -315,7 +315,7 @@ kagent agreement deliver --agreement-id agr_7f2a --file ./report.pdf --output js
   "status": "success",
   "agreement_id": "agr_7f2a",
   "command_id": "cmd_...",
-  "command_type": "kite.contract.delivered",
+  "command_type": "kite.contract.deliver",
   "state": "DELIVERED",
   "revision": 5,
   "expected_revision": 4,
@@ -350,7 +350,7 @@ The signed command's payload carries `evidenceId`, `deliveryHash`, `sellerDelive
 |---|---|---|---|
 | `--agreement-id <id>` | string | `""` | **yes** |
 
-Nothing else. Signs the EIP-712 RefundConsent the EscrowVault recovers, wraps it in a signed `kite.contract.refund_consented` command, and submits it. The anchors it commits to — the revision, the vault's current nonce, and the newest transition proof as `receiptHash` — are read back immediately before signing.
+Nothing else. Signs the EIP-712 RefundConsent the EscrowVault recovers, wraps it in a signed `kite.contract.consent_refund` command, and submits it. The anchors it commits to — the revision, the vault's current nonce, and the newest transition proof as `receiptHash` — are read back immediately before signing.
 
 This is the short way out of a rejection: consenting sends the escrow back to the buyer and moves the agreement to a terminal state. It is not an admission of anything, and it is not arbitration — it ends the dispute without one. The alternative is `agreement appeal`, below, which costs both parties the arbitration window. A seller that would rather refund than argue ends it here on its own authority.
 

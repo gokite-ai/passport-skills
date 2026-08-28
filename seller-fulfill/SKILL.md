@@ -236,7 +236,7 @@ Watch for `rejected_fields` in `funding get`: those are write-once values the en
 kagent agreement deliver --agreement-id <id> --file ./report.pdf --output json
 ```
 
-One verb, five steps, in a fixed order: read the anchors, hash the file locally, upload it content-addressed, register it as evidence, then sign the EIP-712 Delivery and submit the `kite.contract.delivered` command.
+One verb, five steps, in a fixed order: read the anchors, hash the file locally, upload it content-addressed, register it as evidence, then sign the EIP-712 Delivery and submit the `kite.contract.deliver` command.
 
 **The funding guard.** If the buyer's payment authorization is not recorded, the command refuses with exit 8 and — importantly — **the file is not uploaded**:
 

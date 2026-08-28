@@ -199,7 +199,7 @@
   |---|---|---|---|
   | `--agreement-id <id>` | string | `""` | **yes** |
 
-  Nothing else. Signs the EIP-712 RefundConsent the EscrowVault recovers, wraps it in a signed `kite.contract.refund_consented` command, and submits it. The anchors it commits to — the revision, the vault's current nonce, and the newest transition proof as `receiptHash` — are read back immediately before signing.
+  Nothing else. Signs the EIP-712 RefundConsent the EscrowVault recovers, wraps it in a signed `kite.contract.consent_refund` command, and submits it. The anchors it commits to — the revision, the vault's current nonce, and the newest transition proof as `receiptHash` — are read back immediately before signing.
 
   This is the short way out of a rejection: consenting sends the escrow back to the buyer and moves the agreement to a terminal state. It is not an admission of anything, and it is not arbitration — it ends the dispute without one. The alternative is appealing to the contract-named arbiter, which costs both parties the arbitration window; there is currently no CLI verb to do that. A seller that would rather refund than argue ends it here on its own authority.
 

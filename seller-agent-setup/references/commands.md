@@ -537,7 +537,7 @@ Local pre-flight. It checks what this machine can check: JSON validity, the sche
   "windows": { "deliveryWindow": 86400 },
   "limits": { "maxRedeliveries": 2 },
   "disabledCommands": ["kite.contract.reject"],
-  "markdown": { "kite.contract.delivered": "Delivery includes a signed manifest." },
+  "markdown": { "kite.contract.deliver": "Delivery includes a signed manifest." },
   "parameters": {}
 }
 ```
