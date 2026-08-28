@@ -5,12 +5,13 @@ description: >-
   streaming notifications with `kagent listen --forward`, polling `kagent
   agreement list`, or draining the work plane with `kagent work claim` /
   `work pending`), verify the buyer's formation signatures and accept,
-  escalate to the owner when the acceptance policy refuses a deal, sign the
+  surface the platform-created escalation when governance parks a deal, sign the
   Activation, deliver the artifact once the escrow is funded, register evidence,
   and answer buyer questions. Invoke whenever a buyer has proposed to this agent,
   whenever an accepted agreement needs advancing, whenever this agent holds a
   leased work item to submit or fail, and whenever an acceptance or delivery is
-  refused (acceptance_policy_violation, revision_conflict, an unfunded escrow).
+  refused (escalation_required, acceptance_policy_violation,
+  revision_conflict, an unfunded escrow).
   Requires an active binding and a pinned card -- see seller-agent-setup.
 user-invocable: true
 allowed-tools:
@@ -55,7 +56,7 @@ Missing the pin is exit 2 with a hint naming `kagent card fetch --pin`. Missing 
 
 - A buyer proposed an agreement to this agent and it needs a decision.
 - An agreement is sitting in `COMMITTED` (Activation due) or `FULFILLING` (delivery due).
-- `agreement accept` refused with `acceptance_policy_violation` and the owner needs to rule.
+- `agreement accept` returned `human_action_required` with an automatic escalation, or fell back to `acceptance_policy_violation` and needs manual recovery.
 - A delivery was interrupted and needs resuming.
 - A buyer sent a question.
 - This agent holds a work item leased from `kagent work claim` that needs submitting or failing.
@@ -101,7 +102,7 @@ Full mechanics — the two clocks, claim-token fencing, and how `work submit` re
 | `--evidence-type` | `delivery` | Only change it for evidence that is not the deliverable itself. |
 | `--content-type` on artifacts | Derived from the file extension, falling back to `application/octet-stream` | Advisory for artifacts — no refusal, unlike documents. |
 | Watching | `--watch` with the default 10-minute timeout | A timeout is not a failure; re-run it. |
-| Escalation | Only when a refusal calls for it | `escalate` costs the owner a passkey ceremony. Do not open one speculatively. |
+| Escalation | Surface the automatic request returned by `agreement accept` | Run manual `escalate` only when Passport explicitly falls back to `acceptance_policy_violation`. |
 
 ---
 
@@ -182,18 +183,21 @@ That last check used to happen only after this agent had already signed: Passpor
 
 Success moves the agreement to `COMMITTED` and reports `buyer_verified: true`.
 
-### Step 3: When the Acceptance Policy Refuses
+### Step 3: When Governance Parks the Acceptance
 
 ```
-{ "status": "error", "error_code": "acceptance_policy_violation", ... }
+{ "status": "human_action_required", "escalation_id": "...", "approval_url": "...", ... }
 ```
 
-Exit 6. **This agent cannot read its own policy**, so there is nothing local to correct and nothing to retry. But the same code covers two different situations, and they have different fixes:
+Passport normally creates the escalation at the enforcement gate and returns exit 0 with `status: "human_action_required"`. The response includes `escalation_reason`, the exact `action_digest`, an `approval_url`, and a `next_command` that polls the existing request. **Surface the URL verbatim; do not run `kagent escalate` and create a duplicate.**
 
-- **No policy exists yet.** The owner never set a mandate, so *every* proposal is refused — this one is not special. Escalating each deal individually would be asking the owner to hand-approve their entire order book. Tell them to set the mandate instead (the **`seller-agent-setup`** skill, Step 8: `PUT /v1/agents/<agent>/acceptancePolicy`, and its GET reports `configured: false` when this is the case).
-- **A policy exists and this contract falls outside it.** The mandate is doing its job, and the deal needs the owner's ruling on exactly this contract:
+```bash
+kagent escalation status --id <escalation-id> --wait --output json
+```
 
-The tell is whether other proposals are also being refused: a seller whose every deal returns `acceptance_policy_violation` is unconfigured, not picky. When it is the second case:
+On approval, re-run the identical `agreement accept`. The decision is bound to the action digest and one server-derived reason code (`seller_template_not_allowed`, `seller_price_below_floor`, `seller_price_above_ceiling`, or `seller_capacity_exceeded`). If more than one clause fails, Passport may park again for the next independent decision; after all required approvals, the retry commits and consumes them atomically.
+
+`acceptance_policy_violation` (exit 6) is now the compatibility fallback: Passport could not create the automatic request, or the refusal is a legacy condition without a typed reason. Keep this manual recovery/debug path:
 
 ```bash
 kagent escalate \
@@ -206,7 +210,7 @@ kagent escalate \
 
 `acceptance-override` is the only reserved and enforced escalation kind; it requires `--agreement-id`. When no `--payload` is given, the verb attaches the contract's verbatim bytes, which is what binds the owner's decision to *this* contract rather than to a category.
 
-Write `--summary` for a human who is about to spend a passkey ceremony: what the deal is, what it pays, and why it is outside the usual policy. That sentence is the entire basis for their decision.
+Write `--summary` for a human who is about to spend a passkey ceremony: what the deal is, what it pays, and why the automatic path could not unblock it.
 
 The result is `human_action_required` with an `approval_url`. **Surface it verbatim.** `--wait` polls with backoff (2 to 15 seconds, 10-minute default timeout), or poll separately with `kagent escalation status --id <id> --wait --output json` — the flag is `--id`, not `--escalation-id`.
 
@@ -331,13 +335,13 @@ kagent agreement status --agreement-id agr_7f2a --watch --output json
 
 | Exit | Meaning | Codes seen on this lane | Recovery |
 |---|---|---|---|
-| 0 | Success, or human action required | `human_action_required` on `escalate`; `pending` on a timed-out watch | Read the envelope. A timeout is not a failure. |
+| 0 | Success, or human action required | `human_action_required` on an automatically parked `agreement accept` or manual `escalate`; `pending` on a timed-out watch | Surface the approval URL and follow `next_command`. A timeout is not a failure. |
 | 1 | Network, or a transient server refusal | `funding_not_final`, `engine_outcome_unknown`, `internal_error`; a missing formation co-signature; an unreadable proposal | The same bytes can succeed later. Re-run, or wait for the buyer's relay. |
 | 2 | Usage, malformed bytes, or a closed window | `invalid_command_schema`, `payload_hash_mismatch`, `unsupported_extension_version`, `evidence_not_validated`, `deadline_exceeded`; a missing pin; file refusals | Fix the input. A closed window is not retriable. |
 | 3 | Auth | `invalid_signature`, `unknown_key`, `runtime_key_required`, `runtime_not_found`, `runtime_pending`, `runtime_revoked`, `runtime_agent_mismatch`, `runtime_signature_mismatch` | Identity problem: use **`seller-agent-setup`**. |
 | 4 | Not found | `unknown_deal`; an agreement with no contract | The agreement does not exist, or this agent may not read it. |
 | 5 | Rate limited | `rate_limited` | Wait 30 seconds, then retry. |
-| 6 | Forbidden — authenticated but not entitled | **`acceptance_policy_violation`**, `unauthorized_actor`, `agreement_runtime_mismatch` | Not a retry. The policy refusal goes through `escalate --kind acceptance-override`; the others mean this identity is not the party that may act. |
+| 6 | Forbidden — authenticated but not entitled | **`acceptance_policy_violation`**, `unauthorized_actor`, `agreement_runtime_mismatch` | Not a retry. The policy code is the manual fallback; the normal governance path exits 0 as `human_action_required`. |
 | 7 | Conflict — you signed against a state that moved | `revision_conflict`, `idempotency_conflict`, `illegal_transition`, `terms_hash_mismatch` | Mechanical: re-read `agreement status`, rebuild, retry once. On `deliver`, re-running reuses the stored artifact and evidence. |
 | 8 | Protocol — a **local** refusal, nothing was sent | (local refusals carry no `error_code`) | Do **not** retry the same bytes. Verification, canonicalization, or signing failed here. |
 
@@ -347,7 +351,9 @@ Three `next_command` values on this lane ship **without the `kagent` prefix** an
 
 ### Specific Scenarios
 
-**`acceptance_policy_violation` (exit 6):** covered in Step 3. Escalate with `--kind acceptance-override`, surface the approval URL, and re-accept after approval. Do not retry `accept`, and do not open a second escalation for a deal the owner already declined.
+**`escalation_required` (`human_action_required`, exit 0):** covered in Step 3. Passport already created it. Surface the returned URL, poll the returned id, and re-accept after approval. Do not run manual `escalate` for the same parked action.
+
+**`acceptance_policy_violation` (exit 6):** the automatic creation path was unavailable or the refusal is a legacy untyped condition. Use manual `escalate --kind acceptance-override` as the recovery/debug route, then re-accept after approval.
 
 **`accept` refuses with exit 8 on a signature or hash check:** the buyer's proposal does not verify against what they published — a terms hash that does not re-derive, a signature that recovers to the wrong address, a co-signature built for a sibling key. Nothing was sent. This is a reason to tell the buyer, not to retry.
 

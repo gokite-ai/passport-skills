@@ -101,11 +101,26 @@ kagent agreement accept --agreement-id agr_7f2a --output json
 }
 ```
 
-### `acceptance_policy_violation`
+### Automatic governance escalation
 
-Exit **6**, `error_code: "acceptance_policy_violation"`. The owner configured an acceptance policy and this contract falls outside it. It is enforced **server-side** and this agent cannot read its own policy, so there is nothing local to correct and nothing to retry.
+When a typed seller policy clause fails, the platform creates the decision request and `accept` exits **0** with a `human_action_required` envelope:
 
-The error's `next_command` is the recovery, already filled in:
+```json
+{
+  "status": "human_action_required",
+  "agreement_id": "agr_7f2a",
+  "escalation_id": "agent_escalation_...",
+  "escalation_reason": "seller_price_below_floor",
+  "action_digest": "sha256:...",
+  "approval_url": "https://.../agent-escalation/decide?token=...",
+  "approval_expires_at": "...",
+  "next_command": "kagent escalation status --id agent_escalation_... --wait --output json"
+}
+```
+
+Passport already created this request. Surface its URL and poll its id; **do not run `kagent escalate` for the same action**. After approval, retry the identical accept. Multiple independent failed clauses may require sequential decisions, all consumed atomically when acceptance commits.
+
+Exit **6**, `error_code: "acceptance_policy_violation"`, is retained as the rollout/debug fallback when automatic creation is unavailable or the policy failure is an untyped legacy condition. Its `next_command` uses the manual recovery:
 
 ```bash
 kagent escalate --kind acceptance-override --agreement-id <id> --summary "<why this deal>" --wait --output json
@@ -113,7 +128,7 @@ kagent escalate --kind acceptance-override --agreement-id <id> --summary "<why t
 
 ---
 
-## `kagent escalate`
+## `kagent escalate` (manual recovery/debug)
 
 | Flag | Type | Default | Required | Notes |
 |---|---|---|---|---|
@@ -596,7 +611,7 @@ Three `next_command` values on this lane are emitted **without the `kagent` pref
 
 | Code | Name | Meaning |
 |---|---|---|
-| 0 | SUCCESS | Success — and `human_action_required` / `pending` / `expired`, which all exit 0 |
+| 0 | SUCCESS | Success — and automatic/manual `human_action_required` / `pending` / `expired`, which all exit 0 |
 | 1 | NETWORK | Network error; transient server refusals; a formation co-signature not yet relayed |
 | 2 | USAGE | Missing or invalid flag; malformed bytes; a closed window; file refusals |
 | 3 | AUTH | No usable runtime key or binding; invalid signature; unknown key |
@@ -615,7 +630,7 @@ There is no exit code 9, and code 10 is unreachable from `kagent`.
 | 7 CONFLICT | `revision_conflict`, `idempotency_conflict`, `illegal_transition`, `terms_hash_mismatch` |
 | 2 USAGE | `invalid_command_schema`, `payload_hash_mismatch`, `unsupported_extension_version`, `evidence_not_validated`, `deadline_exceeded`, `review_closed`, `merchant_unsupported`, `unsupported_settlement`, `no_payment_requirement` |
 | 3 AUTH | `invalid_signature`, `unknown_key`, `runtime_key_required`, `runtime_not_found`, `runtime_pending`, `runtime_revoked`, `runtime_agent_mismatch`, `runtime_signature_mismatch` |
-| 6 FORBIDDEN | `unauthorized_actor`, `agreement_runtime_mismatch`, **`acceptance_policy_violation`**, `session_scope_forbidden` |
+| 6 FORBIDDEN | `unauthorized_actor`, `agreement_runtime_mismatch`, **`acceptance_policy_violation`** (manual fallback), `session_scope_forbidden` |
 | 4 NOT_FOUND | `unknown_deal` |
 | 1 NETWORK (the same bytes can succeed later) | `funding_not_final`, `review_not_open`, `engine_outcome_unknown`, `internal_error` |
 | 5 RATE_LIMITED | `rate_limited` |
