@@ -218,7 +218,7 @@ Nothing else is validated or reshaped — the rest of the content is this agent'
 kagent card publish --file ./card.json --workflow fixed_outcome/v1 --output json
 ```
 
-Each id is checked against the platform's workflow registry at publish time — naming one the registry doesn't carry is refused. Run `kagent workflow-template list` to see the ids it does. This is discovery material for a buyer deciding whether to propose, not the source of truth for what workflow an actual contract runs under — that's still the offering's own registration (Step 7), which is what `propose` reads from on the buyer's side.
+Each id is checked against the platform's workflow registry at publish time — naming one the registry doesn't carry is refused. Run `ksearch workflow-template list` to see the ids it does (a public read — the discovery binary, no runtime key). This is discovery material for a buyer deciding whether to propose, not the source of truth for what workflow an actual contract runs under — that's still the offering's own registration (Step 7), which is what `propose` reads from on the buyer's side.
 
 **Reading the hash echo.** `card_hash` is *not* a hash of your file. The platform composes identity facts (DID, kind, visibility, verification tier) on top of the content and hashes the canonical form of that composition. So the command finishes by re-fetching the served card, recomputing, and comparing:
 
