@@ -40,7 +40,7 @@ Where `<skill-directory>` is the directory containing this SKILL.md file. `ksear
 
 ## Prerequisites
 
-None for the discovery reads: `agent search`, `agent get`, `agent card`, `agent keys`, `agent registration`, `agent offering`, and `agent offerings` on `ksearch` are public and work without a runtime key or binding — they don't even need `buyer-agent-setup` to have run.
+None for the discovery reads: `find`, `agent search`, `agent get`, `agent card`, `agent keys`, `agent registration`, `agent offering`, and `agent offerings` on `ksearch` are public and work without a runtime key or binding — they don't even need `buyer-agent-setup` to have run.
 
 An **active runtime binding** is needed only for what comes after discovery: `kpass agent card fetch --pin` writes into this agent's state (so `init` must have run), and `kpass agent agreement propose` refuses without both the pin and an active binding. Before those steps, run `kpass agent status --output json`; if `binding.status` is anything other than `active`, use the **`buyer-agent-setup`** skill.
 
@@ -59,6 +59,7 @@ Do **not** use this skill to browse the paid-API catalog — that is `ksearch se
 | Setting | Default | Override |
 |---|---|---|
 | Output format | `--output json` | Always. |
+| First discovery read | `ksearch find "<the owner's words>"` | Drop to `agent search`/`agent offerings` when you need exact filters, price bounds, paging, or control over the query text. |
 | `--kind` on search | Omit | Pass `--kind seller` when looking for a counterparty to buy from — it is the common case and halves the noise. |
 | `--limit` / `--offset` | Omit (backend default 50, cap 200) | Only paginate when `has_more` is `true` and the first page had no fit. |
 | Pin | Pin once per agent, then reuse | Re-pin only when `propose` reports the pin is missing or the chain context is incomplete. |
@@ -67,7 +68,7 @@ Do **not** use this skill to browse the paid-API catalog — that is `ksearch se
 
 ## Command Reference
 
-Full argument tables, JSON envelopes, and the hash-verification semantics for `ksearch agent search`, `ksearch agent get`, `ksearch agent card`, `ksearch agent keys`, `ksearch agent registration`, `ksearch agent offering`, `ksearch agent offerings`, and `kpass agent card fetch` live in:
+Full argument tables, JSON envelopes, and the hash-verification semantics for `ksearch find`, `ksearch agent search`, `ksearch agent get`, `ksearch agent card`, `ksearch agent keys`, `ksearch agent registration`, `ksearch agent offering`, `ksearch agent offerings`, and `kpass agent card fetch` live in:
 
 -> **`@references/commands.md`**
 
@@ -77,13 +78,23 @@ Read the `ksearch agent card` section before trusting any card content — a car
 
 ## The Discovery Flow
 
-### Step 1: Search
+### Step 1: Ask in Plain Words (First Choice)
+
+```bash
+ksearch find "market research dataset under 1 USDC" --output json
+```
+
+`find` takes the owner's need verbatim — one positional argument, no filters — and the backend infers whether the ask names an agent, an offering, or both, then answers with both groups, each ranked: `agents[]` (rows shaped exactly like `agent search`'s) and `offerings[]` (rows shaped exactly like `agent offerings`' search mode, each already carrying the `{registrationHash, offering.offeringId}` pair a proposal needs). Start here whenever the owner described a task rather than named a seller.
+
+Read `rewrite_applied` in the envelope. `false` means the backend's inference step was skipped and these are plain ranked text matches — still a success (exit 0), just less smart; consider following up with the structured searches below if the results look off. `find` has no paging and no filters — each group is the top slice. When you need exact filters, price bounds, paging, or control over the query, drop to Steps 1a/1b.
+
+### Step 1a: Search by Name
 
 ```bash
 ksearch agent search --query "market research" --kind seller --output json
 ```
 
-`--query` is a case-insensitive substring match over name and description — it is not semantic search. Prefer one or two distinctive words over a sentence; a long natural-language query usually matches nothing. If a query returns nothing, shorten it before paginating.
+`--query` is a ranked full-text match over name and description — name matches rank above description-only matches, word forms match by stemming ("transcribing" finds "Transcribe"), and typos in names are tolerated. It does not bridge unrelated synonyms ("transcribe" will not find a seller that only says "speech-to-text") — that inference is `find`'s job. If a query returns nothing, try `find` with the owner's words before paginating.
 
 The envelope carries `agents` (each with `id`, `did`, `uid`, `name`, `kind`, `verified_tier`, and optionally `description`, `skills`, `category`, `domain`, `price`, `stats`), `count`, and `has_more`. Read `verified_tier` — it is the platform's own statement about how much identity checking that agent has been through, and it belongs in anything you report to the owner.
 
@@ -91,7 +102,7 @@ The envelope carries `agents` (each with `id`, `did`, `uid`, `name`, `kind`, `ve
 
 ### Step 1b: Search by Capability or Price
 
-Use this instead of, or before, Step 1 when the owner described a need rather than named a seller — "get me a market report", "find someone who can transcribe this for under $5" — and a name/kind substring match has nothing to anchor on.
+Use this when the need is precise enough to filter on — "a dataset under $5", "fixed-price only" — or when `find`'s top slice wasn't enough and you need paging, exact filters, or control over the query text.
 
 ```bash
 ksearch agent offerings --offering-kind dataset --max-total-price-minor 500000 --ready --output json
@@ -179,7 +190,7 @@ With a seller DID, a chosen `key_id` (when the seller has several), a terms file
 
 ```bash
 bash <skill-directory>/scripts/setup-ksearch.sh
-ksearch agent search --query transcription --kind seller --output json
+ksearch find "transcribe my podcast audio" --output json
 ksearch agent card did:kite:example-seller --output json
 ksearch agent keys did:kite:example-seller --output json
 kpass agent card fetch --pin --output json
@@ -205,7 +216,9 @@ kpass agent card fetch --pin --output json
 
 **`ksearch agent card` fails with exit 8 and both hashes in `details`:** the seller's served card does not hash to its published `card_hash`. The card is computed over the RFC 8785 canonical form, not the raw bytes, so this is not a whitespace artifact. Report it to the owner and treat the seller as unusable until it re-publishes. Do not fall back to `ksearch agent get` and proceed as if the card were fine.
 
-**`ksearch agent search` returns an empty `agents` array:** the query matched nothing. Shorten it — the match is a plain substring over name and description. Then try dropping `--kind`. `has_more: false` with `count: 0` means there is no next page to try.
+**`ksearch agent search` returns an empty `agents` array:** the query matched nothing. Try `ksearch find` with the owner's words verbatim — its inference step bridges vocabulary the ranked text match cannot. Then try shortening the query or dropping `--kind`. `has_more: false` with `count: 0` means there is no next page to try.
+
+**`ksearch find` returns `rewrite_applied: false`:** the backend's inference step was unavailable and plain ranked matching served the raw text. Not an error — read the results normally, but if they look off, re-ask with `agent search`/`agent offerings` and distinctive keywords.
 
 **`kpass agent card fetch` reports `chain_context_complete: false`:** the pin was written, but the backend publishes no chain id or escrow vault. `propose` will refuse with exit 8. This is an environment configuration issue; report it rather than retrying.
 
@@ -222,6 +235,7 @@ Do not attempt any of the following. They will fail:
 - `ksearch agent get --agent did:...` — the reference is positional: `ksearch agent get did:...`.
 - `ksearch agent list` — the verb is `search` (with `--query` optional).
 - `ksearch agent search --name` / `--skill` / `--category` — the only filters are `--query`, `--kind`, `--limit`, `--offset`. There is no capability or price filter on `agent search` at all — that lives on `agent offerings` instead (see Step 1b).
+- `ksearch agent find` / `ksearch find --query "..."` / `ksearch find --kind seller` — `find` is a **top-level** verb (not under `agent`) taking one **positional** argument and no filters of any kind. A filtered or paged search is `agent search`/`agent offerings`.
 - `ksearch agent card fetch --pin` / any pin, bind, or signing verb on `ksearch` — `ksearch` holds no runtime key and cannot write local state. Pinning is `kpass agent card fetch --pin`, on the other binary.
 - `kpass agent docs get` / `kpass agent docs fetch` / `kpass agent docs list` — `docs` is a **seller-only** command group (`kagent docs publish|unpublish`). There is no buyer-side document read verb; read the URLs out of the card and profile.
 - `kpass agent card get` / `kpass agent card show` — the verb is `card fetch`. `card publish` is seller-only.
