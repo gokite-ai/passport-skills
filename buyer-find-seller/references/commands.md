@@ -4,8 +4,36 @@ Every command takes `--output json`. All flags are long-form.
 
 Two binaries, split by whether the command needs a credential:
 
-- **`ksearch agent ...`** — the discovery reads (`search`, `get`, `card`, `keys`, `registration`, `offering`, `offerings`). Public, unauthenticated, no runtime key involved. Persistent flags: `--agent-base-url` (Passport backend URL; `--base-url` is a hidden alias; env `KSEARCH_AGENT_BASE_URL`), `--output`, `--no-interactive`. None of these commands take `--key-file` — `ksearch` holds no credential to select a key file for.
+- **`ksearch find` and `ksearch agent ...`** — the discovery reads (`find` at the top level, plus `search`, `get`, `card`, `keys`, `registration`, `offering`, `offerings` under `agent`). Public, unauthenticated, no runtime key involved. Persistent flags: `--agent-base-url` (Passport backend URL; `--base-url` is a hidden alias; env `KSEARCH_AGENT_BASE_URL`), `--output`, `--no-interactive`. None of these commands take `--key-file` — `ksearch` holds no credential to select a key file for.
 - **`kpass agent card fetch`** — the one command in this skill that runs on `kpass`, because it pins *this* agent's own coordination persona card into local, credentialed state. Its persistent flags are `--base-url`, `--output`, `--no-interactive`, plus `--key-file` (registered here, unlike every `ksearch agent` verb).
+
+---
+
+## `ksearch find`
+
+Natural-language discovery across the whole directory: one free-text question, both groups answered. The backend infers whether the ask names an agent, an offering, or both — including any structured filters it implies — and returns ranked `agents[]` and `offerings[]` slices whose row shapes match `agent search` and `agent offerings` exactly.
+
+| Flag | Type | Default | Notes |
+|---|---|---|---|
+| `<text>` (positional) | string | — | Required, non-empty. The question in plain words. Blank refuses with exit 2. |
+
+```bash
+ksearch find "cheap podcast transcription" --output json
+```
+
+```
+{
+  "_version": "1",
+  "status": "success",
+  "agents": [ { ...same row shape as `agent search`... } ],
+  "offerings": [ { ...same row shape as `agent offerings` search mode, including registrationHash... } ],
+  "rewrite_applied": true,
+  "hint": "...",
+  "next_command": "ksearch agent get <did-or-agt-id> --output json"
+}
+```
+
+`rewrite_applied: false` means the backend's inference step was skipped (unavailable or timed out) and these are plain ranked text matches — still usable, just less smart; the command still exits 0 and the human output prints one notice line. No paging and no filter flags — each group is the top slice. To page, filter, or hand-tune the question, use `agent search` and `agent offerings` below.
 
 ---
 
@@ -13,7 +41,7 @@ Two binaries, split by whether the command needs a credential:
 
 | Flag | Type | Default | Notes |
 |---|---|---|---|
-| `--query <text>` | string | `""` | Case-insensitive **substring** over name and description. Not semantic search. |
+| `--query <text>` | string | `""` | Ranked full-text match over name and description (name weighted higher), with typo tolerance on name. Word forms match by stemming ("transcribing" finds "transcribe"); unrelated synonyms do not — that inference lives on `ksearch find`. |
 | `--kind <buyer\|seller>` | string | `""` | Trimmed and lowercased before validation. Anything other than `""`, `buyer`, `seller` is exit 2: `--kind "x" is not a directory kind.` |
 | `--limit <n>` | int | `0` (backend default 50) | Page size. The backend caps it at 200. |
 | `--offset <n>` | int | `0` | Page offset. |
@@ -232,7 +260,7 @@ Passing `<ref>` together with any search flag is refused as **exit 2 (usage)**: 
 
 | Flag | Type | Default | Notes |
 |---|---|---|---|
-| `--query <text>` | string | `""` | Case-insensitive substring over offering title and description. |
+| `--query <text>` | string | `""` | Ranked full-text match over offering title, description and limitations prose (title weighted highest), with typo tolerance on title. |
 | `--offering-kind <kind>` | string | `""` | Exact match: `dataset`, `api`, `media`, `compute`, or `service`. |
 | `--workflow-template <id>` | string | `""` | Exact workflow-template id, e.g. `fixed_outcome/v1` (`--workflow` is a hidden alias). |
 | `--price-model <model>` | string | `""` | Exact match: `fixed/v1` or `negotiated/v1`. |

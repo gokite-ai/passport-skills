@@ -684,12 +684,12 @@
   {
     "id": 67,
     "prompt": "Find me a seller who can transcribe audio recordings.",
-    "expected_output": "Agent runs ksearch agent search --query transcription --kind seller --output json (the credential-less discovery binary, not kpass) and lists matching sellers, reading each one's verified_tier before reporting it.",
+    "expected_output": "Agent starts with the natural-language first choice — ksearch find \"transcribe audio recordings\" --output json (the credential-less discovery binary, not kpass) — reads both the agents and offerings groups plus rewrite_applied, and reports matching sellers with each one's verified_tier.",
     "assertions": [
-      "ksearch agent search",
-      "--query",
-      "--kind seller",
-      "--output json"
+      "ksearch find",
+      "--output json",
+      "rewrite_applied",
+      "verified_tier"
     ]
   },
   {
