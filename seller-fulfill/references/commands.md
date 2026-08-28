@@ -630,7 +630,7 @@ There is no exit code 9, and code 10 is unreachable from `kagent`.
 | 7 CONFLICT | `revision_conflict`, `idempotency_conflict`, `illegal_transition`, `terms_hash_mismatch` |
 | 2 USAGE | `invalid_command_schema`, `payload_hash_mismatch`, `unsupported_extension_version`, `evidence_not_validated`, `deadline_exceeded`, `review_closed`, `merchant_unsupported`, `unsupported_settlement`, `no_payment_requirement` |
 | 3 AUTH | `invalid_signature`, `unknown_key`, `runtime_key_required`, `runtime_not_found`, `runtime_pending`, `runtime_revoked`, `runtime_agent_mismatch`, `runtime_signature_mismatch` |
-| 6 FORBIDDEN | `unauthorized_actor`, `agreement_runtime_mismatch`, **`escalation_required`** (classification fallback), **`acceptance_policy_violation`** (manual fallback), `session_scope_forbidden` |
+| 6 FORBIDDEN | `unauthorized_actor`, `agreement_runtime_mismatch`, **`acceptance_policy_violation`** (manual fallback), `session_scope_forbidden` |
 | 4 NOT_FOUND | `unknown_deal` |
 | 1 NETWORK (the same bytes can succeed later) | `funding_not_final`, `review_not_open`, `engine_outcome_unknown`, `internal_error` |
 | 5 RATE_LIMITED | `rate_limited` |
