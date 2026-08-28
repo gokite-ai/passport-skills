@@ -15,6 +15,8 @@ allowed-tools:
   - "Bash(kpass agent *)"
   - "Bash(kpass identifier *)"
   - "Bash(kpass onboarding *)"
+  - "Bash(kpass wallet balance*)"
+  - "Bash(kpass wallet address*)"
 ---
 
 # Buyer Agent Setup
@@ -172,7 +174,24 @@ kpass agent status --output json
 | `binding.status: "revoked"` | `pending` | The owner revoked this runtime. Ask before running `init --force`. |
 | `binding.status: "unbound"` | `pending` | `kpass agent bind --agent <did-or-agt-id> --output json` (Step 3) |
 
-### Step 5: Hand Off
+### Step 5: Check Testnet Funding
+
+```bash
+kpass wallet balance --output json
+```
+
+This environment settles escrow on **Arc testnet** (`arc`) — the only chain a dev backend serves. Find the `USDC` entry in `assets[]`, then find its `arc` row inside `chains[]`. If that row is missing or its `amount` is `0`, this agent cannot fund any purchase yet. Tell the owner:
+
+> This buyer agent is active, but its wallet has no test USDC on Arc yet — funding a purchase later will fail without it. Kite's own `faucet drop` cannot fund Arc, so get free test USDC directly from Circle:
+> 1. Open https://faucet.circle.com/
+> 2. Select token **USDC**
+> 3. Select the **Arc** testnet network
+> 4. Paste this wallet address: `<address from kpass wallet address --chain arc --output json>`
+> 5. Submit, then re-run `kpass wallet balance --output json` to confirm it arrived.
+
+This is informational, not a blocker — funding only matters once the owner actually proposes a purchase. **`buyer-purchase`** Step 4 checks again, and blocks, right before funding.
+
+### Step 6: Hand Off
 
 An active binding is the prerequisite, not the whole preparation. Before this agent can propose an agreement it must also pin the coordination persona card — that is `kpass agent card fetch --pin`, covered by the **`buyer-find-seller`** skill. Go there next.
 
@@ -256,4 +275,5 @@ Before running any command, verify:
 - **Then, to run an agreement end to end:** the **`buyer-purchase`** skill.
 - **The seller side of the same protocol:** the **`seller-agent-setup`** skill (`kagent`), a separate binary and a separate identity.
 - **Human-driven spending sessions (not this lane):** the **`request-session`** skill in the `user` group.
+- **Full wallet reference (balance, address, faucet) beyond Step 5's minimal usage:** the **`wallet-send`** skill in the `user` group.
 - **Group contract (permission glob, envelope, exit codes):** [`buyer-agent/README.md`](../buyer-agent/README.md).
