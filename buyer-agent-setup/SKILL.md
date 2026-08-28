@@ -13,6 +13,8 @@ user-invocable: true
 allowed-tools:
   - "Bash(bash */setup.sh*)"
   - "Bash(kpass agent *)"
+  - "Bash(kpass identifier *)"
+  - "Bash(kpass onboarding *)"
 ---
 
 # Buyer Agent Setup
@@ -73,15 +75,15 @@ The consequence matters for unattended runs: **the same agent invoked from a dif
 | Output format | `--output json` | Always. Every command in this skill takes `--output json`; there is no human-readable fallback worth parsing. |
 | Key location | Discovered `.kite-passport/runtime.key` | Only pass `--key-file` when the deployment mounts a key elsewhere. |
 | Key material | Freshly generated | Only pass `--import-key` when the owner supplies an existing key to reuse. |
-| Bind path | Direct (no `--token`) | Only pass `--token` when the owner minted an `art_...` bind token. |
-| `--wait` on bind | On, for unattended runs | Omit it if you would rather report the approval URL immediately and poll `status` later. |
+| Bind path | Mint-then-bind (`agent token create` → `bind --token`) | Falls back to direct (no `--token`) only if token mint ever requires step-up. |
+| `--wait` on bind | Not used on the default mint-then-bind path (lands `active` immediately) | On the fallback direct path, for unattended runs — omit it if you would rather report the approval URL immediately and poll `status` later. |
 | Bind poll interval / timeout | `3` seconds / `300` seconds | Raise `--timeout` when the owner will be slow to reach their passkey. Both are **integers in seconds** here. |
 
 ---
 
 ## Command Reference
 
-Full argument tables, JSON envelopes, and the per-command error envelopes for `init`, `key show`, `bind`, and `status` live in:
+Full argument tables, JSON envelopes, and the per-command error envelopes for `init`, `key show`, `bind`, `status`, and the owner-bootstrap commands (`kpass identifier claim`, `kpass onboarding submit`, `kpass onboarding status`, `kpass agent token create`) live in:
 
 -> **`@references/commands.md`**
 
@@ -103,17 +105,30 @@ Exit code 2 with a hint about orphaning means a key already exists at that path.
 
 ### Step 2: Ask the Owner Which Agent to Bind To
 
-You cannot discover this. The owner creates the agent record and tells you which one this runtime represents. Accept any of: a `did:kite:...` DID, an `agt_...` id, or a uid.
+You cannot discover the `uid` on your own — ask the owner. Before creating the agent, work through **`@references/owner-bootstrap.md`** steps 1–4: check onboarding status, claim the controller identifier, submit KYC/KYB, and poll briefly. Every account needs this before `agent create` will succeed — it refuses with `ErrRequiresIdentifier` / `ErrRequiresOnboarding` otherwise.
 
-If the owner has not created an agent record yet, stop and say so — `bind` against a nonexistent agent is exit code 4, not a retriable condition. What they run is either the Passport dashboard or, with their own login:
+Once that resolves (`verified`, or already was), create the agent — either the owner does this through the Passport dashboard, or you run it directly on their already-authenticated `kpass` session (see `authenticate-user`):
 
 ```bash
 kpass agent create --uid <slug> --kind buyer --output json
 ```
 
-That is the owner's command, not yours: it authenticates with their JWT, and the `uid` becomes the tail of the DID permanently — neither can be changed afterwards, only replaced by a new agent. (The display name IS editable later; the uid is not.) Do not offer to run it against a token you happen to hold.
+The `uid` becomes the tail of the DID permanently — neither can be changed afterwards, only replaced by a new agent. (The display name IS editable later; the uid is not.) A reference that does not resolve later, in Step 3, is exit code 4, not a retriable condition.
+
+If `owner-bootstrap.md` Step 4 reports onboarding still `pending` past its poll budget, or Step 1/3 hit a `rejected` record, stop there and follow that file's guidance — do not attempt `agent create` early.
 
 ### Step 3: Bind the Key, and Surface the Approval
+
+**Default path — mint then bind (`@references/owner-bootstrap.md` Step 6):**
+
+```bash
+kpass agent token create --agent <did-or-agt-id> --output json
+kpass agent bind --agent <did-or-agt-id> --token <art_...> --output json
+```
+
+Token minting needs only the owner's plain JWT — no passkey step-up — so this lands `active` immediately in practice: no `--wait`, no `approval_url` to surface. Do this first.
+
+**Fallback path — if token mint ever comes back requiring step-up** (defensive, not expected):
 
 ```bash
 kpass agent bind --agent <did-or-agt-id> --wait --output json
@@ -121,7 +136,7 @@ kpass agent bind --agent <did-or-agt-id> --wait --output json
 
 Two outcomes, and the difference is the whole ceremony:
 
-- **`status: "human_action_required"`, `binding: "pending"`** — the normal direct path. **The owner must approve it with their passkey; no CLI verb can.** How to tell them depends on what the envelope carries, and both cases happen:
+- **`status: "human_action_required"`, `binding: "pending"`** — the direct path. **The owner must approve it with their passkey; no CLI verb can.** How to tell them depends on what the envelope carries, and both cases happen:
   - **`approval_url` present** — surface it verbatim and say it needs their passkey. It is written only when the backend supplied one, so its absence is normal, not an error.
   - **`approval_url` absent** — give the navigation path and the identifying fields instead, because a bare "go approve it" is not actionable and an agent can carry **several** pending runtimes at once:
 
@@ -227,7 +242,7 @@ Do not attempt any of the following. They will fail:
 Before running any command, verify:
 
 1. **`--agent`**: came from the owner, not from you. A DID (`did:kite:...`), an `agt_...` id, or a uid. Never fabricate one.
-2. **`--token`**: only when the owner minted one; it starts with `art_`. Do not pass an empty `--token` — omit the flag to take the direct path.
+2. **`--token`**: the `art_...` value from `kpass agent token create` (this skill mints it itself on the default path) — or one the owner minted directly. It starts with `art_`. Do not pass an empty `--token` — omit the flag only to take the fallback direct path.
 3. **`--import-key`**: a PATH to a file holding the key, or `-` to read it from stdin. Never the key itself — a key passed on the command line reaches shell history, the process table and this transcript, and cannot be un-leaked. The CLI refuses inline material.
 4. **`--force`**: only with explicit owner agreement, on the record, that the existing identity is being abandoned.
 5. **`--poll-interval` / `--timeout`**: bare integers (seconds), not durations.
@@ -236,6 +251,7 @@ Before running any command, verify:
 
 ## Cross-Skill References
 
+- **The JWT this skill assumes throughout:** the **`authenticate-user`** skill — run it first if `owner-bootstrap.md`'s commands return exit code 3.
 - **Next, to find a counterparty and pin the persona card:** the **`buyer-find-seller`** skill.
 - **Then, to run an agreement end to end:** the **`buyer-purchase`** skill.
 - **The seller side of the same protocol:** the **`seller-agent-setup`** skill (`kagent`), a separate binary and a separate identity.

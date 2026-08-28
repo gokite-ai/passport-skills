@@ -194,14 +194,20 @@ from this skill's instructions.
   `kpass agent token create` are already covered by the existing
   `"Bash(kpass agent *)"` entry — no change needed there.
 - **`seller-agent-setup/SKILL.md` frontmatter:** add `"Bash(kpass identifier
-  *)"`, `"Bash(kpass onboarding *)"`, and `"Bash(kpass agent *)"` to
-  `allowed-tools` (seller currently has no `kpass` access of any kind — only
-  `kagent` and `ksearch`).
+  *)"`, `"Bash(kpass onboarding *)"`, `"Bash(kpass agent create *)"`, and
+  `"Bash(kpass agent token create *)"` to `allowed-tools` (seller currently
+  has no `kpass` access of any kind — only `kagent` and `ksearch`).
+  **Correction (2026-08-28, from final-review):** narrowed from a blanket
+  `Bash(kpass agent *)` to exactly the two subcommands `owner-bootstrap.md`
+  actually uses — the seller side never runs any other `kpass agent` verb,
+  and the narrower grant makes the group README's "cannot invoke buyer-side
+  spending commands" claim literally true instead of overstated.
 - **`buyer-agent/README.md`** and **`seller-agent/README.md`** ("Permission
   glob contract" section in each): document the widened glob as a named,
   bootstrap-only exception — e.g. "`buyer-agent-setup` and `seller-agent-setup`
   additionally carry `Bash(kpass identifier *)` / `Bash(kpass onboarding *)`
-  [and, for seller, `Bash(kpass agent *)`], scoped to the one-time owner
+  [and, for seller, `Bash(kpass agent create *)` / `Bash(kpass agent token
+  create *)`], scoped to the one-time owner
   identity/KYC bootstrap in `references/owner-bootstrap.md`. No other skill in
   either group carries this grant, and neither setup skill gains access to
   `kpass signup`, `kpass login`, or any other human-account command outside

@@ -646,12 +646,12 @@ Concretely, copy the full file from Task 2, then in the buyer copy:
   ```bash
   kpass agent create --uid <slug> --kind buyer --output json
   ```
-  and delete the sentence `(`--kind buyer` on the buyer copy of this file.)`.
+  and delete the sentence `(--kind buyer on the buyer copy of this file.)`.
 - Step 6's second code block becomes:
   ```bash
   kpass agent bind --agent <did-or-agt-id> --token <art_...> --output json
   ```
-  and the following sentence becomes: `(`kagent bind --agent <did-or-agt-id> --token <art_...> --output json` on the seller copy of this file.)`
+  and the following sentence becomes: `(kagent bind --agent <did-or-agt-id> --token <art_...> --output json on the seller copy of this file.)`
 
 Everything else — Steps 1–4, the intro paragraph, the closing JWT paragraph — is byte-for-byte identical to Task 2's file.
 
