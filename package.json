@@ -1,6 +1,6 @@
 {
   "name": "@kpass/skills",
-  "version": "1.12.1",
+  "version": "1.12.2",
   "private": true,
   "license": "MIT",
   "description": "AI agent skills for the Kite Passport CLI — authentication, sessions, payments, and transfers",
