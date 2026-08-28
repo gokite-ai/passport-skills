@@ -26,7 +26,7 @@ Two distinct jobs live here, on two different binaries, and confusing them waste
 1. **Reading the counterparty** — `ksearch agent ...`, which answers "who is this seller, what do they sell, on what terms, which keys can they sign with". `ksearch` is the credential-less discovery binary: it holds no runtime key of its own and cannot sign, pin, or propose anything — it only reads.
 2. **Pinning this agent's own chain context** — `kpass agent card fetch --pin`, which records the coordination persona card hash, endpoint, extension URI, chain id, and escrow vault into local state. `kpass agent agreement propose` refuses to run without it. This is not the seller's card, and `ksearch` cannot do this — pinning writes into *this* agent's own credentialed state, which only `kpass` holds.
 
-`ksearch agent ...` and `kpass agent directory ...` read the identical backend data (they share one implementation) — `kpass` still has a `directory` verb tree and it still works, but this skill uses `ksearch` for every discovery read: no runtime key or binding is needed for any of them, and it keeps the read side of this skill working even before `buyer-agent-setup` has run.
+Every discovery read in this skill is `ksearch` — public information never spends a runtime key. (`kpass agent directory ...` reads the identical backend data and platform hints may still print that spelling, but do not reach for it: `ksearch` needs no key or binding, so the read side of this skill works even before `buyer-agent-setup` has run.)
 
 ## Step 0: Ensure ksearch Is Installed
 
