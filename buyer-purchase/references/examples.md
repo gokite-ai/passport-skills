@@ -12,7 +12,7 @@ The owner wants a market-research report from `did:kite:example-seller`, whose r
 
 ### 1. Draft the terms file
 
-The terms file carries the business half of the contract only. The CLI owns `schema`, `buyerAgentId`, `sellerAgentId`, `runtimeBinding`, `signatures`, and `termsHash` — including any of them is exit 2. `workflowId` is the CLI's to write too, but it is not in that list: an echo of the offering's own value is accepted, and only a DIFFERENT one is refused.
+The terms file carries the business half of the contract only. The CLI owns `schema`, `buyerAgentId`, `sellerAgentId`, `runtimeBinding`, `signatures`, and `termsHash` — including any of them is exit 2. The `workflow` object is the CLI's to write too — it is the contract's ONE workflow selector, read from the seller's offering and verified hash-by-hash before signing; a terms file authoring it (or naming the retired top-level `workflowId`) is refused.
 
 ```bash
 cat > ./terms.json <<'EOF'
@@ -34,7 +34,7 @@ EOF
 The example keeps the optional `priceSchedule` slot visible as `{}`. It may be
 omitted with the same meaning.
 
-**`workflowId` is absent on purpose — leave it out.** The seller declares one
+**No workflow member belongs in the terms file.** The seller declares one
 workflow per offering in its registration; `propose` reads it from the offering
 `registrationBasis.offeringId` names and writes it in. Echoing the same value is
 harmless and accepted; naming a *different* one is refused before anything is
