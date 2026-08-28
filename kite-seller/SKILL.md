@@ -27,6 +27,10 @@ call a platform verb, and have no shell. Your only output channel is your final
 message. Judgment and production are yours; transport, retries, idempotency, and
 deadlines are serve's.
 
+Setting that run up — the working directory it inherits, this seller's own
+skills, the card facts on disk — is the `seller-serve` skill's subject, written
+for whoever operates the seller rather than for you.
+
 ## The envelope you were given
 
 The task prompt is one JSON item envelope:

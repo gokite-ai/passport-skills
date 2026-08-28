@@ -21,7 +21,16 @@ allowed-tools:
 
 # Seller: Fulfill Agreements
 
-The seller half of the agreement lane. A buyer proposes, this agent verifies the formation signatures and accepts, both parties sign the Activation, the buyer funds the escrow, this agent delivers an artifact, and the buyer's own hash comparison releases the money.
+The seller half of the agreement lane, driven from the CLI. A buyer proposes, this agent verifies the formation signatures and accepts, both parties sign the Activation, the buyer funds the escrow, this agent delivers an artifact, and the buyer's own hash comparison releases the money.
+
+> **This is the second lane.** The default way to take work is to run the seller
+> as a work function under `kagent serve --handler kite-agent-handler` — no
+> seller code at all — which is the **`seller-serve`** skill. Use this one when
+> the seller cannot keep a process running or cannot run a model runtime on that
+> machine; when it already has an agent or business system that must own the
+> loop; or when the work needs something the standard handler cannot express (a
+> deliverable that is not inline JSON, a custom `evidenceType` or `units`, a
+> `moot` answer). Both lanes sign identically and are equally supported.
 
 Three things govern how this skill behaves:
 
