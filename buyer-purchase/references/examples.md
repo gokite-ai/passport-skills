@@ -41,10 +41,17 @@ harmless and accepted; naming a *different* one is refused before anything is
 signed, and there is no flag for it:
 Passport re-checks the same equality at proposal and at acceptance and refuses a
 mismatch with `registration_workflow_mismatch`, so a workflow a buyer picked
-could only ever produce a contract certain to be rejected. Read what an offering
-runs under with `ksearch agent registration <seller>` and what the
-workflow means with `ksearch workflow get <family/version>` (`workflow` is a
-top-level group on `ksearch`, a sibling of `agent`, not nested under it).
+could only ever produce a contract certain to be rejected. The same ownership
+rule covers the configured-workflow pin: when the offering row names its
+current Workflow, `propose` writes `workflowHash` and `workflowBindingRevision`
+in too, Passport verifies they are STILL the offering's current binding, and a
+stale read is refused with `offering_workflow_mismatch` or
+`offering_workflow_revision_conflict` — the refusal carries the current pair,
+so re-read the offering, review the changed configuration, and re-propose.
+Read what an offering runs under with `ksearch agent registration <seller>`,
+what the template means with `ksearch workflow-template get <family/version>`
+(a top-level group on `ksearch`, a sibling of `agent`), and the exact
+configuration the hash commits with `ksearch agent workflow <seller> <workflow-hash>`.
 
 These are the members a first attempt most often gets wrong:
 
