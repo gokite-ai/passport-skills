@@ -12,7 +12,7 @@ The owner wants a market-research report from `did:kite:example-seller`, whose r
 
 ### 1. Draft the terms file
 
-The terms file carries the business half of the contract only. The CLI owns `schema`, `buyerAgentId`, `sellerAgentId`, `runtimeBinding`, `signatures`, and `termsHash` — including any of them is exit 2. `workflowId` is the CLI's to write too, but it is not in that list: an echo of the offering's own value is accepted, and only a DIFFERENT one is refused.
+The terms file carries the business half of the contract only. The CLI owns `schema`, `buyerAgentId`, `sellerAgentId`, `runtimeBinding`, `signatures`, and `termsHash` — including any of them is exit 2. The `workflow` object is the CLI's to write too — it is the contract's ONE workflow selector, read from the seller's offering and verified hash-by-hash before signing; a terms file authoring it (or naming the retired top-level `workflowId`) is refused.
 
 ```bash
 cat > ./terms.json <<'EOF'
@@ -34,17 +34,26 @@ EOF
 The example keeps the optional `priceSchedule` slot visible as `{}`. It may be
 omitted with the same meaning.
 
-**`workflowId` is absent on purpose — leave it out.** The seller declares one
+**No workflow member belongs in the terms file.** The seller declares one
 workflow per offering in its registration; `propose` reads it from the offering
 `registrationBasis.offeringId` names and writes it in. Echoing the same value is
 harmless and accepted; naming a *different* one is refused before anything is
 signed, and there is no flag for it:
 Passport re-checks the same equality at proposal and at acceptance and refuses a
 mismatch with `registration_workflow_mismatch`, so a workflow a buyer picked
-could only ever produce a contract certain to be rejected. Read what an offering
-runs under with `ksearch agent registration <seller>` and what the
-workflow means with `ksearch workflow get <family/version>` (`workflow` is a
-top-level group on `ksearch`, a sibling of `agent`, not nested under it).
+could only ever produce a contract certain to be rejected. The same ownership
+rule covers the embedded Workflow — a REQUIRED contract member: `propose`
+fetches the offering's current Workflow by content hash, re-derives every hash from the
+literal bytes, and embeds the whole object into the contract — so both parties
+sign the configuration itself. Passport verifies the embedded object's
+equalities and that its hash is STILL the offering's current binding; a stale
+read is refused with `offering_workflow_mismatch` carrying the current hash,
+so re-read the offering, review the changed configuration, and re-propose.
+Authoring a `workflow` member in a terms file is refused outright.
+Read what an offering runs under with `ksearch agent registration <seller>`,
+what the template means with `ksearch workflow-template get <family/version>`
+(a top-level group on `ksearch`, a sibling of `agent`), and the exact
+configuration the hash commits with `ksearch agent workflow <seller> <workflow-hash>`.
 
 These are the members a first attempt most often gets wrong:
 

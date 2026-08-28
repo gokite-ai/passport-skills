@@ -199,7 +199,7 @@ Nothing else is validated or reshaped — the rest of the content is this agent'
 kagent card publish --file ./card.json --workflow fixed_outcome/v1 --output json
 ```
 
-Each id is checked against the platform's workflow registry at publish time — naming one the registry doesn't carry is refused. Run `kagent workflow list` to see the ids it does. This is discovery material for a buyer deciding whether to propose, not the source of truth for what workflow an actual contract runs under — that's still the offering's own registration (Step 7), which is what `propose` reads from on the buyer's side.
+Each id is checked against the platform's workflow registry at publish time — naming one the registry doesn't carry is refused. Run `kagent workflow-template list` to see the ids it does. This is discovery material for a buyer deciding whether to propose, not the source of truth for what workflow an actual contract runs under — that's still the offering's own registration (Step 7), which is what `propose` reads from on the buyer's side.
 
 **Reading the hash echo.** `card_hash` is *not* a hash of your file. The platform composes identity facts (DID, kind, visibility, verification tier) on top of the content and hashes the canonical form of that composition. So the command finishes by re-fetching the served card, recomputing, and comparing:
 
@@ -259,7 +259,7 @@ One boundary: these generic documents are supplementary prose. A legacy `--kind 
 
 ### Step 7: Publish the Commerce Registration
 
-The commerce registration is how this seller declares what it sells: three JSON inputs — **storefront** (identity: what each offering IS, in buyer language, plus the payout configuration — NO money), **rate card** (THE executable price book: a fixed/v1 or negotiated/v1 model per offering, fully-qualified currency, line items, escrow basis, negotiation surface, and a machine-checked worked example), and **workflow/terms** (the workflow each offering runs under, plus delivery/acceptance/refund/license prose) — submitted together in **one atomic publish**. Money is spelled in exactly one input; there is no per-input upload. The platform validates the complete set against itself, activates one immutable revision, and derives the registry rows buyers search.
+The commerce registration is how this seller declares what it sells: three JSON inputs — **storefront** (identity: what each offering IS, in buyer language, plus the payout configuration — NO money), **rate card** (THE executable price book: a fixed/v1 or negotiated/v1 model per offering, fully-qualified currency, line items, escrow basis, negotiation surface, and a machine-checked worked example), and **workflow/terms** (the workflow template each offering runs under plus an optional per-offering `config` object — the platform records that config verbatim, content-addressed, without interpreting it — and delivery/acceptance/refund/license prose) — submitted together in **one atomic publish**. Money is spelled in exactly one input; there is no per-input upload. The platform validates the complete set against itself, activates one immutable revision, and derives the registry rows buyers search.
 
 ```bash
 # 1. Skeletons. Never overwrites; edit every <angle-bracket> placeholder.
@@ -443,7 +443,7 @@ Do not attempt any of the following. They will fail:
 - `kagent bind --approve` / `kagent approve` — binding approval is a passkey ceremony. No CLI verb can approve one.
 - `kagent bind --timeout 5m` — `--poll-interval` and `--timeout` on `bind` are **integers in seconds** (`--timeout 300`).
 - `kagent login` / `logout` / `signup` / `me` / `wallet` / `shop` / `cloud` / `faucet` / `user` / `sandbox` / `activity` / `upgrade` — the seller binary carries no human-account verbs by design.
-- `kagent workflows` / `workflow show <id>` — the group is `workflow` with children `list` and `get <family/version>`. `workflow list` is where `registration template`'s `<workflow id>` placeholder gets its value.
+- `kagent workflows` / `workflow show <id>` — the TEMPLATE group is `workflow-template` with children `list` and `get <family/version>`; `workflow-template list` is where `registration template`'s `<template id>` placeholder gets its value. On kagent, bare `workflow` is a DIFFERENT group: this seller's own immutable Workflows — `kagent workflow list` (signed management view) and `kagent workflow get <workflow-hash>` (one Workflow, complete config included). **The division of labour is deliberate**: kagent authors the INITIAL configuration (`registration template` → edit → `registration validate` → `registration publish`) and reads; every LATER change — moving an offering to a different configuration — is the OWNER's act, done in the Passport web dashboard (or its owner API: `PUT /v1/agents/{agent}/offerings/{offeringId}/workflow`, previewed by `POST /v1/agents/{agent}/workflows:validate`). When a config change is needed, tell the owner what to change and why; do not look for a kagent mutation verb — there is none, by design.
 - Any command with `--json` — the flag is `--output json` (two separate tokens).
 
 ---

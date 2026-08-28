@@ -234,7 +234,7 @@ Passing `<ref>` together with any search flag is refused as **exit 2 (usage)**: 
 |---|---|---|---|
 | `--query <text>` | string | `""` | Case-insensitive substring over offering title and description. |
 | `--offering-kind <kind>` | string | `""` | Exact match: `dataset`, `api`, `media`, `compute`, or `service`. |
-| `--workflow <id>` | string | `""` | Exact workflow id, e.g. `fixed_outcome/v1`. |
+| `--workflow-template <id>` | string | `""` | Exact workflow-template id, e.g. `fixed_outcome/v1` (`--workflow` is a hidden alias). |
 | `--price-model <model>` | string | `""` | Exact match: `fixed/v1` or `negotiated/v1`. |
 | `--currency-asset <asset>` | string | `""` | Exact settlement asset string. |
 | `--max-total-price-minor <n>` | string | `""` | Upper bound on the static total, in minor units. Offerings with no static total (metered or negotiated pricing) never match this filter. |
