@@ -75,13 +75,59 @@ Answer with exactly one reply frame:
    "registrationHash": "<this seller's active registration>", "offeringId": "…",
    "price": {"amount": "…", "asset": "…"}, "priceSchedule": …}
   ```
-  When the card's negotiation mode is `none` (a fixed-price offering),
+  Return the frame object itself — do NOT wrap it in a `reply` member; the
+  runtime adds that, and a wrapped frame nests inside itself and is refused.
+
+  **The card is a file, not a memory.** Read `out/active-registration.json` —
+  this seller's registration as the platform serves it:
+  `registration.registration.registrationHash` is the hash to quote, and the
+  entry in `registration.projection.offerings[]` for the offering you are
+  pricing carries the platform-held card in its `rateCard` member (`currency`,
+  `lineItems`, `negotiation`). If that file is missing, or your offering is not
+  in it, answer with a `reply/v1` saying you cannot quote right now — never
+  guess a hash or a card.
+
+  **Fixed cards** (`negotiation.mode` is `"none"`, model `fixed/v1`):
   `priceSchedule` MUST be exactly `{}` — empty means the headline price IS the
-  settlement amount; never construct resolved line items yourself. Only a
-  negotiated/v1 card takes overrides, and they must stay inside the published
-  negotiation space — the rate card is the boundary and the platform
-  re-validates it. Record every quote you issue under `out/quotes/` so a later
-  decide can recognize it.
+  settlement amount, and it must equal the card's own line total. Never
+  construct resolved line items for a fixed card.
+
+  **Negotiated cards** (`negotiated/v1`): you choose ONLY the amount; the
+  schedule is a mechanical copy of the card. serve re-derives every field from
+  your published card and refuses any mismatch by deep equality, so an inexact
+  copy wastes the whole run.
+
+  1. Pick `amountMinor` — your price in the currency's minor units, digits only,
+     no leading zeros (USDC has 6 decimals: 12.50 USDC = `"12500000"`), inside
+     that line's `negotiation.negotiable[].minMinor`..`maxMinor`.
+  2. Build the schedule with exactly these three members:
+     ```json
+     {"request": {},
+      "overrides": [{"itemId": "<the negotiable line's itemId>", "amountMinor": "<your amount>"}],
+      "resolved": {
+        "currency": <the card's currency object, verbatim>,
+        "escrow": {"requiredBeforeDeliveryMinor": "<sum of the resolved line amounts>"},
+        "lineItems": <the card's lineItems array, in order, verbatim — itemId, name,
+                      kind and every other member unchanged — with your amountMinor
+                      added to the line you overrode>
+      }}
+     ```
+     An override is `{itemId, amountMinor}`. It is NOT `{field, value}`: the
+     value goes under the key it names.
+  3. Set `price` to `{"amount": "<amountMinor as a plain decimal, trailing zeros
+     trimmed: 5000000 → \"5\">", "asset": "<currency.code, e.g. \"USDC\" — the
+     code, not the chain asset URI>"}`.
+
+  With one flat negotiable line this collapses to: one override,
+  `resolved.lineItems` = the published line plus your `amountMinor`, and
+  `escrow.requiredBeforeDeliveryMinor` = that same amount.
+
+  **Record the quote** as `out/quotes/<threadId>.json`, carrying `threadId`,
+  `from` (the buyer), `offeringId`, `registrationHash`, `price`,
+  `priceSchedule`, and a one-line `scope` naming exactly what you priced. The
+  `scope` line is load-bearing: a proposal carries no thread id, so at decide
+  time it is the only way to tell the deal you quoted from a different job that
+  happens to cost the same.
 
 ### decide — a proposal names this seller
 
@@ -90,8 +136,20 @@ The terms are already verified against the published registration
 rules. Judge **willingness and capacity**: is the deliverable within what this
 seller does, and can it be done well now?
 
-- First check `out/quotes/`: a proposal whose priceSchedule matches a quote this
-  seller already issued is a deal already judged — accept it.
+- First check `out/quotes/`. A recorded quote is a deal you already judged, but
+  only when ALL FOUR of these hold — a proposal carries no thread id, so a
+  matching price alone proves nothing, and a card with one flat line at a common
+  price matches almost any later proposal:
+  1. the `priceSchedule` and `registrationHash` match the recorded quote,
+  2. the proposal's buyer is the buyer that quote was issued to (`from`),
+  3. the proposal's deliverable is the `scope` that quote priced — the same
+     work, not merely the same money,
+  4. the quote is **unconsumed**: no `out/quotes/used/<threadId>.json` exists.
+
+  When all four hold, accept, and immediately write
+  `out/quotes/used/<threadId>.json` (the agreement id, the quote's threadId, the
+  date) so one quote can never license a second agreement. Otherwise treat the
+  proposal as unquoted and judge it on the seller's own standard below.
 - The acceptance standard belongs to the SELLER, not to this skill: read this
   seller's own acceptance-criteria skill (the one whose SKILL.md states what
   this seller will and will not take on). **If no such skill exists, escalate —
