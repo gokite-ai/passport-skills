@@ -19,6 +19,10 @@ allowed-tools:
   - "Bash(bash */setup-ksearch.sh*)"
   - "Bash(kagent *)"
   - "Bash(ksearch *)"
+  - "Bash(kpass identifier *)"
+  - "Bash(kpass onboarding *)"
+  - "Bash(kpass agent create *)"
+  - "Bash(kpass agent token create *)"
 ---
 
 # Seller Agent Setup
@@ -32,9 +36,11 @@ One boundary to be clear about up front: **this agent publishes; the owner lists
 ## Step 0: Ensure the CLI Bundle Is Installed — MANDATORY
 
 ```bash
-# 1. Make sure kagent itself is present. setup.sh ensures kpass, which this
-#    skill does not drive — the seller agent's binary is kagent, it arrived in
-#    CLI 1.11.0, and an older bundle installs kpass without it.
+# 1. Make sure kagent itself is present. setup.sh ensures kpass (this skill
+#    also drives a few kpass account-bootstrap verbs — see
+#    references/owner-bootstrap.md) — the seller agent's PRIMARY binary is
+#    kagent, it arrived in CLI 1.11.0, and an older bundle installs kpass
+#    without it.
 bash <skill-directory>/scripts/setup-kagent.sh
 
 # 2. Then the shared CLI floor.
@@ -100,8 +106,8 @@ Resolution order for the key: `--key-file`, then `KAGENT_RUNTIME_KEY_FILE`, then
 |---|---|---|
 | Output format | `--output json` | Always. |
 | State location | `~/.kagent` | Only pass `--config-dir` or `--key-file` when the deployment requires it. |
-| Bind path | Direct (no `--token`) | Only pass `--token` when the owner minted an `art_...` token. |
-| `--wait` on bind | On, for unattended runs | Omit it to report the approval URL immediately and poll `status` later. |
+| Bind path | Mint-then-bind (`agent token create` → `bind --token`) | Falls back to direct (no `--token`) only if token mint ever requires step-up. |
+| `--wait` on bind | Not used on the default mint-then-bind path (lands `active` immediately) | On the fallback direct path, for unattended runs — omit it to report the approval URL immediately and poll `status` later. |
 | Document slot | `default` (omit `--slot`) | Only pass `--slot` when the owner maintains several documents of one kind. |
 | `--content-type` | Derived from the file extension | Only pass it when the extension is misleading. |
 | Pointer | Move it (omit `--no-current`) | Only pass `--no-current` to stage content without publishing it as current. |
@@ -110,7 +116,7 @@ Resolution order for the key: `--key-file`, then `KAGENT_RUNTIME_KEY_FILE`, then
 
 ## Command Reference
 
-Full argument tables, JSON envelopes, content rules, and hash semantics for `init`, `key show`, `bind`, `status`, `card fetch`, `card publish`, `registration template`, `registration validate`, `registration publish`, `registration get`, `docs publish`, and `docs unpublish`:
+Full argument tables, JSON envelopes, content rules, and hash semantics for `init`, `key show`, `bind`, `status`, `card fetch`, `card publish`, `registration template`, `registration validate`, `registration publish`, `registration get`, `docs publish`, `docs unpublish`, and the owner-bootstrap commands (`kpass identifier claim`, `kpass onboarding submit`, `kpass onboarding status`, `kpass agent token create`):
 
 -> **`@references/commands.md`**
 
@@ -132,23 +138,36 @@ Exit 2 with a hint about orphaning means a key already exists. Check `kagent sta
 
 ### Step 2: Ask the Owner Which Agent to Bind To
 
-You cannot discover this. The owner creates the seller agent record and tells you which one this runtime represents — a `did:kite:...` DID, an `agt_...` id, or a uid. A reference that does not resolve is exit 4, not something to retry with guesses.
+You cannot discover the `uid` on your own — ask the owner, and confirm `--kind seller`. Before creating the agent, work through **`@references/owner-bootstrap.md`** steps 1–4: check onboarding status, claim the controller identifier, submit KYC/KYB, and poll briefly. Every account needs this before `agent create` will succeed — it refuses with `ErrRequiresIdentifier` / `ErrRequiresOnboarding` otherwise.
 
-What they run is either the Passport dashboard or, with their own login:
+Once that resolves (`verified`, or already was), create the agent — either the owner does this through the Passport dashboard, or you run it directly on their already-authenticated `kpass` session (see `authenticate-user`):
 
 ```bash
 kpass agent create --uid <slug> --kind seller --output json
 ```
 
-That is the owner's command, not yours: it authenticates with their JWT, and the `uid` becomes the tail of the DID permanently — neither can be changed afterwards, only replaced by a new agent. (The display name IS editable later; the uid is not.) A seller created without a `--url` starts **unlisted**, which is correct at this point: it has no card yet for a buyer to read.
+The `uid` becomes the tail of the DID permanently — neither can be changed afterwards, only replaced by a new agent. (The display name IS editable later; the uid is not.) A seller created without a `--url` starts **unlisted**, which is correct at this point: it has no card yet for a buyer to read. A reference that does not resolve later, in Step 3, is exit 4, not something to retry with guesses.
+
+If `owner-bootstrap.md` Step 4 reports onboarding still `pending` past its poll budget, or Step 1/3 hit a `rejected` record, stop there and follow that file's guidance — do not attempt `agent create` early.
 
 ### Step 3: Bind, and Surface the Approval
+
+**Default path — mint then bind (`@references/owner-bootstrap.md` Step 6):**
+
+```bash
+kpass agent token create --agent <did-or-agt-id> --output json
+kagent bind --agent <did-or-agt-id> --token <art_...> --output json
+```
+
+Token minting needs only the owner's plain JWT — no passkey step-up — so this lands `active` immediately in practice: no `--wait`, no `approval_url` to surface. Do this first.
+
+**Fallback path — if token mint ever comes back requiring step-up** (defensive, not expected):
 
 ```bash
 kagent bind --agent <did-or-agt-id> --wait --output json
 ```
 
-- **`status: "human_action_required"`, `binding: "pending"`** — the direct path, always. **The owner must approve it with their passkey; no CLI verb can.** How to tell them depends on what the envelope carries, and both cases happen:
+- **`status: "human_action_required"`, `binding: "pending"`** — the direct path. **The owner must approve it with their passkey; no CLI verb can.** How to tell them depends on what the envelope carries, and both cases happen:
   - **`approval_url` present** — surface it verbatim and say it needs their passkey. It is written only when the backend supplied one, so its absence is normal, not an error.
   - **`approval_url` absent** — give the navigation path and the identifying fields instead, because a bare "go approve it" is not actionable and an agent can carry **several** pending runtimes at once:
 
@@ -453,7 +472,7 @@ Do not attempt any of the following. They will fail:
 Before running any command, verify:
 
 1. **`--agent`**: came from the owner. A DID, `agt_` id, or uid. Never fabricated.
-2. **`--token`**: only when the owner minted one; starts with `art_`. Omit the flag for the direct path rather than passing it empty.
+2. **`--token`**: the `art_...` value from `kpass agent token create` (this skill mints it itself on the default path) — or one the owner minted directly. Starts with `art_`. Omit the flag only for the fallback direct path rather than passing it empty.
 3. **`--import-key`**: a PATH to a file holding the key, or `-` to read it from stdin. Never the key itself — a key passed on the command line reaches shell history, the process table and this transcript, and cannot be un-leaked. The CLI refuses inline material.
 4. **`--force`**: only with explicit owner agreement that the identity is being abandoned.
 5. **`--poll-interval` / `--timeout` on bind**: bare integers (seconds), not durations.
@@ -489,6 +508,7 @@ absent one of the reasons above, set up the handler lane.
 
 ## Cross-Skill References
 
+- **The JWT this skill assumes throughout:** the **`authenticate-user`** skill — run it first if `owner-bootstrap.md`'s commands return exit code 3.
 - **Next, to take work — the default:** the **`seller-serve`** skill.
 - **The CLI lane, when serving as a work function does not fit:** the
   **`seller-fulfill`** skill.

@@ -18,6 +18,113 @@ Colon-separated command paths work as aliases: `kagent agreement:funding:sign` i
 
 ---
 
+## Owner Bootstrap: `kpass identifier claim`, `kpass onboarding submit`, `kpass onboarding status`, `kpass agent token create`
+
+These four run on the **`kpass`** binary (the owner's account surface), not `kagent` — see `references/owner-bootstrap.md` for when and why this skill invokes them. All four still take `--output json`.
+
+### `kpass identifier claim`
+
+| Flag | Type | Default | Required | Notes |
+|---|---|---|---|---|
+| `--handle <handle>` | string | `""` | no | The handle half, without the `ind-`/`corp-` prefix. Auto-generated from the account's saved email when omitted, with automatic retry (up to 5 attempts, numeric suffix) on collision. |
+| `--type <ind\|corp>` | string | `ind` | no | Individual or business. |
+
+```bash
+kpass identifier claim --output json
+```
+
+```json
+{
+  "_version": "1",
+  "status": "success",
+  "identifier": "ind-alice",
+  "claimed_at": "2026-08-28T00:00:00Z",
+  "hint": "Claimed ind-alice. Next: 'kpass onboarding submit --type kyc ...' to complete account verification."
+}
+```
+
+An account that already claimed an identifier gets a `usage`-class error whose message names that fact directly (`error_code: identifier_already_claimed`) and whose hint names the exact next command — this is not a bare 409 to interpret, read the message.
+
+### `kpass onboarding submit`
+
+| Flag | Type | Default | Required | Notes |
+|---|---|---|---|---|
+| `--type <kyc\|kyb>` | string | `""` | **yes** | Individual or business. |
+| `--legal-name <name>` | string | `""` | **yes** | Legal name on file. |
+| `--country <ISO2>` | string | `""` | **yes** | Two-letter ISO 3166-1 country code. |
+| `--reg-no <num>` | string | `""` | only for `kyb` | Business registration number. |
+
+```bash
+kpass onboarding submit --type kyc --legal-name alice --country US --output json
+```
+
+```json
+{
+  "_version": "1",
+  "status": "success",
+  "onboarding_status": "pending",
+  "type": "kyc",
+  "legal_name": "alice",
+  "country": "US",
+  "submitted_at": "2026-08-28T00:00:00Z",
+  "hint": "Submitted. Run 'kpass onboarding status --output json' to check verification."
+}
+```
+
+`onboarding_status` comes back `verified` immediately on a backend with onboarding auto-approve on — the hint changes accordingly to point at `agent create`. A verified record is immutable: resubmitting is a 409, with a hint saying so.
+
+### `kpass onboarding status`
+
+No flags beyond the shared ones.
+
+```bash
+kpass onboarding status --output json
+```
+
+```json
+{
+  "_version": "1",
+  "status": "success",
+  "onboarding_status": "verified",
+  "type": "kyc",
+  "legal_name": "alice",
+  "country": "US",
+  "submitted_at": "2026-08-28T00:00:00Z",
+  "verified_at": "2026-08-28T00:00:05Z",
+  "reason": "",
+  "hint": "Verified. Next: 'kpass agent create --uid <slug> --kind <buyer|seller> --output json'."
+}
+```
+
+Exit 4 (`NOT_FOUND`) until a first `onboarding submit`. No `--wait` flag — polling is the caller's job (see `owner-bootstrap.md` Step 4).
+
+### `kpass agent token create`
+
+| Flag | Type | Default | Required | Notes |
+|---|---|---|---|---|
+| `--agent <ref>` | string | `""` | **yes** | DID, `agt_...` id, or uid. |
+| `--ttl-seconds <n>` | int | server default (1 hour) | no | Token lifetime. Mutually exclusive with `--never-expires`. |
+| `--never-expires` | bool | `false` | no | Still single-use despite no expiry. |
+
+```bash
+kpass agent token create --agent did:kite:ind-alice:my-seller --output json
+```
+
+```json
+{
+  "_version": "1",
+  "status": "success",
+  "token": "art_...",
+  "id": "art_01...",
+  "expires_at": "2026-08-28T01:00:00Z",
+  "hint": "Use this once: kpass agent bind --agent did:kite:ind-alice:my-seller --token art_... --output json (or kagent bind for a seller runtime). It will not be shown again."
+}
+```
+
+The plaintext `token` is shown exactly once — the server stores only its hash. Consume it immediately with `kagent bind --token <art_...>`.
+
+---
+
 ## `kagent init`
 
 | Flag | Type | Default | Required | Notes |

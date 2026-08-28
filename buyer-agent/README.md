@@ -39,6 +39,15 @@ invoke `kpass signup`, `kpass login`, or other human-account commands through
 this permission, even if it's running in the same sandbox as user-facing
 skills.
 
+**Named exception:** `buyer-agent-setup` additionally carries
+`"Bash(kpass identifier *)"` and `"Bash(kpass onboarding *)"`, scoped to the
+one-time owner identity/KYC bootstrap documented in its
+`references/owner-bootstrap.md` (claiming a controller identifier and
+submitting KYC before an agent can be created — see that skill's Step 2). No
+other skill in this group carries this grant, and `buyer-agent-setup` still
+cannot invoke `kpass signup`, `kpass login`, or any other human-account
+command outside that named path.
+
 ## JSON output / exit-code contract
 
 Every `kpass agent ...` command follows the same conventions documented in

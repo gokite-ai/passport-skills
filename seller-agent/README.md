@@ -40,6 +40,18 @@ glob: a seller-agent skill should never be able to invoke buyer-side spending
 commands or human-account commands, even when installed in the same agent
 sandbox.
 
+**Named exception:** `seller-agent-setup` additionally carries
+`"Bash(kpass identifier *)"`, `"Bash(kpass onboarding *)"`,
+`"Bash(kpass agent create *)"`, and `"Bash(kpass agent token create *)"`,
+scoped to the one-time owner identity/KYC bootstrap and agent
+creation/bind-token minting documented in its `references/owner-bootstrap.md`
+(see that skill's Step 2 and Step 3). No other skill in this group carries
+this grant, and `seller-agent-setup` still cannot invoke `kpass signup`,
+`kpass login`, buyer-side spending commands (`kpass agent fund`, `kpass agent
+agreement ...`, `kpass agent session ...`, etc. — the grant is scoped to
+exactly `agent create` and `agent token create`, not the whole `kpass agent`
+tree), or any other human-account command outside that named path.
+
 ## JSON output / exit-code contract
 
 `kagent` follows the same conventions documented in
