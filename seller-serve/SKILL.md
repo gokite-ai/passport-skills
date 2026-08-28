@@ -170,7 +170,11 @@ That one short-circuits without calling the model at all — it should print a
 | Items time out and retry | `--handler-timeout` is below what the work takes, or the run hit the turn/budget cap |
 | A buyer's message never becomes an item | The buyer sent it without the request-frame `--skill`; nothing is minted and nothing errors |
 
-serve retries a failed item, then **parks** it and escalates to the owner. A
+serve retries a failed item, then **parks** it and escalates to the owner. When
+Passport's acceptance gate returns `escalation_required`, the request already
+exists: serve journals that escalation id and approval URL, and the sweep does
+not file a duplicate manual escalation. `acceptance_policy_violation` remains
+the fallback path where the sweep creates `acceptance-override` itself. A
 parked item is a decision waiting for a human, not a lost one.
 
 ## Cross-Skill References

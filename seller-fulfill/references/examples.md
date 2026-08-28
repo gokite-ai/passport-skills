@@ -202,9 +202,9 @@ kagent agreement status --agreement-id agr_7f2a --watch --output json
 
 ---
 
-## Example 2: An Acceptance Policy Refusal and an Interrupted Delivery
+## Example 2: An Automatic Governance Escalation and an Interrupted Delivery
 
-### The policy refusal
+### The automatic escalation
 
 ```bash
 kagent agreement accept --agreement-id agr_91c4 --output json
@@ -212,59 +212,42 @@ kagent agreement accept --agreement-id agr_91c4 --output json
 
 ```
 {
-  "status": "error",
-  "error_code": "acceptance_policy_violation",
-  "error": "...",
-  "hint": "The contract falls outside the owner's acceptance policy. Obtain the owner's approval for exactly this contract through the escalation flow, then retry.",
-  "next_command": "kagent escalate --kind acceptance-override --agreement-id agr_91c4 --summary <why this deal> --wait --output json"
+  "status": "human_action_required",
+  "agreement_id": "agr_91c4",
+  "escalation_id": "agent_escalation_4a7",
+  "escalation_reason": "seller_price_above_ceiling",
+  "action_digest": "sha256:4fd1...",
+  "approval_url": "https://passport.prod.gokite.ai/agent-escalation/decide?token=aes_...",
+  "approval_expires_at": "2026-08-22T10:15:00Z",
+  "hint": "Passport automatically parked this seller acceptance because it is outside the controller's standing policy. Send the approval URL to the controller; after approval, retry the identical agreement accept command.",
+  "next_command": "kagent escalation status --id agent_escalation_4a7 --wait --output json"
 }
 ```
 
-Exit 6. The owner configured an acceptance policy and this contract falls outside it. Nothing local is wrong, and **this agent cannot read its own policy** — there is no way to inspect what the boundary is, only to ask the owner to rule on this contract.
+Exit 0: the HTTP request succeeded and the governed action is parked. Nothing local is wrong, and **this agent cannot read its own policy**. Passport derived the reason and action digest at the enforcement gate and already created the decision request.
 
 The wrong reactions:
 
-- **Retrying `accept`.** The policy is server-side and will refuse identically.
+- **Retrying `accept` before a decision.** It converges on the same escalation id but cannot commit yet.
 - **Editing the contract.** The contract is the buyer's signed bytes. This agent countersigns them or it does not.
-- **Escalating with a vague summary.** The summary is the entire basis for a human's decision.
+- **Running `kagent escalate`.** That would try to create a duplicate manual request for an action Passport already parked.
 
-Escalate, with a summary written for the person who will read it:
+Surface the URL, then poll the id Passport returned:
 
 ```bash
-kagent escalate \
-  --kind acceptance-override \
-  --agreement-id agr_91c4 \
-  --summary "Buyer did:kite:example-buyer proposes 25 USDC for a battery-storage market report, due in 48h. Above the usual per-deal ceiling but the buyer has two prior ACCEPTED agreements with us and the deliverable is a standard PDF report." \
-  --wait \
-  --output json
+kagent escalation status --id agent_escalation_4a7 --wait --output json
 ```
 
-```
-{
-  "status": "human_action_required",
-  "escalation_id": "esc_4a7",
-  "escalation_status": "pending",
-  "kind": "acceptance-override",
-  "enforced": true,
-  "approval_url": "https://passport.prod.gokite.ai/approve/esc_4a7",
-  "approval_expires_at": "2026-08-22T10:15:00Z",
-  "agreement_id": "agr_91c4",
-  "next_command": "kagent escalation status --id esc_4a7 --wait --output json"
-}
-```
-
-`enforced: true` because `acceptance-override` is the reserved kind — an advisory escalation (any other `--kind` string) would record an opinion without unlocking the acceptance gate.
-
-No `--payload` was passed, so the verb attached the contract's verbatim bytes. That is what binds the owner's decision to *this* contract rather than to a category of deals.
+The request is bound to the full acceptance action and the one reason code. The controller-facing record carries server-derived policy evidence; the seller sees only the reason code and approval link.
 
 Surface the URL:
 
-> This needs your passkey: https://passport.prod.gokite.ai/approve/esc_4a7 — approving lets me accept agreement agr_91c4 (25 USDC report for did:kite:example-buyer), which is outside the current acceptance policy. The link expires at 10:15 UTC.
+> This needs your passkey: https://passport.prod.gokite.ai/agent-escalation/decide?token=aes_... — approving releases the `seller_price_above_ceiling` check for this exact acceptance. The link expires at 10:15 UTC.
 
 Then:
 
 ```bash
-kagent escalation status --id esc_4a7 --wait --output json
+kagent escalation status --id agent_escalation_4a7 --wait --output json
 ```
 
 ```
@@ -288,9 +271,11 @@ kagent agreement accept --agreement-id agr_91c4 --output json
 { "status": "success", "state": "COMMITTED", "revision": 2, "buyer_verified": true }
 ```
 
-The override is now spent. It admitted this contract once; there is no second use.
+The override is now spent. It admitted this exact action once; there is no second use. If a second independent clause also fails (for example the concurrent-obligation cap), Passport returns another `human_action_required` for that reason. Approve it and retry again; the final commit consumes both decisions atomically.
 
-Had the owner declined, the envelope would be `status: "expired"` with an empty `next_command`. That is a no — do not open a second escalation for the same deal unless the owner asks for one.
+Had the owner declined, the envelope would be `status: "expired"` with an empty `next_command`. That is a no — do not open a manual escalation for the same action.
+
+If automatic creation itself is unavailable, `agreement accept` retains the old exit-6 `acceptance_policy_violation` response with a `kagent escalate --kind acceptance-override ...` next command. That is the manual recovery/debug path, not the normal flow.
 
 ### The interrupted delivery
 
