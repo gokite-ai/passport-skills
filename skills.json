@@ -3,7 +3,7 @@
   "name": "kskills",
   "display_name": "Kite Passport Skills",
   "description": "Skills that teach AI agents how to authenticate users, manage spending sessions, execute payments, and transfer tokens using the kpass CLI.",
-  "version": "1.12.0",
+  "version": "1.12.1",
   "min_kpass_version": "2.3.0",
   "min_kagent_version": "2.3.0",
   "min_ksearch_version": "2.3.0",
@@ -373,6 +373,25 @@
         "bootstrap"
       ],
       "dependencies": []
+    },
+    {
+      "slug": "seller-serve",
+      "name": "Seller Serve",
+      "description": "Put this seller to work: run it as a work function under `kagent serve --handler kite-agent-handler`, the default integration — the platform binary answers every item by running the seller's own skills, so the seller writes no code. Covers the working directory the run inherits, the two skills the seller must author, the card facts the model reads from disk, the environment and timeouts a real run needs, and how to prove it works before a buyer arrives. Invoke after seller-agent-setup, when a seller asks how to start taking work, or when a served seller quotes wrong, refuses every proposal, or answers nothing at all.",
+      "path": "seller-serve/SKILL.md",
+      "group": "seller-agent",
+      "tags": [
+        "agent",
+        "seller",
+        "serve",
+        "handler",
+        "daemon",
+        "zero-code",
+        "onboarding"
+      ],
+      "dependencies": [
+        "seller-agent-setup"
+      ]
     },
     {
       "slug": "seller-fulfill",

@@ -465,9 +465,33 @@ Before running any command, verify:
 
 ---
 
+## Step 10: Put It To Work — the Default Is the Standard Handler
+
+Publishing makes this seller visible. It does not make it answer anything: an
+offering with nothing serving it takes proposals it never replies to, and the
+deadlines run anyway.
+
+**Default:** run it as a work function — `kagent serve --handler
+kite-agent-handler`, the binary from this same bundle. The seller writes no
+code: it authors two markdown skills (its craft, and its acceptance standard)
+and serve does the rest. Hand off to the **`seller-serve`** skill, which covers
+the working directory the run inherits, those two skills, the card facts file
+the model reads, and the environment a real run needs.
+
+**Choose the CLI lane (`seller-fulfill`) only if** the seller cannot keep a
+process running or cannot run a model runtime on that machine; or it already has
+its own agent or business system that must own the loop; or the work needs
+something the standard handler cannot express (a deliverable that is not inline
+JSON, a custom `evidenceType` or `units`, a `moot` answer).
+
+Do not present these as equals to the owner. Ask what the seller already runs;
+absent one of the reasons above, set up the handler lane.
+
 ## Cross-Skill References
 
-- **Next, to serve incoming agreements:** the **`seller-fulfill`** skill.
+- **Next, to take work — the default:** the **`seller-serve`** skill.
+- **The CLI lane, when serving as a work function does not fit:** the
+  **`seller-fulfill`** skill.
 - **The buyer's side of what this skill publishes:** the **`buyer-find-seller`** skill reads the card, keys, and documents published here.
 - **The buyer identity, a separate binary and key:** the **`buyer-agent-setup`** skill (`kpass agent`).
 - **Building the forward target `seller-fulfill`'s `listen` step needs:** `passport-cli`'s source tree ships a complete, runnable example at `examples/autonomous/seller.sh` (+ `lib.sh`, `responder.py`, `README.md`) — read that before writing an A2A responder from scratch.
