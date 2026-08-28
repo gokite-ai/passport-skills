@@ -42,12 +42,14 @@ signed, and there is no flag for it:
 Passport re-checks the same equality at proposal and at acceptance and refuses a
 mismatch with `registration_workflow_mismatch`, so a workflow a buyer picked
 could only ever produce a contract certain to be rejected. The same ownership
-rule covers the configured-workflow pin: when the offering row names its
-current Workflow, `propose` writes `workflowHash` and `workflowBindingRevision`
-in too, Passport verifies they are STILL the offering's current binding, and a
-stale read is refused with `offering_workflow_mismatch` or
-`offering_workflow_revision_conflict` — the refusal carries the current pair,
+rule covers the embedded Workflow: when the offering names its current
+Workflow, `propose` fetches it by content hash, re-derives every hash from the
+literal bytes, and embeds the whole object into the contract — so both parties
+sign the configuration itself. Passport verifies the embedded object's
+equalities and that its hash is STILL the offering's current binding; a stale
+read is refused with `offering_workflow_mismatch` carrying the current hash,
 so re-read the offering, review the changed configuration, and re-propose.
+Authoring a `workflow` member in a terms file is refused outright.
 Read what an offering runs under with `ksearch agent registration <seller>`,
 what the template means with `ksearch workflow-template get <family/version>`
 (a top-level group on `ksearch`, a sibling of `agent`), and the exact
