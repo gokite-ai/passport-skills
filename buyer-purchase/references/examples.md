@@ -42,8 +42,8 @@ signed, and there is no flag for it:
 Passport re-checks the same equality at proposal and at acceptance and refuses a
 mismatch with `registration_workflow_mismatch`, so a workflow a buyer picked
 could only ever produce a contract certain to be rejected. The same ownership
-rule covers the embedded Workflow: when the offering names its current
-Workflow, `propose` fetches it by content hash, re-derives every hash from the
+rule covers the embedded Workflow — a REQUIRED contract member: `propose`
+fetches the offering's current Workflow by content hash, re-derives every hash from the
 literal bytes, and embeds the whole object into the contract — so both parties
 sign the configuration itself. Passport verifies the embedded object's
 equalities and that its hash is STILL the offering's current binding; a stale
