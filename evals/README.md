@@ -10,12 +10,12 @@ There used to be references here to a `functional-workspace/` transcript store, 
 |---|---|---|
 | 1-3 | activity | user |
 | 4-6, 24-26 | authenticate-user | user |
-| 7-8, 14, 16, 31-32, 44-46, 51-52 | request-session | user |
+| 7-8, 14-16, 31-32, 44-46, 51-52 | request-session | user |
 | 9-11, 38-40, 49 | kite-discovery | user |
 | 12-13, 29-30 | manage-agents | user |
 | 17-19, 33-37, 48, 50 | shopping | user |
 | 20-21, 27-28, 56 | wallet-send | user |
-| 22-23, 41-43, 47 | x402-execute | user |
+| 22-23, 41-43, 47 | x402-execute | user (15 moved out to request-session -- it tests session reuse, not payment execution) |
 | 53-55 | attach-session | user |
 | 57-60 | buyer-agent-setup | buyer-agent |
 | 67-71 | buyer-find-seller | buyer-agent |
@@ -24,7 +24,7 @@ There used to be references here to a `functional-workspace/` transcript store, 
 | 65, 72-75, 77 | seller-fulfill | seller-agent |
 | 84-88 | upgrade-passport | user |
 | 89-92 | kite-passport (gateway routing) | user |
-| 93-97 | seller-serve | seller-agent |
+| 76, 93-97 | seller-serve | seller-agent |
 | 98-101 | kite-seller | seller-agent |
 
 `form-session-delegation`, `cloud-deploy`, and `report-feedback` have no evals and were explicitly out of scope for the 2026-08-28 correctness pass below.
@@ -41,6 +41,8 @@ Every eval for `authenticate-user`, `request-session`, `manage-agents`, `kite-di
 - **Skill misattribution after a new sibling skill shipped**: eval 76 tested `seller-fulfill`'s `kagent listen` as the default live-service loop, but `seller-serve` (added after this eval was written) made `kagent serve --handler` the default and demoted `listen` to an explicit-exception path — corrected in place to test `seller-serve`'s actual default.
 
 `manage-agents` evals 13 and 30 also had inconsistent filter behavior for near-identical "active sessions" phrasing (13 omitted `--status active`, 30 included it) — aligned to match.
+
+A follow-up review pass caught two more issues: eval 15 (moved here from x402-execute) described the pre-reuse-detection workflow -- `kpass agent:session list` first, then payment -- when `request-session/SKILL.md` now says reuse is checked automatically inside `agent:session create` and `list` is optional/diagnostic-only; and eval 76's skill-reassignment (seller-fulfill → seller-serve, see above) wasn't reflected in this table. Both are fixed now. A few new-eval assertions were also tightened from generic prose fragments (`"no permission"`, `"asks"`, a bare `"scope"`) to more literal, discriminating markers actually grounded in the skill docs.
 
 `activity`, `attach-session`, `wallet-send`, `x402-execute`, and `shopping` were **not** audited in this pass and may carry similar drift — treat their evals with proportionally less confidence until they get the same treatment.
 
