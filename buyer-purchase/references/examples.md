@@ -304,7 +304,7 @@ kpass agent agreement confirm --agreement-id agr_7f2a --output json
 {
   "status": "success",
   "command_id": "cmd_5a1f",
-  "command_type": "kite.contract.accepted",
+  "command_type": "kite.contract.accept",
   "state": "ACCEPTED",
   "revision": 6,
   "hint": "Accepted. The escrow releases to the seller.",

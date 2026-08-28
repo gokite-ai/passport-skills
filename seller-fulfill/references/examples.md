@@ -169,7 +169,7 @@ kagent agreement deliver --agreement-id agr_7f2a --file ./report.pdf --output js
 {
   "status": "success",
   "command_id": "cmd_9d3b",
-  "command_type": "kite.contract.delivered",
+  "command_type": "kite.contract.deliver",
   "state": "DELIVERED",
   "revision": 5,
   "evidence_id": "ev_2b7",

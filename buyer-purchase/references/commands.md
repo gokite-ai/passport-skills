@@ -402,7 +402,7 @@ Both build a signed settlement command against the vault anchors:
 {
   "agreement_id": "...",
   "command_id": "cmd_...",
-  "command_type": "kite.contract.accepted",
+  "command_type": "kite.contract.accept",
   "state": "ACCEPTED",
   "revision": 5,
   "settlement_sig": "0x...",
@@ -416,7 +416,7 @@ Both build a signed settlement command against the vault anchors:
 }
 ```
 
-`command_type` is `kite.contract.accepted` for confirm and `kite.contract.rejected` for reject. `reason_code` appears on reject only.
+`command_type` is `kite.contract.accept` for confirm and `kite.contract.reject` for reject. `reason_code` appears on reject only.
 
 - confirm: hint `Accepted. The escrow releases to the seller.`, `next_command` the `review` command.
 - reject: hint `Rejected. The dispute branch is open: ...`, `next_command` the watch.

@@ -240,7 +240,7 @@ Watch for `rejected_fields` in `funding get`: those are write-once values the en
 kagent agreement deliver --agreement-id <id> --file ./report.pdf --output json
 ```
 
-One verb, five steps, in a fixed order: read the anchors, hash the file locally, upload it content-addressed, register it as evidence, then sign the EIP-712 Delivery and submit the `kite.contract.delivered` command.
+One verb, five steps, in a fixed order: read the anchors, hash the file locally, upload it content-addressed, register it as evidence, then sign the EIP-712 Delivery and submit the `kite.contract.deliver` command.
 
 **The funding guard.** If the buyer's payment authorization is not recorded, the command refuses with exit 8 and — importantly — **the file is not uploaded**:
 
@@ -254,7 +254,7 @@ The digest appears in three spellings, all the same value: bare hex in the signe
 
 **Keep the local file until the escrow releases.** The buyer settles by downloading the artifact, recomputing its sha256, and comparing against the `deliveryHash` inside the signed command. If they report a mismatch, the local file is the only way to tell whose bytes moved.
 
-Once the delivered command lands, a second delivery is refused as `illegal_transition` (exit 7). That is the correct answer, not a bug to work around — a delivered agreement has one signed deliverable.
+Once the deliver command lands, a second delivery is refused as `illegal_transition` (exit 7). That is the correct answer, not a bug to work around — a delivered agreement has one signed deliverable.
 
 ### Step 6: Register Extra Evidence, If Any
 
