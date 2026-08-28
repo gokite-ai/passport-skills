@@ -34,7 +34,7 @@ set -euo pipefail
 # skills.json declares min_kagent_version, and until now this script only
 # checked that a kagent binary EXISTED — so any older one on PATH was accepted,
 # including versions predating commands the seller-agent skills call.
-DEFAULT_MIN_KAGENT_VERSION="2.0.0"  # floor = skills.json min_kagent_version
+DEFAULT_MIN_KAGENT_VERSION="2.3.0"  # floor = skills.json min_kagent_version
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SKILLS_JSON=""
