@@ -33,9 +33,10 @@
   {
     "id": 4,
     "prompt": "Log me in to Kite Passport",
-    "expected_output": "Agent runs setup.sh, then kpass login init --email <EMAIL> --output json --no-interactive, asks the user for the OTP code, then runs kpass login verify",
+    "expected_output": "Agent runs setup.sh, then kpass login init --email <EMAIL> --client agent --output json --no-interactive, asks the user for the OTP code, then runs kpass login verify with KPASS_LOGIN_CODE",
     "assertions": [
       "kpass login init",
+      "--client agent",
       "--output json",
       "--no-interactive"
     ]
@@ -43,9 +44,10 @@
   {
     "id": 5,
     "prompt": "I need to create a Kite Passport account",
-    "expected_output": "Agent runs setup.sh, then kpass signup init --email <EMAIL> --output json --no-interactive, waits for email verification, then runs signup poll and signup exchange",
+    "expected_output": "Agent runs setup.sh, then kpass signup init --email <EMAIL> --client agent --output json --no-interactive, asks the user for the 8-character sign-up code from their email, then runs signup exchange with KPASS_SIGNUP_CODE (signup poll is optional and not part of the primary flow)",
     "assertions": [
       "kpass signup init",
+      "--client agent",
       "--output json",
       "--no-interactive"
     ]
@@ -62,11 +64,12 @@
   {
     "id": 7,
     "prompt": "Create an agent session to access api.example.com",
-    "expected_output": "Agent constructs a delegation JSON with task description, paymentPolicy with max_amount_per_tx and max_total_amount, and executionPolicy, then passes it to kpass agent:session create",
+    "expected_output": "Agent preflights api.example.com to discover 402 payment requirements, then constructs a delegation JSON with task.summary, payment_policy (max_amount_per_tx and max_total_amount), and optional execution_constraints, then passes it to kpass agent:session create --delegation '<INNER-JSON>' --output json",
     "assertions": [
       "delegation",
       "payment_policy",
-      "kpass agent:session create"
+      "kpass agent:session create",
+      "--output json"
     ]
   },
   {
@@ -82,9 +85,9 @@
   {
     "id": 9,
     "prompt": "Find paid APIs for weather data",
-    "expected_output": "Agent runs setup-ksearch.sh, then ksearch services list --query weather --output json, and renders each service as a display card with name, summary, pricing, and base URL",
+    "expected_output": "Agent runs setup-ksearch.sh, then ksearch service list --query weather --output json, and renders each service as a display card with name, summary, pricing, and base URL",
     "assertions": [
-      "ksearch services list",
+      "ksearch service list",
       "--query",
       "--output json"
     ]
@@ -92,9 +95,9 @@
   {
     "id": 10,
     "prompt": "Show me details about the Exa service",
-    "expected_output": "Agent runs ksearch services get --service-id <exa-service-id> --output json and renders the service detail card with all endpoints, pricing, and payment approach",
+    "expected_output": "Agent runs ksearch service get <exa-service-id> --output json (service id passed as the positional argument, not a --service-id flag) and renders the service detail card with all endpoints, pricing, and payment approach",
     "assertions": [
-      "ksearch services get",
+      "ksearch service get",
       "service_id",
       "--output json"
     ]
@@ -102,9 +105,9 @@
   {
     "id": 11,
     "prompt": "What paid services are available on Kite?",
-    "expected_output": "Agent runs ksearch services list --output json and displays all available services with name, summary, starting price, and tags",
+    "expected_output": "Agent runs ksearch service list --output json and displays all available services with name, summary, starting price, and tags",
     "assertions": [
-      "ksearch services list",
+      "ksearch service list",
       "--output json",
       "━━━"
     ]
@@ -121,9 +124,10 @@
   {
     "id": 13,
     "prompt": "Show me my active spending sessions",
-    "expected_output": "Agent runs kpass user sessions --output json and displays each session with its status, delegation details, and spending limits",
+    "expected_output": "Agent runs kpass user sessions --status active --output json and displays each active session with its status, delegation details, and spending limits",
     "assertions": [
       "kpass user sessions",
+      "--status active",
       "--output json"
     ]
   },
@@ -149,9 +153,9 @@
   {
     "id": 16,
     "prompt": "Check the status of my pending session",
-    "expected_output": "Agent runs kpass agent:session list --output json and shows session status, delegation details, and whether the session is pending, active, or expired",
+    "expected_output": "Agent runs kpass agent:session status --request-id <request_id> --output json (add --wait to poll) to check whether the pending approval request is still pending, was approved, rejected, or expired. Note: kpass agent:session list only returns actual sessions with status active or expired -- it does not surface a request still awaiting approval.",
     "assertions": [
-      "kpass agent:session list",
+      "kpass agent:session status --request-id",
       "--output json"
     ]
   },
@@ -237,9 +241,10 @@
   {
     "id": 25,
     "prompt": "I tried to log in but got an error saying my email isn't registered — what should I do?",
-    "expected_output": "Agent recognises exit code 4 / 'email not registered' and falls back to kpass signup init --email <EMAIL> --no-interactive --output json, then continues the signup flow with signup poll and signup exchange",
+    "expected_output": "Agent recognises exit code 4 / 'email not registered' and falls back to kpass signup init --email <EMAIL> --client agent --no-interactive --output json, then asks the user for the 8-character sign-up code and completes the flow with signup exchange (signup poll is optional, not required)",
     "assertions": [
       "kpass signup init",
+      "--client agent",
       "--no-interactive",
       "--output json"
     ]
@@ -298,10 +303,9 @@
   {
     "id": 31,
     "prompt": "I approved the session in my Passport app — is it active yet?",
-    "expected_output": "Agent runs kpass agent:session status --request-id <REQUEST_ID> --wait --output json to poll for approval and reports the result once the session becomes active",
+    "expected_output": "Agent runs kpass agent:session status --request-id <REQUEST_ID> --output json -- a single check without --wait, since the user has already signaled approval -- and reports whether the session is now active",
     "assertions": [
       "kpass agent:session status --request-id",
-      "--wait",
       "--output json"
     ]
   },
@@ -371,9 +375,9 @@
   {
     "id": 38,
     "prompt": "Find AI APIs on Kite — I only want ones that accept USDC",
-    "expected_output": "Agent runs ksearch services list --query AI --asset USDC --output json (or equivalent filter combination) to surface services accepting USDC payment",
+    "expected_output": "Agent runs ksearch service list --query AI --asset USDC --output json (or equivalent filter combination) to surface services accepting USDC payment",
     "assertions": [
-      "ksearch services list",
+      "ksearch service list",
       "--asset USDC",
       "--output json"
     ]
@@ -381,9 +385,9 @@
   {
     "id": 39,
     "prompt": "Show me more Kite services — there must be more than the first page",
-    "expected_output": "Agent runs ksearch services list --limit N --cursor <CURSOR> --output json using the cursor from the previous response to fetch the next page",
+    "expected_output": "Agent runs ksearch service list --limit N --cursor <CURSOR> --output json using the next_cursor value from the previous response to fetch the next page",
     "assertions": [
-      "ksearch services list",
+      "ksearch service list",
       "--cursor",
       "--output json"
     ]
@@ -391,9 +395,9 @@
   {
     "id": 40,
     "prompt": "Is the Kite service catalog working right now?",
-    "expected_output": "Agent runs ksearch health --output json and reports whether the catalog backend is reachable and healthy",
+    "expected_output": "Agent runs ksearch service health --output json and reports whether the catalog backend is reachable and healthy",
     "assertions": [
-      "ksearch health",
+      "ksearch service health",
       "--output json"
     ]
   },
@@ -483,12 +487,12 @@
   {
     "id": 49,
     "prompt": "Search for AI services in the Kite catalog and show me the details for the first result",
-    "expected_output": "Agent runs ksearch services list --query AI --output json to get results, extracts the first service_id, then runs ksearch services get --service-id <ID> --output json to show full details",
+    "expected_output": "Agent runs ksearch service list --query AI --output json to get results, extracts the first service_id, then runs ksearch service get <ID> --output json (ID passed positionally, not via --service-id) to show full details",
     "assertions": [
-      "ksearch services list",
+      "ksearch service list",
       "--query",
-      "ksearch services get",
-      "--service-id",
+      "ksearch service get",
+      "service_id",
       "--output json"
     ]
   },
@@ -506,23 +510,24 @@
   {
     "id": 51,
     "prompt": "Set up a session for fal.ai with $0.03 per-tx and $3 total budget",
-    "expected_output": "Agent preflights fal.ai, derives the payment approach from the 402 response (likely tempo), and calls kpass agent:session create --delegation '<INNER-JSON>' --output json. The inner JSON must contain payment_policy.max_amount_per_tx, payment_policy.max_total_amount, and payment_policy.allowed_payment_approaches with the derived approach. Amount strings must be CLEAN decimals (e.g. 0.03, not 0.029999999999999998) — no more than 6 decimal digits and no trailing-9 float artifacts — so the USDC 6-decimal check does not reject the value at execute time.",
+    "expected_output": "Agent preflights fal.ai to discover payment requirements, then calls kpass agent:session create --delegation '<INNER-JSON>' --output json. The inner JSON must contain payment_policy.max_amount_per_tx (\"0.03\") and payment_policy.max_total_amount (\"3\") -- sessions are protocol-agnostic, so the delegation must NOT include payment_policy.allowed_payment_approaches or any protocol/approach field; that is detected automatically at execute time. Amount strings must be clean decimals (e.g. 0.03, not 0.029999999999999998) so the USDC 6-decimal check does not reject the value at execute time.",
     "assertions": [
       "kpass agent:session create",
       "--delegation",
       "max_amount_per_tx",
-      "allowed_payment_approaches",
+      "max_total_amount",
       "--output json"
     ]
   },
   {
     "id": 52,
     "prompt": "Create a session for a service that uses tempo payment protocol",
-    "expected_output": "Agent runs kpass agent:session create --delegation '<INNER-JSON>' --output json where payment_policy.allowed_payment_approaches is [\"tempo\"] (the base name — never tempo_http). Must not pass an _http-suffixed value in the allowed_payment_approaches array.",
+    "expected_output": "Agent preflights the merchant to discover payment requirements, then constructs a delegation containing only payment_policy.max_amount_per_tx, payment_policy.max_total_amount (and optional ttl_seconds / execution_constraints), and calls kpass agent:session create --delegation '<INNER-JSON>' --output json. Sessions are protocol-agnostic: the delegation must NOT include a payment_policy.allowed_payment_approaches field or any protocol/approach field -- legacy and silently ignored by the backend. Tempo settlement is detected automatically at execute time from the merchant's preflight response, not declared by the agent.",
     "assertions": [
       "kpass agent:session create",
       "--delegation",
-      "\"allowed_payment_approaches\": [\"tempo\"]",
+      "max_amount_per_tx",
+      "max_total_amount",
       "--output json"
     ]
   },
@@ -586,12 +591,11 @@
   {
     "id": 58,
     "prompt": "I created a buyer agent record, did:kite:acme-buyer-01 — bind your runtime key to it.",
-    "expected_output": "Agent runs kpass agent bind --agent did:kite:acme-buyer-01 --wait --output json. Since binding comes back pending and human_action_required, the agent surfaces the approval_url (or the Agents -> Runtimes navigation path plus the thumbprint when no URL is present) and explains the owner must approve it with their passkey — it does not attempt to approve the binding itself.",
+    "expected_output": "Agent runs kpass agent token create --agent did:kite:acme-buyer-01 --output json to mint a bind token, then consumes it with kpass agent bind --agent did:kite:acme-buyer-01 --token <art_...> --output json. This is the default path and typically lands binding: active / status: success immediately, with no --wait and no approval_url needed. Only if token minting were to require step-up would the agent fall back to kpass agent bind --agent did:kite:acme-buyer-01 --wait --output json, surfacing the approval_url and explaining the owner must approve with their passkey -- never attempting to approve it itself.",
     "assertions": [
-      "kpass agent bind --agent did:kite:acme-buyer-01",
-      "--wait",
-      "passkey",
-      "approval"
+      "kpass agent token create --agent did:kite:acme-buyer-01",
+      "kpass agent bind --agent did:kite:acme-buyer-01 --token",
+      "active"
     ]
   },
   {
@@ -627,11 +631,11 @@
   {
     "id": 62,
     "prompt": "The owner created a seller agent record, did:kite:acme-seller-01 — bind to it.",
-    "expected_output": "Agent runs kagent bind --agent did:kite:acme-seller-01 --wait --output json. Since the result is pending and human_action_required, the agent surfaces the approval_url or the navigation path plus thumbprint, and explains only the owner can approve it with a passkey.",
+    "expected_output": "Agent runs kpass agent token create --agent did:kite:acme-seller-01 --output json to mint a one-time bind token (needs only the owner's plain JWT, no passkey step-up), then immediately consumes it with kagent bind --agent did:kite:acme-seller-01 --token <art_...> --output json. This default mint-then-bind path typically lands the binding active immediately -- no --wait, no approval_url to surface. Only if token minting ever came back requiring step-up would the agent fall back to the direct path (kagent bind --agent did:kite:acme-seller-01 --wait --output json), surfacing the approval_url or navigation path plus thumbprint, and explaining that only the owner can approve with a passkey.",
     "assertions": [
-      "kagent bind --agent did:kite:acme-seller-01",
-      "--wait",
-      "passkey"
+      "kpass agent token create --agent did:kite:acme-seller-01",
+      "kagent bind --agent did:kite:acme-seller-01 --token",
+      "active"
     ]
   },
   {
@@ -771,12 +775,12 @@
   },
   {
     "id": 76,
-    "prompt": "You're going to run as a live service that responds to deals in real time — how should you notice new proposals?",
-    "expected_output": "Agent recommends kagent listen --forward <local-endpoint> --output json, since it is the only way to learn about new proposals (agreement.proposed) and receive buyer messages (message.received), rather than relying only on polling kagent agreement list.",
+    "prompt": "You're going to run as a live service that responds to deals in real time -- how should you start taking work?",
+    "expected_output": "Agent recommends running kagent serve --handler \"$HOME/.kpass/bin/kite-agent-handler\" --handler-timeout 10m --sweep-interval 30s from the seller directory. serve itself holds the platform stream and invokes the handler for each item, so the seller writes no code and does not call kagent listen directly -- that CLI-driven path (seller-fulfill) is only for a seller that cannot keep a process running, already owns its own agent loop, or needs something the standard handler can't express.",
     "assertions": [
-      "kagent listen --forward",
-      "agreement.proposed",
-      "message.received"
+      "kagent serve",
+      "--handler",
+      "kite-agent-handler"
     ]
   },
   {
@@ -847,6 +851,186 @@
       "kpass agent agreement review --agreement-id agr_123",
       "--rating",
       "--output json"
+    ]
+  },
+  {
+    "id": 84,
+    "prompt": "My last kpass wallet-send command finished successfully, and the JSON response included an update_available field: current_bundle 21, latest_bundle 22, channel latest, install_command \"kpass upgrade\". What do you do next?",
+    "expected_output": "Since install_command is exactly \"kpass upgrade\" (POSIX) and the user's current task already completed, the agent applies Rule 1: it runs kpass upgrade --output json immediately with no permission prompt, then reports the bundle change (21 -> 22, plus new CLI/ksearch/skills versions) together with the original task's result.",
+    "assertions": [
+      "kpass upgrade --output json",
+      "no permission",
+      "bundle 22"
+    ]
+  },
+  {
+    "id": 85,
+    "prompt": "I have KPASS_AUTO_UPGRADE=0 set in my environment. My last kpass command's response included update_available (bundle 21 -> 22, install_command \"kpass upgrade\"). What happens now, and how would it differ if that variable weren't set?",
+    "expected_output": "With KPASS_AUTO_UPGRADE=0, detection still surfaces the update, but the agent does NOT run kpass upgrade on its own -- it tells the user bundle 22 is available and asks for confirmation before applying. If KPASS_AUTO_UPGRADE were unset (or explicitly =1), that's the default: the agent would instead auto-run kpass upgrade --output json immediately without asking, per Rule 1.",
+    "assertions": [
+      "KPASS_AUTO_UPGRADE=0",
+      "asks",
+      "kpass upgrade"
+    ]
+  },
+  {
+    "id": 86,
+    "prompt": "I've set KPASS_NO_UPDATE_CHECK=1. Will kpass ever tell me about available updates without me asking?",
+    "expected_output": "No -- with KPASS_NO_UPDATE_CHECK=1, the update_available field is suppressed entirely from every kpass JSON envelope, so this skill's automatic trigger never fires. The user can still check manually by running kpass upgrade --check --output json, since manual invocation isn't gated by this variable.",
+    "assertions": [
+      "KPASS_NO_UPDATE_CHECK=1",
+      "update_available",
+      "kpass upgrade --check"
+    ]
+  },
+  {
+    "id": 87,
+    "prompt": "Is my kpass CLI up to date?",
+    "expected_output": "Agent runs kpass upgrade --check --output json. If it returns exit 0 (current), the agent reports the CLI is up to date. If it returns exit 10 (behind), since the user explicitly asked, the agent proceeds to apply the upgrade per Rule 1/2 (runs kpass upgrade --output json on POSIX, or surfaces install_command on Windows) rather than just reporting the check result and stopping.",
+    "assertions": [
+      "kpass upgrade --check --output json",
+      "kpass upgrade --output json",
+      "up to date"
+    ]
+  },
+  {
+    "id": 88,
+    "prompt": "I'm on Windows. My last kpass command's response included update_available with install_command \"irm https://cli.gokite.ai/install.ps1 | iex\" (bundle 21 -> 22). What should you do?",
+    "expected_output": "Agent does NOT execute the PowerShell command itself -- it shows install_command to the user verbatim and tells them to run it themselves in a PowerShell prompt, then re-run their original task in a fresh shell. This is Rule 2: irm | iex executes arbitrary remote code, which is a user decision, not an agent decision, so the agent must never auto-execute it.",
+    "assertions": [
+      "irm https://cli.gokite.ai/install.ps1 | iex",
+      "I can't run it for you on Windows",
+      "PowerShell"
+    ]
+  },
+  {
+    "id": 89,
+    "prompt": "Generate me an image of a cat wearing a wizard hat.",
+    "expected_output": "Agent recognizes this as creative/media output it cannot produce locally (trigger category 1 in kite-passport's description) and hands off to kite-discovery to find an image-generation service in the Kite catalog, rather than refusing on capability grounds, attempting to draw it itself, or falling back to a non-Kite tool. kite-passport itself doesn't execute the request -- it routes.",
+    "assertions": [
+      "kite-discovery",
+      "image generation",
+      "cannot produce locally"
+    ]
+  },
+  {
+    "id": 90,
+    "prompt": "Send 25 USDC to 0xAbC1234567890000000000000000000000dEaD",
+    "expected_output": "Agent recognizes this as a wallet task (Quick Reference: 'Send crypto, transfer tokens to an address' -> wallet-send) and hands off directly to wallet-send, not request-session/x402-execute -- wallet transfers don't need a spending session, unlike paid API calls or shopping checkout.",
+    "assertions": [
+      "wallet-send",
+      "no spending session",
+      "wallet"
+    ]
+  },
+  {
+    "id": 91,
+    "prompt": "Draw me an ASCII diagram of a binary search tree with nodes 5, 3, 8, 1, 4.",
+    "expected_output": "Agent recognizes this as an agent-producible diagram, explicitly excluded from kite-passport's scope ('Do NOT use for... agent-producible diagrams (mermaid, SVG, ASCII)'), and draws the ASCII tree directly using its own capabilities. It does not invoke kite-passport, kite-discovery, or any paid service, even though 'draw me a diagram' superficially resembles a creative-output request.",
+    "assertions": [
+      "ASCII",
+      "no paid service",
+      "produces it directly"
+    ]
+  },
+  {
+    "id": 92,
+    "prompt": "What's the current USD to EUR exchange rate?",
+    "expected_output": "Agent recognizes this as live data (trigger category 3 -- 'exchange rates' is named explicitly) despite being answerable-sounding from general knowledge, and routes to kite-discovery to find a real-time exchange-rate service rather than answering from static/training-data knowledge, which would likely be stale or wrong.",
+    "assertions": [
+      "kite-discovery",
+      "exchange rate",
+      "real-time"
+    ]
+  },
+  {
+    "id": 93,
+    "prompt": "This seller is set up and ready -- start it serving live so it can respond to buyer proposals in real time.",
+    "expected_output": "Agent cd's into the seller directory first, since serve sets no working directory and the cwd it is started from IS the whole configuration (skills and card facts load relative to it), sets ANTHROPIC_API_KEY (or the model runtime's own auth), then runs kagent serve --handler \"$HOME/.kpass/bin/kite-agent-handler\" --handler-timeout 10m --sweep-interval 30s.",
+    "assertions": [
+      "kagent serve --handler",
+      "the cwd IS the configuration",
+      "--handler-timeout 10m"
+    ]
+  },
+  {
+    "id": 94,
+    "prompt": "The handler I want to run needs extra command-line flags -- can I just write --handler './run-seller.sh --mode fast'?",
+    "expected_output": "Agent explains --handler takes exactly one executable path, not a shell string -- a command that needs arguments needs a wrapper script instead. It also flags that --handler-timeout defaults to only 2 minutes, which is short for real work, and that the handler's own caps (--max-turns 50, --max-budget-usd 2.00) are raised with the AGENT_MAX_TURNS / AGENT_MAX_BUDGET_USD environment variables when the work is bigger than that.",
+    "assertions": [
+      "one executable path",
+      "wrapper script",
+      "AGENT_MAX_TURNS"
+    ]
+  },
+  {
+    "id": 95,
+    "prompt": "Before I run kagent serve for this seller, does it need anything from setup first, and when would I use seller-fulfill instead?",
+    "expected_output": "Agent explains seller-serve assumes an active binding and a ready offering already produced by seller-agent-setup, which must run first. It recommends the seller-serve handler lane as the default, since it needs no seller code -- the platform's kite-agent-handler runs the seller's own skills directly. It should switch to the seller-fulfill CLI lane instead only when the seller cannot keep a process running or run the model runtime on that machine, already has its own agent or business system that must own the loop, or the work needs something the standard handler cannot express (a non-JSON deliverable, a custom evidenceType/units, or a moot answer) -- not because one lane supersedes the other.",
+    "assertions": [
+      "seller-agent-setup",
+      "active binding",
+      "seller-fulfill"
+    ]
+  },
+  {
+    "id": 96,
+    "prompt": "I just republished this seller's rate card, but every buyer who asks for a quote gets told 'I cannot quote right now' -- what's missing?",
+    "expected_output": "Agent identifies that out/active-registration.json is stale or missing. The model has no way to fetch its own registration and reads this file instead, so it must be regenerated after every registration publish with kagent registration get --output json > out/active-registration.json. Without a fresh copy, a negotiated seller answers every buyer this way even though the process looks healthy and logs no error.",
+    "assertions": [
+      "out/active-registration.json",
+      "kagent registration get --output json",
+      "cannot quote right now"
+    ]
+  },
+  {
+    "id": 97,
+    "prompt": "Every proposal this served seller receives gets escalated to the owner instead of being decided on the spot -- is that expected?",
+    "expected_output": "Agent explains this is the documented symptom of a missing seller-acceptance skill under <cwd>/.claude/skills/, or of serve having been started from the wrong directory (since skills load relative to wherever kagent serve was launched from). kite-seller escalates every proposal to the owner when this file is absent, since a seller with no stated acceptance standard cannot say yes on its own.",
+    "assertions": [
+      "seller-acceptance",
+      ".claude/skills/",
+      "escalates every proposal to the owner"
+    ]
+  },
+  {
+    "id": 98,
+    "prompt": "Here is the item envelope this seller just received: {\"operation\":\"start\",\"itemId\":\"it_9f2\",\"attempt\":1,\"agreement\":{...},\"payload\":{}} -- respond to it.",
+    "expected_output": "Agent recognizes operation start means work is due, and produces the deliverable itself using the seller's own craft skill -- it has no shell or network, only Read/Write/Glob/Grep, so it cannot call kagent or sign anything. Its final message is exactly ONE JSON object, no prose before or after: {\"kind\": \"agent-delivery\", \"summary\": \"<one line>\", \"detail\": {...}}.",
+    "assertions": [
+      "agent-delivery",
+      "exactly ONE JSON object",
+      "no shell"
+    ]
+  },
+  {
+    "id": 99,
+    "prompt": "A buyer sent a request asking to negotiate the price on the audit line item down from the card's max -- build the quote.",
+    "expected_output": "Agent reads out/active-registration.json for this seller's registrationHash and the offering's rateCard, since the model cannot recall its own card from memory. It picks an amountMinor inside that line's negotiation.negotiable[].minMinor..maxMinor, then builds priceSchedule with exactly three members: request ({}), overrides ([{itemId, amountMinor}]), and resolved (the card's currency and lineItems copied verbatim with the overridden amount, plus escrow.requiredBeforeDeliveryMinor as the summed resolved amount). It returns the quote frame object itself, not wrapped in a reply member, with price.amount as the trimmed decimal and price.asset as the currency code.",
+    "assertions": [
+      "out/active-registration.json",
+      "priceSchedule",
+      "requiredBeforeDeliveryMinor"
+    ]
+  },
+  {
+    "id": 100,
+    "prompt": "This seller quoted a buyer yesterday, and now that buyer's proposal just came in as a decide item -- can it just accept because the price matches the quote?",
+    "expected_output": "Agent explains a matching price alone proves nothing -- a proposal carries no thread id, so the recorded quote in out/quotes/ may only be trusted, and the proposal auto-accepted, when ALL FOUR hold: the priceSchedule and registrationHash match the recorded quote, the proposal's buyer matches the quote's recipient, the proposal's deliverable matches the quote's recorded scope (the same work, not just the same money), and the quote is unconsumed (no out/quotes/used/<threadId>.json exists yet). If all four hold, it accepts and immediately writes out/quotes/used/<threadId>.json so the quote cannot license a second agreement; otherwise it judges the proposal fresh against the seller's own seller-acceptance standard.",
+    "assertions": [
+      "out/quotes/used",
+      "unconsumed",
+      "scope"
+    ]
+  },
+  {
+    "id": 101,
+    "prompt": "This served seller's next item envelope came back with operation: \"dispute\" -- handle it.",
+    "expected_output": "Agent recognizes dispute handling is undesigned for this contract -- the standard handler escalates it to the owner before any agent run is ever started, so a dispute operation should never reach the model. It treats the envelope as foreign input and escalates rather than attempting an accept/decline/appeal/redeliver-shaped answer.",
+    "assertions": [
+      "dispute",
+      "undesigned",
+      "escalates it to the owner"
     ]
   }
 ]
