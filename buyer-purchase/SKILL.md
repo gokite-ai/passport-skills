@@ -171,13 +171,39 @@ kpass agent session request \
   --output json
 ```
 
-Both amount flags are **required**; there is no default budget. The result is always `status: "human_action_required"` with an `approval_url` and an `approval_expires_at`. **Surface that URL to the owner and tell them it needs their passkey.** No CLI verb can approve a session.
+Both amount flags are **required**; there is no default budget. The result is always `status: "human_action_required"` with an `approval_url` and an `approval_expires_at`. No CLI verb can approve a session — this is a passkey ceremony only the owner can complete.
+
+**MANDATORY — show this before doing anything else, including starting the poll below. Do not summarize it away or fold it into a passing sentence:**
+
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🛡️ Spending Session — Approval Required
+
+This agreement needs your passkey approval to fund it:
+
+🌐 {approval_url}
+
+🤝 Agreement:      {agreement_id}
+💵 Max per tx:     {max_amount_per_tx} USDC
+💰 Max total:      {max_total_amount} USDC
+📋 Request ID:     {request_id}
+⏳ Expires:        {approval_expires_at}
+
+👆 Open the link and approve with your passkey.
+```
+
+| Placeholder | Source |
+|---|---|
+| `{approval_url}`, `{request_id}`, `{approval_expires_at}` | `session request` response |
+| `{agreement_id}`, `{max_amount_per_tx}`, `{max_total_amount}` | the flags just passed to `session request` |
+
+**Only after that card is shown**, start polling — and start it in the **background** (`run_in_background`), not inline. A blocking foreground call leaves the owner staring at silence for up to the full `--timeout` with no visible link to act on, which is exactly the failure mode this card exists to prevent:
 
 ```bash
 kpass agent session request-status --request-id <id> --wait --output json
 ```
 
-The poll backs off from 2 seconds to 15 seconds, with a default 10-minute `--timeout`. On approval the session is recorded locally, so `fund` finds it without being told which one.
+The poll backs off from 2 seconds to 15 seconds, with a default 10-minute `--timeout` — reason enough on its own to background it. On approval the session is recorded locally, so `fund` finds it without being told which one. When the backgrounded poll resolves, report the outcome proactively (approved → proceed to funding; rejected/expired → say so and ask how to proceed) rather than waiting for the owner to ask what happened.
 
 Note the request state maps onto envelope statuses that are not obvious:
 
@@ -216,7 +242,7 @@ Find the `USDC` entry in `assets[]`, then its `arc` row inside `chains[]` — th
 > 2. Select token **USDC**
 > 3. Select the **Arc** testnet network
 > 4. Paste this wallet address: `<address from kpass wallet address --chain arc --output json>`
-> 5. Submit, wait for confirmation, then re-run `kpass wallet balance --output json` and retry `fund` once the balance covers the amount.
+> 5. Submit — Circle's faucet typically drops **~20 USDC** per request, not a fixed amount to promise precisely — wait for confirmation, then re-run `kpass wallet balance --output json` and retry `fund` once the balance covers the amount.
 
 Do not run `fund` against a balance you know is short — a rejected funding attempt is the same wasted round trip this check exists to avoid, and if the backend does not report the shortfall as clearly as this check does, the owner is left guessing why the deal stalled.
 
