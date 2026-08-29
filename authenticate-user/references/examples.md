@@ -190,7 +190,7 @@ Output (exit code 3):
   "_version": "1",
   "status": "error",
   "error": "email already registered",
-  "hint": "Agent is already registered. Run 'kpass status --output json' to see current agent details.",
+  "hint": "Agent is already registered. Run 'kpass me --output json' to see current agent details.",
   "next_command": ""
 }
 ```
