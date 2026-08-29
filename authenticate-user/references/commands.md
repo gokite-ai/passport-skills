@@ -64,7 +64,9 @@ kpass signup init --email <EMAIL> --client agent --output json --no-interactive
 
 ### What to Do After This Command
 
-1. Tell the user: "Two emails were sent to **{email}**: a **verification link** and a **sign-up code**. Please click the verification link first, then share the 8-character code with me."
+See the **"Messaging After `signup init` — MANDATORY"** section in `SKILL.md` for the exact, ordered wording to use — clicking the link and sharing the code are sequential steps, not alternatives ("whichever is easier"), because `signup exchange` will fail with "not verified" if the link hasn't been opened yet regardless of whether the code is correct. That wording also covers the "Create a passkey" page a brand-new signup lands on after clicking the link — mention it proactively, not as a surprise afterward.
+
+1. Tell the user to click the verification link first, then share the 8-character code.
 2. **Wait for the user to provide the 8-character code** from the "Your Kite Passport sign-up code" email.
 3. Run `signup exchange` with the `signup_id` from this response and the code the user provided.
 

@@ -1,6 +1,6 @@
 # Authenticate User — Worked Examples
 
-End-to-end walkthroughs for the `authenticate-user` skill. Per-command syntax, flags, and JSON shapes live in `commands.md`; the login-vs-signup decision, the security note on passing codes via environment variables, and the mandatory display cards live in `SKILL.md`.
+End-to-end walkthroughs for the `authenticate-user` skill. Per-command syntax, flags, and JSON shapes live in `commands.md`; the login-vs-signup decision, the mandatory signup messaging, the security note on passing codes via environment variables, and the mandatory display cards live in `SKILL.md`.
 
 ---
 
@@ -51,7 +51,7 @@ Output:
   "next_command": "KPASS_SIGNUP_CODE=<CODE> kpass signup exchange --signup-id signup_abc123 --output json"
 }
 ```
-Tell the user to click the verification link, then share the 8-character code.
+Use the mandatory ordered wording from `SKILL.md`'s "Messaging After `signup init`" section — click the link (and, for a new account, create the passkey it leads to), then share the 8-character code. Do not phrase these as two alternative ways to finish.
 
 **Step 2:** User provides the code (e.g., "A1B2C3D4"). Complete signup.
 ```bash
