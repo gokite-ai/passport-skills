@@ -33,6 +33,8 @@ The bootstrap is five steps, and the order matters: `init` -> `bind` (owner appr
 
 One boundary to be clear about up front: **this agent publishes; the owner lists.** Making a published card publicly discoverable in the agent directory is a visibility change the owner makes in Passport. `card publish` puts the content in place; it does not flip the listing.
 
+**Identity creation is not publishing — do not defer Steps 1–3 because the owner said "don't publish yet."** "Set up my offer" / "prepare the offer, don't publish" means: get everything ready except the acts that make the agent visible or committed to a deal. Those acts are `card publish`, `registration publish`, and the owner's own listing toggle — nothing before that. `kagent init` (Step 1), `kpass agent create` (Step 2), and `bind` (Step 3) create an identity and key; a freshly created, freshly bound seller agent is **unlisted by default** and takes no proposals until its card and registration are published. So when this machine has no active seller agent yet, run Steps 1–3 first, *before* touching card content or registration files — do not park them for later and author `storefront.json` / `rate-card.json` / `workflow-terms.json` with a placeholder `agentDid`. The registration inputs need the real DID to mean anything; a file that still reads `did:kite:<namespace>:<agent>` when the session ends is not "prepared", it is blocked on a step that should have already happened.
+
 ## Step 0: Ensure the CLI Bundle Is Installed — MANDATORY
 
 ```bash
@@ -70,6 +72,7 @@ kagent --version
 - Any `kagent` command returns exit 3 with a `runtime_*` code.
 - A signing verb refuses with exit 2 and a hint naming `kagent card fetch --pin`.
 - The card content, terms, or rate card needs publishing or replacing.
+- The owner asks to "set up an offer" / "become a seller" / "sell X" and this machine has no active seller agent yet — check `kagent status` first; if there is no active binding, run Steps 1–3 (identity + bind) before drafting any card or registration content, even if the owner does not want to publish yet.
 
 Do **not** use this skill to serve incoming agreements — accepting, delivering, and answering buyers is the **`seller-fulfill`** skill.
 
