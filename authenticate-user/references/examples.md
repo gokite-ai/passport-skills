@@ -173,3 +173,34 @@ Output:
 ```
 
 Done. The user is authenticated. Display the account-created card.
+
+---
+
+## Complete Worked Example: Signup Blocked by Existing Account (User Explicitly Asked to Register)
+
+**Context:** The user says "create a new account for me" / "sign me up" / "register me" — an explicit signup request, not an ambiguous "sign in". The email they give you already has an account.
+
+**Step 1:** Go straight to signup, per the Decision section — an explicit signup request skips the login-first check.
+```bash
+kpass signup init --email user@example.com --client agent --output json --no-interactive
+```
+Output (exit code 3):
+```json
+{
+  "_version": "1",
+  "status": "error",
+  "error": "email already registered",
+  "hint": "Agent is already registered. Run 'kpass me --output json' to see current agent details.",
+  "next_command": ""
+}
+```
+
+**Step 2:** Do NOT fall back to `login init` on your own here — the user asked for a *new* account, and quietly logging them into the old one overrides that without asking. Ask:
+
+> "An account already exists for user@example.com. Do you want me to log you into that account, or would you rather use a different email to create a new one?"
+
+**Step 3a — user says "log me in":** proceed with `login init` for that email (see the Returning User Login example above).
+
+**Step 3b — user gives a different email:** retry `signup init` with the new email (see the New User Signup example above).
+
+Either way, wait for the user's answer before running the next command — do not guess which one they'd prefer.

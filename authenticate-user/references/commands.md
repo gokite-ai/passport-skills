@@ -387,6 +387,14 @@ Use `me` when you need to confirm the current auth state before proceeding with 
 - Fall back to `signup init` with the same email.
 - Tell the user: "It looks like you don't have an account yet. I'll create one for you."
 
+**Signup blocked — email already registered (exit code 3 from `signup init`):**
+- This only matters when the user explicitly asked to sign up / create an account / register — not when you chose `signup init` yourself as the login-not-found fallback above.
+- Do NOT silently fall back to `login init`. The user's stated intent was a new account; defaulting to logging them into an existing one overrides that intent without asking.
+- Ask the user to choose: "An account already exists for {email}. Do you want me to log you into that account, or would you rather use a different email to create a new one?"
+- If they choose to log in: proceed with `login init` for that email.
+- If they give a different email: retry `signup init` with the new one.
+- Do not proceed with either path until the user has answered.
+
 ---
 
 ## Input Validation Checklist

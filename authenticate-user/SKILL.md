@@ -72,7 +72,9 @@ If the user says "sign in" or "authenticate" without specifying whether they hav
 
 1. **Try login first** with `login init`.
 2. If the command fails with **exit code 4** (not found / "email not registered"), fall back to `signup init`.
-3. If the user explicitly says "sign up" or "create account", go directly to signup.
+3. If the user explicitly says "sign up", "create account", "register", or similar, go directly to `signup init` — do not try login first.
+
+**If the user explicitly asked to sign up/create/register and `signup init` fails because the email is already registered** (error message contains "already registered"): the user's stated intent was a *new* account, not access to an existing one — do not silently switch to `login init` on their behalf. Ask them to choose, e.g. "An account already exists for {email}. Do you want me to log you into that account, or would you rather use a different email to create a new one?" Only run `login init` if they choose to log in; if they give a different email, retry `signup init` with it. See "Signup blocked — email already registered" in `@references/commands.md` for the full recovery steps.
 
 **After signup exchange succeeds, the user is fully authenticated.** The `signup exchange` command returns a JWT and saves it to local config. Do NOT run `login init` after signup — it is unnecessary and will generate a conflicting OTP code.
 
@@ -160,7 +162,7 @@ KPASS_LOGIN_CODE=<OTP_CODE> kpass login verify --login-id <login_id> --output js
 | 0 | Success or human action required | `status: "human_action_required"` | Follow the `next_command` field. This is NOT an error. |
 | 1 | Network error | `network error: ...` | Check connectivity. Retry after a brief pause. |
 | 2 | Usage error | `--email is required`, `unknown option` | Fix the command syntax. Check required flags. |
-| 3 | Auth error | `invalid OTP`, `verification expired`, `already consumed` | For invalid OTP: ask user to re-check email and provide code again. For expired: restart the flow. |
+| 3 | Auth error | `invalid OTP`, `verification expired`, `already consumed`, `email already registered` | For invalid OTP: ask user to re-check email and provide code again. For expired: restart the flow. For "email already registered" from `signup init`: do NOT auto-login — see the Decision section above. |
 | 4 | Not found | `email not registered`, `not found` | If trying login: fall back to signup. If unexpected: inform user. |
 | 5 | Rate limited | `rate limit` | Wait 30 seconds, then retry. |
 | 6 | Session policy violation | N/A for authenticate-user | This exit code is not expected from authentication commands. If encountered, it indicates a session delegation issue — use **`request-session`** to create a new session. |
