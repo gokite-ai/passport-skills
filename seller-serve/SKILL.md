@@ -118,7 +118,7 @@ cd <seller>                                  # the cwd IS the configuration
 export ANTHROPIC_API_KEY=…                   # or the model runtime's own auth
 kagent serve \
   --handler "$HOME/.kpass/bin/kite-agent-handler" \
-  --handler-timeout 10m \
+  --handler-timeout 5m \
   --sweep-interval 30s
 ```
 
@@ -127,6 +127,7 @@ kagent serve \
 - `--handler-timeout` defaults to **2 minutes**, which is short for real work: a
   code build measured 498s. Set it to what the work actually takes; the
   agreement's own delivery window is days, not minutes.
+- **`--handler-timeout` must stay comfortably *below* the buyer's message TTL, not above it.** serve only attempts a `request`/`decide` item whose remaining TTL is strictly greater than `--handler-timeout` — one it could not finish before the message expires is discarded as `moot` before the handler ever runs, silently, with no error surfaced to either side; the buyer just sees the message quietly reach `expired`. A buyer's default message TTL is 10 minutes (`buyer-purchase`'s `message send`), so a `--handler-timeout` of `10m` or more will discard every incoming request outright — keep it well under that (a quote run is typically well under a minute) unless the buyer is known to send a longer explicit `--ttl`.
 - The handler caps each run at `--max-turns 50` and `--max-budget-usd 2.00`.
   Raise with `AGENT_MAX_TURNS` / `AGENT_MAX_BUDGET_USD` when the work is bigger
   than that, or the run dies mid-answer.
@@ -137,6 +138,19 @@ kagent serve \
 - Run **one serve per seller identity**. A second instance on the same state
   directory is refused; two sellers on one machine need different
   `--config-dir` and different `--local-addr`.
+
+## After Serve Is Running — Report Progress Proactively
+
+`kagent serve` runs independently of this conversation: once started in the background, it claims, quotes, accepts, and delivers with no further input from you. Don't just report "serve is running" and go idle waiting for the owner to say "check it" or "check status" — that leaves real activity (a quote issued, a proposal accepted, a delivery submitted, an escalation raised) sitting unreported until the owner happens to ask, the same way a signup shouldn't wait for the owner to say "verified" once its own poll can tell you directly.
+
+When resuming a conversation with serve already running, or after enough time has passed for something to plausibly have happened, check what changed and report it before being asked:
+
+```bash
+tail -n 20 <seller>/.kagent/handler.jsonl                            # every attempt/acted/done/escalated entry, in order
+kagent --config-dir <seller>/.kagent agreement list --output json    # every agreement's current state
+```
+
+If the owner is waiting on one specific outcome (a reply to a quote request, an agreement reaching `DELIVERED`), poll for it with `kagent agreement status --agreement-id <id> --watch --output json` in the **background** and surface the result the moment it resolves, rather than leaving them to nudge you again.
 
 ## Prove it before a buyer does
 
@@ -169,6 +183,7 @@ That one short-circuits without calling the model at all — it should print a
 | `agent run failed: exit status 1`, empty output | The model runtime failed and the handler does not surface its reason. Reproduce the same run by hand to see it — a model whose safeguards flag the seller's own subject matter (security work is the common one) fails exactly like this, and pinning a different `ANTHROPIC_MODEL` fixes it |
 | Items time out and retry | `--handler-timeout` is below what the work takes, or the run hit the turn/budget cap |
 | A buyer's message never becomes an item | The buyer sent it without the request-frame `--skill`; nothing is minted and nothing errors |
+| A correctly-framed request is claimed but never quoted, and nothing errors anywhere | Its remaining TTL was not strictly greater than `--handler-timeout` when serve claimed it — discarded as `moot` before the handler ran. Lower `--handler-timeout`, or have the buyer resend with a longer `--ttl` |
 
 serve retries a failed item, then **parks** it and escalates to the owner. When
 Passport's acceptance gate returns `escalation_required`, the request already
