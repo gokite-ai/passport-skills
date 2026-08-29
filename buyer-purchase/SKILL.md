@@ -279,15 +279,20 @@ kpass agent fund --agreement-id <id> --output json
 
 `--agreement-id` is required. `--session-id` is optional and only needed to spend a session other than the recorded one that covers this agreement.
 
-**Three outcomes. Read the envelope, not just the exit code:**
+**Four outcomes. Read the envelope, not just the exit code:**
 
 | Outcome | How to recognize it | Exit | What to do |
 |---|---|---|---|
 | **Funded** | `status: "success"`, `authorization_committed: true`, `submission_complete: true` | 0 | Continue to Step 5. |
+| **Controller decision required** | `status: "human_action_required"`, with `escalation_id`, `escalation_reason`, `action_digest`, `approval_url`, and `approval_expires_at` | 0 | Surface the URL, poll the escalation, then retry the **identical** `fund` command with the same agreement and session after approval. |
 | **Committed but unsubmitted** | `status: "error"`, `error_code: "funding_submission_incomplete"`, `retriable: true`; `details.funding.passport_artifacts_status` is `pending` or `submitted` | **1** | **Re-run the identical command.** The session budget is charged and the payment authorization is stored; only the engine's confirmation is missing. Funding is idempotent on (session, agreement), so the retry returns the same authorization and re-attempts delivery. Do **not** propose again and do **not** request another session — either buys the deal twice. |
 | **Refused, nothing committed** | `status: "error"`, `error_code: "session_scope_forbidden"` | **6** | No session covers this agreement. Request one that does (Step 3). Nothing was sent and nothing was charged. |
 
 `session_scope_forbidden` has two sources and the distinction matters: a **local** refusal (this agent holds no unexpired approved session, or none whose scope covers the agreement — nothing was sent) and a **server** refusal at the funding chokepoint (Passport re-checked the approved scope and said no). Both mean the same fix — a session whose approved scope covers this agreement — and neither is fixed by retrying.
+
+`buyer_per_tx_limit_exceeded` and `buyer_total_budget_exceeded` are the two automatic buyer-governance reasons. The controller approves this one exact `buyer_fund` action; the standing delegation is not widened. One action may require the two decisions sequentially, and Passport consumes every required approval atomically only when the funding authorization commits.
+
+`approval_expires_at` is the controller's decision deadline: the earlier of the configured escalation window and this funding action's deadline. A pending request expires there and Passport does not silently renew it. A decision recorded before that instant persists after it; an approval remains usable until the exact action commits or its funding deadline closes.
 
 ### Step 5: Sign the Activation
 
@@ -388,7 +393,7 @@ The owner approves the session between commands three and four.
 
 | Exit | Meaning | Codes seen on this lane | Recovery |
 |---|---|---|---|
-| 0 | Success, or human action required | `human_action_required` on `session request`; `pending` on a timed-out watch | Read the envelope. A timeout is not a failure. |
+| 0 | Success, or human action required | `human_action_required` on `session request` or an automatically parked `fund`; `pending` on a timed-out watch | Surface the approval URL and follow `next_command`. A timeout is not a failure. |
 | 1 | Network, or a transient server refusal, or a **partial result** | `funding_submission_incomplete`, `funding_not_final`, `review_not_open`, `engine_outcome_unknown`, `internal_error` | Re-run the **identical** command. These are the cases where the same bytes can succeed later. |
 | 2 | Usage, malformed bytes, or a closed window | `invalid_command_schema`, `payload_hash_mismatch`, `unsupported_extension_version`, `evidence_not_validated`, `deadline_exceeded`, `review_closed` | Fix the input, or accept that a window closed. A closed window is not retriable. |
 | 3 | Auth | `invalid_signature`, `unknown_key`, `runtime_key_required`, `runtime_not_found`, `runtime_pending`, `runtime_revoked`, `runtime_agent_mismatch`, `runtime_signature_mismatch` | Identity problem: use **`buyer-agent-setup`**. Do not retry. |
@@ -403,6 +408,8 @@ The owner approves the session between commands three and four.
 Most errors carry a `next_command` that is the correct recovery. Prefer it over reconstructing a command yourself. Two known exceptions ship without the `kpass agent` prefix — a `next_command` of `agreement status --agreement-id <id> --output json` needs `kpass agent` prepended before it is runnable.
 
 ### Specific Scenarios
+
+**`escalation_required` on `fund` (`human_action_required`, exit 0):** Passport already created a `funding-override` bound to the buyer agent, agreement, session, amount, asset, chain, vault, deadline, reason, and action digest. Surface the URL, run the returned `escalation status --id ... --wait`, and retry the identical `fund` command after approval. Do not create a manual escalation or request a larger session; the existing delegation remains in force.
 
 **`session_scope_forbidden` on `fund`, and this agent just had a session approved:** the approved scope is read back from what the *owner* approved, not from what was requested. A session approved for one agreement cannot fund another. Request one scoped to this agreement.
 
@@ -434,6 +441,7 @@ Do not attempt any of the following. They will fail:
 - `kpass agent session request --delegation` — that is the human-facing `kpass agent:session create` interface in the `user` group. The agent lane takes scope flags plus the two amount caps.
 - `kpass agent session request --agreement-id <id> --all-agreements` — `--all-agreements` cannot be combined with any narrowing scope. Exit 2.
 - `kpass agent fund --amount ...` — the amount comes from the signed contract. `fund` takes `--agreement-id` and optionally `--session-id`.
+- `kpass agent escalate --kind funding-override ...` — platform-created only. Passport creates it from an exact funding cap breach; manual creation is exit 2.
 - `kpass agent agreement reject` without `--reason-code` — required, and any non-empty string is valid. There is no enum to pick from.
 - `kpass agent agreement review --subject ...` — the subject is derived from the agreement.
 - `kpass agent agreement propose --buyer ...` — the buyer is this agent. The flag is `--seller`.

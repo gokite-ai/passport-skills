@@ -132,7 +132,7 @@ kagent escalate --kind acceptance-override --agreement-id <id> --summary "<why t
 
 | Flag | Type | Default | Required | Notes |
 |---|---|---|---|---|
-| `--kind <kind>` | string | `""` | **yes** | `acceptance-override` is the only **reserved and enforced** kind. Any other string is accepted and produces an *advisory* escalation with `enforced: false`. There is no closed enum. |
+| `--kind <kind>` | string | `""` | **yes** | `acceptance-override` is the manual reserved seller kind. `funding-override` is also reserved but platform-created only; passing it manually is exit 2. Other strings are advisory with `enforced: false`. |
 | `--summary <text>` | string | `""` | **yes** | This agent's own description of the decision, for the owner. |
 | `--agreement-id <id>` | string | `""` | conditional | **Required** for `acceptance-override`. |
 | `--payload <json>` | string | `""` | no | The machine-readable content the decision binds to. Mutually exclusive with `--payload-file`. |
@@ -140,7 +140,7 @@ kagent escalate --kind acceptance-override --agreement-id <id> --summary "<why t
 | `--wait` | bool | `false` | no | Poll with backoff until the owner decides or the window closes. |
 | `--timeout <duration>` | duration | `10m` | no | |
 
-Validation, all exit 2: `--kind and --summary are both required.`; `--agreement-id is required for acceptance-override.`; `--payload and --payload-file cannot both be given.`; `The escalation payload is not valid JSON.`
+Validation, all exit 2: `--kind and --summary are both required.`; `funding-override is platform-created only.`; `--agreement-id is required for acceptance-override.`; `--payload and --payload-file cannot both be given.`; `The escalation payload is not valid JSON.`
 
 **For `acceptance-override` with no payload, the verb fetches the contract and uses its verbatim bytes.** That is what binds the owner's decision to *this* contract rather than to a category. An agreement with no contract is exit 4.
 
