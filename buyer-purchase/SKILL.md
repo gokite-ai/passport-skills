@@ -179,11 +179,12 @@ If the agreement sits in `PROPOSED` indefinitely, the seller may be refusing it 
 ```bash
 kpass agent message send --to <seller-did> \
   --skill urn:kiteai:coordination:frame:closed:v1 \
+  --idempotency-key closed-<agreement-id> \
   --body '{"frame":"urn:kiteai:coordination:frame:closed:v1","threadId":"<the thread>","agreementId":"<the agreement>","reason":"agreed"}' \
   --output json
 ```
 
-The seller's serve echoes the frame back signed — that reply is your receipt that the counterparty's runtime saw the link; keep it with the thread's other envelopes. The frame is an append, not a lock: the thread can still carry further messages (a second deal, a follow-up question). Skip this entirely for a direct proposal — a thread that never existed cannot close. If the send fails, do not block the purchase on it: continue to Step 3 and retry the notice later with the same `--idempotency-key`.
+The seller's serve echoes the frame back signed — that reply is your receipt that the counterparty's runtime saw the link; keep it with the thread's other envelopes. The frame is an append, not a lock: the thread can still carry further messages (a second deal, a follow-up question). Skip this entirely for a direct proposal — a thread that never existed cannot close. The `--idempotency-key` is derived from the agreement id so first send and every retry are one message. If the send fails, do not block the purchase on it: continue to Step 3 and retry the notice later with the identical command.
 
 ### Step 3: Get a Spending Session the Owner Approves
 

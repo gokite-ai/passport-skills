@@ -142,30 +142,44 @@ rules. Judge **willingness and capacity**: is the deliverable within what this
 seller does, and can it be done well now?
 
 - First check `out/quotes/`. A recorded quote is a deal you already judged.
+  The journal has two shapes: `out/quotes/<threadId>.json` is the LIVE quote on
+  a thread (re-quoting the same thread overwrites it — superseding your own
+  advice is fine, a quote binds nobody), and consumption is a MOVE — accepting
+  deletes the live file and writes
+  `out/quotes/used/<threadId>-<agreementId>.json`, so one thread can carry
+  quote → deal → quote → deal without records colliding.
+
+  **Replay comes first.** If any `out/quotes/used/*-<agreementId>.json` names
+  THIS proposal's agreement id, a prior run already accepted it — accept again.
+  `attempt > 1` must land on the same outcome, and a consumed quote must never
+  demote its own agreement's retry to unquoted judgment.
+
   **When the proposal's terms carry a `threadId` member** (a buyer proposing
   from your quote writes the thread key into the co-signed terms), the lookup
-  is exact — read `out/quotes/<threadId>.json` and accept when ALL THREE hold:
+  is exact — read the live `out/quotes/<threadId>.json` and accept when ALL
+  FOUR hold:
   1. the `priceSchedule` and `registrationHash` match the recorded quote,
   2. the proposal's buyer is the buyer that quote was issued to (`from`),
-  3. the quote is **unconsumed**: no `out/quotes/used/<threadId>.json` exists.
+  3. the proposal's deliverable is the `scope` that quote priced — the thread
+     key finds the quote; it does not vouch for the work,
+  4. the live quote file exists — a consumed or superseded quote never
+     licenses a second deal.
 
-  A `threadId` naming no recorded quote, or a recorded quote whose members do
-  not match, is NOT a match — treat the proposal as unquoted; never let a
-  buyer-written thread key substitute for the checks.
+  A `threadId` naming no live quote, or one whose members do not match, is NOT
+  a match — treat the proposal as unquoted; never let a buyer-written thread
+  key substitute for the checks.
 
   **When the terms carry no `threadId`**, matching is heuristic — a matching
   price alone proves nothing, and a card with one flat line at a common price
-  matches almost any later proposal — so ALL FOUR must hold:
-  1. the `priceSchedule` and `registrationHash` match the recorded quote,
-  2. the proposal's buyer is the buyer that quote was issued to (`from`),
-  3. the proposal's deliverable is the `scope` that quote priced — the same
-     work, not merely the same money,
-  4. the quote is **unconsumed**: no `out/quotes/used/<threadId>.json` exists.
+  matches almost any later proposal — so scan the live quotes for one where
+  the same FOUR hold (deliverable-vs-`scope` doing the disambiguation the
+  thread key would have done).
 
-  On a match by either path, accept, and immediately write
-  `out/quotes/used/<threadId>.json` (the agreement id, the quote's threadId, the
-  date) so one quote can never license a second agreement. Otherwise treat the
-  proposal as unquoted and judge it on the seller's own standard below.
+  On a match by either path, accept, then CONSUME: write
+  `out/quotes/used/<threadId>-<agreementId>.json` (the quote as accepted, the
+  buyer, the date) and delete `out/quotes/<threadId>.json`, so one quote can
+  never license a second agreement. Otherwise treat the proposal as unquoted
+  and judge it on the seller's own standard below.
 - The acceptance standard belongs to the SELLER, not to this skill: read this
   seller's own acceptance-criteria skill (the one whose SKILL.md states what
   this seller will and will not take on). **If no such skill exists, escalate —
@@ -215,20 +229,24 @@ acknowledges the buyer mechanically by echoing the frame back. Your job is
 this seller's own records, and your answer is one JSON object describing what
 you did:
 
-- `out/quotes/used/<threadId>.json` exists: cross-check its agreement id
-  against the frame's `agreementId`. Match → `{"archived": true, "threadId":
-  "…", "agreementId": "…"}`. Mismatch → do not rewrite your own record;
-  answer `{"archived": false, "note": "agreementId mismatch: quoted deal is
-  <ours>, buyer claims <theirs>"}` — the co-signed terms, not this frame, are
-  the authority, and the note is what the owner greps for later.
-- `out/quotes/<threadId>.json` exists but was never consumed: the buyer closed
-  a thread you quoted without buying through that quote (or the deal formed
-  without the terms carrying the thread). Leave the quote file as it is —
-  a closing notice is a claim, and it never consumes a quote on the buyer's
-  say-so. Record the notice as `out/threads/closed/<threadId>.json` (the frame
-  plus `from`) and say so in your answer.
+- `out/quotes/used/<threadId>-<agreementId>.json` exists (the frame's own pair):
+  the notice matches a deal you accepted — answer `{"archived": true,
+  "threadId": "…", "agreementId": "…"}`. A used record exists for this thread
+  but under a DIFFERENT agreement id → do not rewrite your own records; answer
+  `{"archived": false, "note": "agreementId mismatch: quoted deal is <ours>,
+  buyer claims <theirs>"}` — the co-signed terms, not this frame, are the
+  authority, and the note is what the owner greps for later.
+- The live `out/quotes/<threadId>.json` still exists: the buyer closed a thread
+  you quoted without buying through that quote (or the deal formed without the
+  terms carrying the thread). Leave the quote file as it is — a closing notice
+  is a claim, and it never consumes a quote on the buyer's say-so. Record the
+  notice as `out/threads/closed/<threadId>.json` (the frame plus `from`) and
+  say so in your answer.
 - Neither exists: a notice for a thread you never quoted on. Record it the
   same way and answer `{"archived": true, "note": "no quote on this thread"}`.
+
+A repeated notice is idempotent bookkeeping: recording the same frame again
+changes nothing and answers the same way.
 
 A thread is not locked by closing: later `request` frames on the same
 `threadId` are ordinary requests — answer them on their merits.
