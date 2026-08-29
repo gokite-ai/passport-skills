@@ -163,7 +163,7 @@ Field notes:
 - `imported` distinguishes a generated key from an `--import-key` one.
 - No private key material appears in the envelope, by design.
 
-**Existing key, no `--force`** — exit 2, with the hint that replacing a bound key orphans every agreement pinned to it, and `next_command: "kpass agent key show --output json"`. Treat this as "check `status` first", not as an obstacle to force through.
+**Existing key, no `--force`** — exit 2, with the hint that replacing a bound key orphans every agreement pinned to it, and `next_command: "kpass agent key show --output json"`. Treat this as "check `status` first, then check *whose* agent it's bound to" — not as an obstacle to force through. A different agent or owner than the one you're setting up usually means the owner wants a second, independent buyer identity; see SKILL.md's "Running Multiple Buyer Agents on One Machine" rather than defaulting to `--force`.
 
 **File mechanics:** the key file is created 0600 (permissions applied before any bytes are written), in a 0700 directory, via an exclusive temp file plus rename — so a pre-placed file or symlink at the target is never reused. `agent-state.json` (the card pin, and later the stream cursor) is written the same way and stays in the role directory even when `--key-file` moves the key.
 
