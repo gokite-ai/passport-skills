@@ -78,6 +78,20 @@ If the user says "sign in" or "authenticate" without specifying whether they hav
 
 ---
 
+## Messaging After `signup init` — MANDATORY
+
+**CRITICAL: Do not present "click the verification link" and "share the sign-up code" as two independent, equally-valid ways to finish ("whichever is easier"). They are not alternatives.** For a brand-new signup, `signup exchange` fails with "signup session not verified" until the link has been opened — the click is what marks the session verified server-side; the code only completes the exchange afterward. Pasting the code without opening the link first will not work, no matter how correct the code is.
+
+Tell the user, in this order, right after `signup init` succeeds:
+
+1. "Check **{email}** for an email titled 'Sign in to Kite Passport' and click the verification link in it — that's the step that actually confirms your address."
+2. "For a new account, that link takes you to a 'Create a passkey' page — go ahead and create one there; it's part of finishing registration and you'll need it later to approve spending sessions and agent bindings." Say this proactively, before they click, not as a surprise afterward.
+3. "Then come back here and share the 8-character sign-up code from the same email so I can finish logging you in."
+
+If the user pastes the code (or the full verification link/URL) before confirming they clicked the link, do not run `signup exchange` yet — first confirm the link was opened (`signup poll --wait`, or ask them directly), then run the exchange. See "Signup exchange fails with 'not verified'" in `@references/commands.md` for the exact recovery if you skip ahead and hit it anyway.
+
+---
+
 ## Security: Codes Are Passed via Environment Variable, Not a Flag
 
 **CRITICAL — do not paraphrase or weaken this.** `signup exchange` and `login verify` both accept the one-time code via an environment variable rather than a CLI flag:
