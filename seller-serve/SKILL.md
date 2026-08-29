@@ -177,6 +177,13 @@ not file a duplicate manual escalation. `acceptance_policy_violation` remains
 the fallback path where the sweep creates `acceptance-override` itself. A
 parked item is a decision waiting for a human, not a lost one.
 
+In the current release, parking is durable but controller approval does not
+reinvoke the seller handler. That is intentional while the supervisor's resume
+contract is finalized: the handler already chose `accept`, so it must not be
+asked to make the business decision again. After approval, run the identical
+`kagent agreement accept --agreement-id <id> --output json`; the next sweep then
+observes the agreement's new state. A denied or expired request stays parked.
+
 ## Cross-Skill References
 
 - **`seller-agent-setup`** — identity, card, registration, acceptance policy.

@@ -195,7 +195,7 @@ Passport normally creates the escalation at the enforcement gate and returns exi
 kagent escalation status --id <escalation-id> --wait --output json
 ```
 
-On approval, re-run the identical `agreement accept`. The decision is bound to the action digest and one server-derived reason code (`seller_template_not_allowed`, `seller_price_below_floor`, `seller_price_above_ceiling`, or `seller_capacity_exceeded`). If more than one clause fails, Passport may park again for the next independent decision; after all required approvals, the retry commits and consumes them atomically.
+On approval, re-run the identical `agreement accept`. The decision is bound to the action digest and one server-derived reason code (`seller_template_not_allowed`, `seller_price_below_floor`, `seller_price_above_ceiling`, or `seller_capacity_exceeded`). If more than one clause fails, Passport may park again for the next independent decision; after all required approvals, the retry commits and consumes them atomically. `approval_expires_at` bounds only how long the controller may decide: an approval recorded before it remains usable afterward until consumed or the governed action itself becomes invalid.
 
 `acceptance_policy_violation` (exit 6) is now the compatibility fallback: Passport could not create the automatic request, or the refusal is a legacy condition without a typed reason. Keep this manual recovery/debug path:
 
@@ -214,7 +214,7 @@ Write `--summary` for a human who is about to spend a passkey ceremony: what the
 
 The result is `human_action_required` with an `approval_url`. **Surface it verbatim.** `--wait` polls with backoff (2 to 15 seconds, 10-minute default timeout), or poll separately with `kagent escalation status --id <id> --wait --output json` — the flag is `--id`, not `--escalation-id`.
 
-On approval, **re-run `agreement accept`**. The escalation status's own `next_command` is exactly that command. The override admits this contract **once**: a second acceptance of the same deal finds the override spent. A declined or expired escalation is envelope status `expired` — the owner said no, and this agent should not open a second escalation for the same deal without being told to.
+On approval, **re-run `agreement accept`**. The escalation status's own `next_command` is exactly that command. The override admits this contract **once**: a second acceptance of the same deal finds the override spent. A denial is the owner's no. An undecided request that reaches its controller deadline expires, is not silently renewed, and requires an explicit new course rather than an automatic second prompt.
 
 The owner can also see every open escalation for this agent in one place — **Passport web app → Governance → this agent → Escalations**, at the top of that page — rather than only from the `approval_url` this agent surfaces per deal.
 
@@ -388,6 +388,7 @@ Do not attempt any of the following. They will fail:
 - `kagent agreement dispute` / `agreement arbitrate` / `agreement cancel` — none exist. `agreement appeal` DOES exist (Step 8) — it opens the arbitration window, but there is still no verb for the arbiter to render its decision through.
 - `kagent escalation list` — the only child of `escalation` is `status`, and its flag is `--id` (not `--escalation-id`).
 - `kagent escalate --kind acceptance-override` without `--agreement-id` — required for that kind. Exit 2.
+- `kagent escalate --kind funding-override` — platform-created buyer governance only. Manual creation is exit 2.
 - `kagent listen` without `--forward` — required. Exit 2.
 - `kagent listen --events ...` / `--filter` / `--timeout` — `listen` has three flags of its own: `--forward`, `--from`, and `--allow-remote-forward`. None of `--events`/`--filter`/`--timeout` exist.
 - `kagent agreement funding sign --amount ...` — no amount flag; the amount comes from the signed contract.

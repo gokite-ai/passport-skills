@@ -276,15 +276,18 @@ With `--session-id` the value is used verbatim. Without it, the CLI reads its re
 
 The envelope reports which path was taken in `session_selected_from` (`"agent state"` or `"--session-id"`).
 
-### The three outcomes
+### The four outcomes
 
 | Outcome | Distinguishing fields | Envelope | Exit |
 |---|---|---|---|
 | Funded | `authorization_committed: true`, `submission_complete: true` (no `funding.passport_artifacts_status`) | `success` | 0 |
+| **Controller decision required** | `escalation_id`, `escalation_reason`, `action_digest`, `approval_url`, `approval_expires_at` | `human_action_required` | 0 |
 | **Committed but unsubmitted** | `authorization_committed: true`, `submission_complete: false`; `details.funding.passport_artifacts_status` is `"pending"` or `"submitted"` | `error`, `error_code: "funding_submission_incomplete"`, `retriable: true` | **1** |
 | Refused | never reaches a data map | `error`, `error_code: "session_scope_forbidden"` | **6** |
 
 `passport_artifacts_status` means: `"pending"` — the authorization is committed but the engine has not recorded artifacts; `"submitted"` — the engine accepted them but progress could not be re-read; **absent** — the progress is a fresh engine read.
+
+The governance outcome is an exact `funding-override`, created only by Passport for `buyer_per_tx_limit_exceeded` or `buyer_total_budget_exceeded`. Surface the URL, poll with `kpass agent escalation status --id <id> --wait --output json`, then retry the identical fund command after approval. The decision deadline is the earlier of the configured approval window and the funding action deadline. Pending expires there without automatic renewal; a decision recorded before it persists, and an approval remains actionable until consumed or the funding deadline closes.
 
 Success envelope:
 
@@ -523,7 +526,7 @@ Available on the buyer surface, though the enforced escalation kind (`acceptance
 
 `escalation status`: `--id` (required — not `--escalation-id`), `--wait`, `--timeout`.
 
-`--kind` has **no closed enum**: `acceptance-override` is the only reserved and enforced kind, and any other string produces an advisory escalation with `enforced: false`. Creating one returns `human_action_required` with an `approval_url` — the same passkey ceremony as a session request.
+`--kind` is open for advisory values, with two reserved kinds: manual `acceptance-override` is enforced for seller acceptance; `funding-override` is platform-created only and manual creation is exit 2. Creating an advisory or acceptance escalation returns `human_action_required` with an `approval_url` — the same passkey ceremony as a session request.
 
 ---
 
