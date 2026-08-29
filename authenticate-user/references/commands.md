@@ -67,16 +67,17 @@ kpass signup init --email <EMAIL> --client agent --output json --no-interactive
 See the **"Messaging After `signup init` — MANDATORY"** section in `SKILL.md` for the exact, ordered wording to use — clicking the link and sharing the code are sequential steps, not alternatives ("whichever is easier"), because `signup exchange` will fail with "not verified" if the link hasn't been opened yet regardless of whether the code is correct. That wording also covers the "Create a passkey" page a brand-new signup lands on after clicking the link — mention it proactively, not as a surprise afterward.
 
 1. Tell the user to click the verification link first, then share the 8-character code.
-2. **Wait for the user to provide the 8-character code** from the "Your Kite Passport sign-up code" email.
-3. Run `signup exchange` with the `signup_id` from this response and the code the user provided.
+2. **In the background** (`run_in_background`), start `signup poll --signup-id <signup_id> --wait --output json` right away — do not wait for the user to say "verified" first. It detects the link click on its own; see `signup poll` below.
+3. **Also wait for the user to provide the 8-character code** from the "Your Kite Passport sign-up code" email — the two waits happen in parallel, not one gating the other.
+4. Run `signup exchange` with the `signup_id` from this response and the code the user provided, once both the background poll has confirmed `verified` and the code is in hand.
 
-**CRITICAL:** You MUST ask the user for the code and wait. Do NOT try to guess or fabricate the code. The user reads it from their email.
+**CRITICAL:** You MUST ask the user for the code — do NOT try to guess or fabricate it, the user reads it from their email. But do NOT make the user manually confirm the link click in words either; the background poll exists precisely so you don't have to ask.
 
 ---
 
-## `signup poll` -- Wait for Email Verification (Optional)
+## `signup poll` -- Detect Email Verification (Run in the Background, Not Optional)
 
-Polls the backend until the user clicks the verification link. This command is optional — the primary signup flow uses `signup exchange` with the code directly.
+Polls the backend until the user clicks the verification link. **Start this immediately after `signup init`, in the background** (`run_in_background: true`), rather than waiting for the user to type something like "verified" or "done" — that keyword is not a real signal (the backend is), and requiring it just adds a manual step the poll makes unnecessary. Do not run it inline/foreground: with `--wait` it blocks server-side for up to `--timeout` (default 600s), which would stall the whole conversation for up to ten minutes if not backgrounded.
 
 ```
 kpass signup poll --signup-id <signup_id> --wait --output json
@@ -139,9 +140,9 @@ If you omit `--wait`, a single check is performed:
 
 ### What to Do After This Command
 
-When `verification_status` is `"verified"`:
-1. Ask the user for the 8-character code from the "Your Kite Passport sign-up code" email.
-2. Run `signup exchange` with the `signup_id` and the code the user provided.
+When the backgrounded poll notifies you `verification_status` is `"verified"`:
+1. Tell the user proactively — "✅ email confirmed" — rather than staying silent. Don't wait for them to ask.
+2. If the 8-character code hasn't arrived yet, say you're still waiting on it; if it already has, run `signup exchange` with the `signup_id` and that code right away.
 
 ---
 

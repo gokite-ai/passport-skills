@@ -5,8 +5,9 @@ description: >-
   key, bind it to the agent record with the owner's passkey approval, pin the
   coordination persona card, publish the agent card, and publish the commerce
   registration (storefront, rate card, workflow/terms) buyers read before
-  proposing. Also covers pointing the owner at the Passport web dashboard for
-  governance (acceptance policy, escalations) and pending runtime approvals.
+  proposing, list the seller, and confirm its verification tier. Also covers pointing
+  the owner at the Passport web dashboard for governance (acceptance policy,
+  escalations) and pending runtime approvals.
   Invoke before any other `kagent` command, whenever `kagent status` reports
   anything other than an active binding, and whenever the card or a published
   document needs updating. This is the gateway skill for the seller-agent group
@@ -31,7 +32,18 @@ Everything a seller agent needs before it can be proposed to. `kagent` is a **se
 
 The bootstrap is five steps, and the order matters: `init` -> `bind` (owner approves) -> `card fetch --pin` -> `card publish` -> `registration publish` (itself authored in three: `registration template` -> edit -> `registration validate`, the Step 7 workflow). A seller that serves its card at its own https origin adds `card set-url` beside the publish, which flips precedence to that origin. The pin is a hard prerequisite for every signing verb, not a nicety. Generic `docs publish` documents remain available for free-form prose, but they are NOT registration inputs — the commerce facts buyers and the platform act on come from the registration.
 
-One boundary to be clear about up front: **this agent publishes; the owner lists.** Making a published card publicly discoverable in the agent directory is a visibility change the owner makes in Passport. `card publish` puts the content in place; it does not flip the listing.
+One boundary to be clear about up front: **this agent publishes; the owner lists.** Making a published card publicly discoverable in the agent directory is a visibility change on the *owner* plane, not something this agent's runtime key can sign — `card publish` puts the content in place; it does not flip the listing. But "owner plane" does not mean "dashboard-only": if this session already holds the owner's JWT (the same JWT Step 8's acceptance-policy call uses), listing is one more scripted owner-API call, not a hand-off to a human. See Step 9.
+
+## Handling "set up a seller agent for me" (a full, end-to-end request)
+
+A request phrased as a finished outcome — "set up a seller agent for me", "make my agent live", "get me selling X" — is asking for the whole chain through **listed and mandated**, run in one pass, not a sequence of "want me to continue?" check-ins after every step. Treat it differently from "prepare my offer, don't publish" (the previous paragraph):
+
+- **Gather everything this needs before running anything.** Before Step 1, make sure you actually have: the agent `uid` (Step 2 — cannot be guessed, and cannot be changed later), what the seller is selling (one-line offering identity), the price and currency, and the workflow template (default `fixed_outcome/v1` if the owner has no preference). If any of these is missing and wasn't already established earlier in the conversation, ask for all of them **up front, in one batch**, before touching a command — not one field at a time between Bash calls, and never fabricated to keep the flow moving.
+- **Run Steps 1–9 straight through**, including `card publish`, `registration publish`, and — per Step 9 — the listing PATCH, as one continuous execution once the inputs above are known. Do not stop mid-flow to ask permission for a step that's simply next in the chain the owner already asked for. Confirm the resulting verification tier (`verified` is the correct, complete outcome for the default platform-held card — see Step 9) rather than treating it as unfinished work.
+- **The only real interruption points are the ones nothing here can resolve programmatically:** a `binding.status: "pending"` runtime approval that needs the owner's passkey (Step 3's fallback path), `owner-bootstrap.md`'s onboarding/KYC steps if they come back `rejected` or stuck `pending`, and **no owner JWT available to this session.** That last one is not a minor gap — Step 9's listing PATCH and Step 8's acceptance-policy PUT are both owner-JWT-authorized calls with no other way to issue them, so without one the setup is genuinely incomplete, not just missing a nice-to-have. Get the owner authenticated first (**`authenticate-user`**) rather than skipping those calls silently or inventing a token. Those are genuine stops — everything else in the chain, including listing, is not.
+- Setting the acceptance policy (Step 8) is part of this same pass, not an optional extra — an unlisted or unmandated agent can't actually transact, so leaving it for later defeats the "set up a seller agent for me" ask. But write it from **this seller's actual values**, not Step 8's illustrative example: `templates` from the workflow id(s) this seller actually registered in Step 7, `price_floors`/`price_ceilings` from the real price the owner set (or explicitly confirmed), and `max_open_obligations` only if the owner stated a cap. If any of those is genuinely unconfirmed, do not guess a number to complete the pass — leave the policy unset (`configured: false`) and tell the owner to set it in Passport (see Step 8).
+
+**Identity creation is not publishing — do not defer Steps 1–3 because the owner said "don't publish yet."** "Set up my offer" / "prepare the offer, don't publish" means: get everything ready except the acts that make the agent visible or committed to a deal. Those acts are `card publish`, `registration publish`, and the owner's own listing toggle — nothing before that. `kagent init` (Step 1), `kpass agent create` (Step 2), and `bind` (Step 3) create an identity and key; a freshly created, freshly bound seller agent is **unlisted by default** and takes no proposals until its card and registration are published. So when this machine has no active seller agent yet, run Steps 1–3 first, *before* touching card content or registration files — do not park them for later and author `storefront.json` / `rate-card.json` / `workflow-terms.json` with a placeholder `agentDid`. The registration inputs need the real DID to mean anything; a file that still reads `did:kite:<namespace>:<agent>` when the session ends is not "prepared", it is blocked on a step that should have already happened.
 
 ## Step 0: Ensure the CLI Bundle Is Installed — MANDATORY
 
@@ -70,6 +82,7 @@ kagent --version
 - Any `kagent` command returns exit 3 with a `runtime_*` code.
 - A signing verb refuses with exit 2 and a hint naming `kagent card fetch --pin`.
 - The card content, terms, or rate card needs publishing or replacing.
+- The owner asks to "set up an offer" / "become a seller" / "sell X" and this machine has no active seller agent yet — check `kagent status` first; if there is no active binding, run Steps 1–3 (identity + bind) before drafting any card or registration content, even if the owner does not want to publish yet.
 
 Do **not** use this skill to serve incoming agreements — accepting, delivering, and answering buyers is the **`seller-fulfill`** skill.
 
@@ -337,7 +350,7 @@ curl -fsS -H "Authorization: Bearer <owner-jwt>" \
 the absence of a policy is a **position**, not a gap: it means every acceptance
 is refused, and reading it as "unconfigured, therefore permissive" is backwards.
 
-Write one — an atomic FULL REPLACE, guarded by optimistic concurrency:
+Write one — an atomic FULL REPLACE, guarded by optimistic concurrency. **The body below is illustrative, not a default to copy verbatim** — `fixed_outcome/v1` and `500000` are this example's numbers, not this seller's. Fill `templates` from the workflow id(s) actually registered in this seller's commerce registration (Step 7) and `price_floors`/`price_ceilings` from the real price the owner set or confirmed; a mismatched floor (e.g. an example's 0.50 USDC floor sitting above this seller's actual 0.10 USDC offering) would make the agent refuse the exact deal it was just set up to take. If those real values aren't known yet, don't invent them — leave the policy unset and point the owner at Passport instead (see above).
 
 ```bash
 curl -fsS -X PUT -H "Authorization: Bearer <owner-jwt>" -H 'Content-Type: application/json' \
@@ -367,7 +380,7 @@ mandate is what keeps that from being every deal.
 
 The same Governance page also surfaces this agent's open Escalations, at the top, ahead of the acceptance-policy form — the owner can act on an `acceptance-override` request from there instead of only from the URL this agent surfaces in **`seller-fulfill`**'s Step 3.
 
-### Step 9: Confirm, Then Tell the Owner to List
+### Step 9: Confirm Binding, List the Seller, Confirm Its Tier
 
 ```bash
 kagent status --output json
@@ -386,9 +399,39 @@ kagent status --output json
 
 Before an owner revokes a runtime with active or pending obligations, the dashboard now shows an impact warning at the point of the click — this agent has no visibility into that ceremony and should not try to talk the owner through it.
 
-Then say this to the owner, because it is the step this agent cannot take:
+**Listing the seller.** `kagent` carries no listing verb by design — visibility is an owner-plane call, not something the runtime key signs. That does not mean it needs a human at a keyboard: it is the same shape as Step 8's acceptance-policy call — an owner-JWT-authorized REST call, scriptable the moment this session holds that JWT. This is exactly what `passport-cli`'s `examples/autonomous/seller.sh` does at its own "OWNER lists the seller" step:
 
-> The card and commerce registration are published. Making the listing publicly discoverable in the agent directory is a visibility change only you can make in Passport. If the registration reports `owner_policy_restriction` readiness reasons, the acceptance policy also needs your attention there.
+```bash
+curl -fsS -X PATCH -H "Authorization: Bearer <owner-jwt>" -H 'Content-Type: application/json' \
+  "$KITE_PASSPORT_BASE_URL/v1/agents/<agt_id-or-did>" \
+  -d '{"visibility": "listed"}'
+```
+
+Listing requires an active binding and a published card; it refuses otherwise. When this session holds the owner's JWT (the same one used for `authenticate-user` / the acceptance-policy call), run this as part of the same pass rather than handing it to the owner — see "Handling 'set up a seller agent for me'" above. Only fall back to pointing the owner at **Passport web app → this agent → visibility** when this session has no owner JWT to act with.
+
+If the registration reports `owner_policy_restriction` readiness reasons, that one genuinely needs the owner's attention in Passport — it is not exposed by any API this agent can call.
+
+**Confirming the verification tier — do not blindly run `:verify`.** There are two seller tiers above `unverified`, and which one applies depends on whether this agent has a self-hosted https origin:
+
+```
+l4_key AND platform-held card               → verified        (the default outcome of this skill)
+l1_card AND l2_binding AND l3_protocol AND l4_key → fully_verified  (self-hosted card only, via card set-url)
+```
+
+For the platform-held card this skill produces by default (no `card set-url` run), **`verified` is already the complete, correct terminal tier** the moment Step 3 (an owner-approved, key-proven binding) and Step 5 (card publish) are both done — nothing else is required or possible for it. The design is explicit about this: a kite-managed seller "has no self-hosted surface to corroborate — L1–L3 have nothing to say about it, and running them would verify nothing." Two mechanical reasons `POST /v1/agents/<id>:verify` is not something to run reflexively here:
+
+- **`l4_key` is never written by the verify pipeline.** It's maintained by the runtime-binding lifecycle itself (Step 3), so there is nothing for a verify call to check there.
+- **L1–L3 don't run at all without a registered https URL** — card discovery "presumes a registered URL," and an agent created without one simply skips L1 (and everything gated behind it). They are not "pending forever" so much as structurally inapplicable to this agent.
+
+So instead of calling `:verify`, just **confirm and report the tier already achieved** — it's recomputed live on every read, no pipeline run needed:
+
+```bash
+ksearch agent get <own-did> --output json   # verified_tier: "verified" once bound + published
+# or, no auth needed either way:
+curl -fsS "$KITE_PASSPORT_BASE_URL/v1/agents/<agt_id-or-did>/verification"
+```
+
+Tell the owner plainly that `verified` is the finished state for this configuration, not a partial one — a dashboard that still shows "L1 · Agent card / L2 · Registry binding / L3 · Protocol probe" as `Pending` on a platform-held agent is not describing missing work on this agent; those checks apply only to a self-hosted seller. Reaching `fully_verified` needs a real https origin: `card set-url` (once one exists — see **`cloud-deploy`**) serving the `x-kite-registry.agentId` header L2 wants, plus a live responder for L3 (**`seller-serve`**) — that combination is what makes `POST .../:verify` meaningful, and only then. Do not run it speculatively before that origin exists; it burns a call to re-confirm a tier the platform already reports correctly.
 
 Verify what a buyer will see with `ksearch agent card <own-did> --output json` — the same read a buyer performs, including the hash verification, and credential-less like every other public directory read.
 
@@ -457,7 +500,7 @@ Do not attempt any of the following. They will fail:
 - `kagent card list` / `card unpublish` — `card` has exactly two children, `fetch` and `publish`. Republishing replaces content in place.
 - `kagent docs list` / `docs get` — `docs` has exactly two children, `publish` and `unpublish`.
 - `kagent docs publish --kind pricing` / `--kind price-list` — the closed set is `terms`, `rate-card`, `product`.
-- `kagent list --visible` / `kagent listing publish` — listing visibility is an owner action in Passport, not a CLI verb.
+- `kagent list --visible` / `kagent listing publish` — listing visibility is an owner-plane action, not a `kagent` CLI verb; it is `PATCH /v1/agents/<id>` with the owner's JWT (Step 9), not a dashboard-exclusive action.
 - `kagent key rotate` / `key export` / `key delete` / `kagent unbind` / `kagent revoke` — none exist. Re-keying is `init --force`; revocation is an owner action.
 - `kagent bind --approve` / `kagent approve` — binding approval is a passkey ceremony. No CLI verb can approve one.
 - `kagent bind --timeout 5m` — `--poll-interval` and `--timeout` on `bind` are **integers in seconds** (`--timeout 300`).

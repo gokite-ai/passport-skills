@@ -82,13 +82,21 @@ If the user says "sign in" or "authenticate" without specifying whether they hav
 
 **CRITICAL: Do not present "click the verification link" and "share the sign-up code" as two independent, equally-valid ways to finish ("whichever is easier"). They are not alternatives.** For a brand-new signup, `signup exchange` fails with "signup session not verified" until the link has been opened — the click is what marks the session verified server-side; the code only completes the exchange afterward. Pasting the code without opening the link first will not work, no matter how correct the code is.
 
+**CRITICAL: these are TWO SEPARATE emails, not one.** `signup init` sends both at once, but they land as distinct messages with distinct subjects, and each has its own job. Never say "from the same email" or "that email" for the code — name the second email explicitly, or the user will go looking for an 8-character code inside the verification-link email and not find one.
+
 Tell the user, in this order, right after `signup init` succeeds:
 
-1. "Check **{email}** for an email titled 'Sign in to Kite Passport' and click the verification link in it — that's the step that actually confirms your address."
+1. "Check **{email}** for an email titled **'Sign in to Kite Passport'** and click the verification link in it — that confirms your address."
 2. "For a new account, that link takes you to a 'Create a passkey' page — go ahead and create one there; it's part of finishing registration and you'll need it later to approve spending sessions and agent bindings." Say this proactively, before they click, not as a surprise afterward.
-3. "Then come back here and share the 8-character sign-up code from the same email so I can finish logging you in."
+3. "You'll also get a **second, separate email titled 'Your Kite Passport sign-up code'** — that one has the 8-character code I still need from you to finish logging you in. Once you've clicked the link above, copy that code from the second email and paste it here."
 
-If the user pastes the code (or the full verification link/URL) before confirming they clicked the link, do not run `signup exchange` yet — first confirm the link was opened (`signup poll --wait`, or ask them directly), then run the exchange. See "Signup exchange fails with 'not verified'" in `@references/commands.md` for the exact recovery if you skip ahead and hit it anyway.
+**Immediately after sending that message, start polling in the background — do not wait for the user to say "verified" or otherwise nudge you.** Launch, as a background command (`run_in_background`):
+
+```bash
+kpass signup poll --signup-id <signup_id> --wait --output json
+```
+
+This blocks server-side for up to `--timeout` (default 600s) until the link is clicked, so it must run in the background, not inline — an inline call would stall the whole conversation for up to ten minutes. The point of running it at all is that the user should never have to manually tell you they clicked the link: the background job's own completion is that signal. When it comes back `verification_status: "verified"`, say so ("✅ email confirmed") and, if the code hasn't arrived yet, remind the user you're still waiting on it — do not silently sit on the confirmation. If the user pastes the code before this background poll has resolved, do not run `signup exchange` yet — first confirm the link was opened (check the poll's result, or a one-shot `signup poll` without `--wait`), then run the exchange. See "Signup exchange fails with 'not verified'" in `@references/commands.md` for the exact recovery if you skip ahead and hit it anyway.
 
 ---
 
