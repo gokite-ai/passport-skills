@@ -32,7 +32,7 @@ Kite is **multichain**. Every send targets one chain — on mainnet one of **`ba
 - The user asks to send or transfer tokens to an address.
 - The user asks "what's my wallet address?" or needs an address to receive funds.
 - The user asks for test tokens, wants to "top up" on testnet, or needs to fund a wallet for development. **Faucet is staging/testnet only** — the CLI blocks it on production automatically.
-- After any balance or address check on a dev/testnet chain, when the main stablecoin balance there is `0` or under `1` — proactively suggest the faucet even if the user only asked for wallet info (see "Proactively Suggest the Faucet on a Low Testnet Balance" below).
+- After any balance check on a dev/testnet chain, when the main stablecoin balance there is `0` or under `1` — proactively suggest the faucet even if the user only asked for wallet info (see "Proactively Suggest the Faucet on a Low Testnet Balance" below). An **address-only** check carries no balance data (`wallet address` returns `wallets[]` — chain, vm_family, address — nothing else), so this trigger needs an explicit `wallet balance` lookup first; it is not something an address response can answer on its own.
 
 ## When NOT to Use This Skill
 
@@ -235,12 +235,13 @@ The safety notice and supported-assets block are mandatory and must appear **bef
 
 ## Proactively Suggest the Faucet on a Low Testnet Balance
 
-After displaying the balance card (or the address card), check whether a proactive faucet suggestion applies — do this even if the user only asked "what's my wallet info" and did not ask about funding.
+After displaying the balance card, check whether a proactive faucet suggestion applies — do this even if the user only asked "what's my wallet info" and did not ask about funding. **If the check in hand is an address lookup, not a balance one, run `kpass wallet balance --output json` first** — `wallet address` carries no `amount` data at all (its rows are just `{ chain, vm_family, address }`), so there is nothing to evaluate the threshold against until a real balance response exists. Never fabricate or assume a balance from an address response.
 
 **When to suggest:** the environment is dev/testnet (recognized by an `arc` row in `chains[]` — dev serves `arc` and nothing else) or another testnet/staging chain, **and** the main stablecoin's balance on that chain (`USDC`, the `amount` field of its `chains[]` row) is `0` or less than `1`. Never suggest the faucet against a mainnet/production balance.
 
 **What to suggest:**
-- **Any chain other than `arc`:** offer to run `kpass faucet drop --recipient <address> --token USDC --output json` for that chain (see the `faucet drop` card below).
+- **Any chain other than `arc` or `robinhood`:** offer to run `kpass faucet drop --recipient <address> --token USDC --output json` (see the `faucet drop` card below). **`faucet drop` takes no `--chain` flag** — it drops on a single backend-determined testnet (reported only informationally as `chain_id` in its response), not necessarily the same network as the chain whose balance was low, since the recipient address is shared across base/polygon/avalanche/tempo/robinhood. Don't claim the drop replenishes that specific chain; after it completes, re-run `wallet balance` and report what actually changed rather than assuming.
+- **`robinhood` specifically:** do NOT offer `kpass faucet drop` — robinhood is **USDG only** and, per `references/commands.md`, "is not a faucet-supported chain." There is no faucet path for it; say so if asked.
 - **`arc` specifically:** do NOT offer `kpass faucet drop` — Passport's own faucet cannot fund Arc (see the `arc` row in **Chains & Assets** above). Instead tell the user:
 
   > Your arc (Arc testnet) USDC balance is `<amount>`. Kite's own `faucet drop` cannot fund Arc, so get free test USDC directly from Circle:

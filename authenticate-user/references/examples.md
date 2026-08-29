@@ -55,7 +55,7 @@ Use the mandatory ordered wording from `SKILL.md`'s "Messaging After `signup ini
 
 Right after sending that message, also start `kpass signup poll --signup-id signup_abc123 --wait --output json` **in the background** — do not wait for the user to say "verified" first. It runs in parallel with waiting for the code below and reports the link click on its own; see `signup poll` in `commands.md`.
 
-**Step 2:** User provides the code (e.g., "A1B2C3D4"). Complete signup.
+**Step 2:** User provides the code (e.g., "A1B2C3D4"). Only run exchange once **both** conditions hold: the background poll from Step 1 has reported `verification_status: "verified"`, and the code is in hand. If the code arrives first and the poll hasn't resolved yet, hold it and wait for `verified` — do not exchange early on the strength of the code alone.
 ```bash
 KPASS_SIGNUP_CODE=A1B2C3D4 kpass signup exchange --signup-id signup_abc123 --output json
 ```
@@ -154,7 +154,9 @@ Output:
 ```
 Tell the user to click the verification link in the "Sign in to Kite Passport" email, then share the 8-character code from the separate "Your Kite Passport sign-up code" email — two emails, not one.
 
-**Step 3:** User provides the code (e.g., "A1B2C3D4"). Complete signup.
+Right after sending that message, also start `kpass signup poll --signup-id signup_abc123 --wait --output json` **in the background** — same as the new-signup example above, do not wait for the user to say "verified" first.
+
+**Step 3:** User provides the code (e.g., "A1B2C3D4"). Only run exchange once the background poll has reported `verification_status: "verified"` **and** the code is in hand — if the code arrives before the poll resolves, wait for `verified` rather than exchanging on the code alone.
 ```bash
 KPASS_SIGNUP_CODE=A1B2C3D4 kpass signup exchange --signup-id signup_abc123 --output json
 ```
