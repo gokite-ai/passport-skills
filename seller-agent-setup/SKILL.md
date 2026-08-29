@@ -155,7 +155,8 @@ kagent init --output json
 
 Exit 2 with a hint about orphaning means a key already exists. Check `kagent status --output json` and compare the bound agent to the one you're setting up before considering `--force`:
 
-- **Same agent** — reuse it; nothing needs doing.
+- **Same agent, and `binding.status` is `active`** — reuse it; nothing needs doing.
+- **Same agent, but `binding.status` is `pending`, `revoked`, or `unbound`** — the key matches, but the binding doesn't. Continue through Step 3/4 as usual (see Step 4's status table) rather than treating setup as complete.
 - **A different agent or owner** — the owner likely wants a second, independent seller identity, not to retire the first. Since seller state is home-anchored (unlike the buyer lane), the fix is `--config-dir <path>` to give the new seller its own role directory — see "Running Multiple Seller Agents on One Machine" below — not `--force`.
 
 ### Step 2: Ask the Owner Which Agent to Bind To

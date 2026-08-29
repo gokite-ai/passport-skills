@@ -73,7 +73,7 @@ Because buyer state is discovered upward from the working directory, the clean w
 2. From inside `<project-dir>`, run **`authenticate-user`** for the owning account this new buyer belongs to (a new email, or an existing one not already bound to a runtime here).
 3. Still from inside `<project-dir>`, run this skill's Steps 1–6 as normal. `kpass agent init` creates its own `runtime.key` here — it never touches the key in any other directory.
 
-Every later command for this agent — `bind`, `status`, `buyer-find-seller`, `buyer-purchase` — must also run from inside `<project-dir>` (or with `--key-file`/`KPASS_RUNTIME_KEY_FILE` pointed at its key), or upward discovery resolves to a different `.kite-passport/` than the one you intended.
+Every later command for this agent — `bind`, `status`, `buyer-find-seller`, `buyer-purchase` — must also run from inside `<project-dir>`. `--key-file`/`KPASS_RUNTIME_KEY_FILE` is not a substitute for this: it relocates only `runtime.key`, while `agent-state.json` (the persona-card pin, and later the stream cursor) still resolves by upward discovery from the working directory. Pinning the right key from the wrong directory still reads and writes the wrong agent's card pin and cursor.
 
 ## Key Custody Rules
 
@@ -117,7 +117,8 @@ kpass agent init --output json
 
 Exit code 2 with a hint about orphaning means a key already exists at that path. Run `kpass agent status --output json` and compare the bound agent to the one you're setting up:
 
-- **Same agent** — idempotent good news. Skip to Step 4; nothing left to do.
+- **Same agent, and `binding.status` is `active`** — idempotent good news. Skip to Step 4; nothing left to do.
+- **Same agent, but `binding.status` is `pending`, `revoked`, or `unbound`** — the key matches, but the binding doesn't. Continue through Step 3/4 as usual (see Step 4's status table) rather than treating setup as complete.
 - **A different agent (or a different owner entirely)** — this is not a "force or leave it" choice. It usually means the owner wants a *second*, independent buyer identity, not to retire the first one. Default to setting up an isolated project directory for the new agent instead — see "Running Multiple Buyer Agents on One Machine" below — and only offer `--force` if the owner tells you the old identity is being abandoned.
 
 ### Step 2: Ask the Owner Which Agent to Bind To
