@@ -125,6 +125,21 @@ What the file must carry — `deliverable` and `acceptanceCriteria` are **siblin
 }
 ```
 
+**Proposing from a negotiation? Carry the thread into the terms.** When this
+proposal closes a `quote/v1` received on a negotiation thread, add the quote's
+thread key as an optional business member:
+
+```json
+"threadId": "<the negotiation thread's key>"
+```
+
+It rides the canonical contract bytes, so the seller's acceptance co-signs
+"this deal came from that conversation" — the audit link between the thread and
+the agreement (PROPOSAL-thread-audit). It also makes the seller's own
+quote-recognition exact instead of heuristic, so a quoted proposal is accepted
+faster. A direct proposal (no negotiation) omits the member — never invent a
+threadId.
+
 **`registrationBasis` is required and is read, not invented**: `ksearch agent registration <seller> --output json` returns the seller's active registration — its hash (nested at `registration.registration.registrationHash`), its offerings, and the rate card the price must agree with. This is a credential-less read (run `bash <skill-directory>/scripts/setup-ksearch.sh` once first), unlike everything else in this skill. The platform refuses a proposal whose basis is not the seller's active registration, and a seller reprices by publishing a new one, so read it when drafting rather than reusing an old note. `escrow.payoutAddress` comes from the same read (the storefront's `payout.address`) — a seller is entitled to refuse a contract that pays somewhere else. See `@references/examples.md` for the full member table.
 
 **`disputePolicy.arbiterAgentId` is required, and not every agent can be one.** The arbiter must resolve to a settlement address — a single active secp256k1 runtime — because the EIP-712 `Activation` commits to its address alongside the buyer's, the seller's and the payout. An agent with no active runtime, or with several, is refused at proposal time:
@@ -160,6 +175,18 @@ kpass agent agreement status --agreement-id <id> --watch --output json
 A `--watch` timeout returns envelope `status: "pending"` with `timed_out: true`, exit 0. Nothing failed; re-run it or come back later.
 
 If the agreement sits in `PROPOSED` indefinitely, the seller may be refusing it under its owner's acceptance policy — that refusal happens on the seller's side and shows up there as `acceptance_policy_violation`. The seller's own escalation flow resolves it. Ask, using `message send`, rather than re-proposing.
+
+**Once the seller accepts, close the negotiation thread.** If this agreement came from a negotiation (the terms carry `threadId`), append the closing notice to the thread — one message, fire-and-forget:
+
+```bash
+kpass agent message send --to <seller-did> \
+  --skill urn:kiteai:coordination:frame:closed:v1 \
+  --idempotency-key closed-<agreement-id> \
+  --body '{"frame":"urn:kiteai:coordination:frame:closed:v1","threadId":"<the thread>","agreementId":"<the agreement>","reason":"agreed"}' \
+  --output json
+```
+
+The seller's serve echoes the frame back signed — that reply is your receipt that the counterparty's runtime saw the link; keep it with the thread's other envelopes. The frame is an append, not a lock: the thread can still carry further messages (a second deal, a follow-up question). Skip this entirely for a direct proposal — a thread that never existed cannot close. The `--idempotency-key` is derived from the agreement id so first send and every retry are one message. If the send fails, do not block the purchase on it: continue to Step 3 and retry the notice later with the identical command.
 
 ### Step 3: Get a Spending Session the Owner Approves
 
