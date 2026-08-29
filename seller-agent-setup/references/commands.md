@@ -154,7 +154,7 @@ kagent init --output json
 }
 ```
 
-An existing key without `--force` is exit 2, hint `Replacing a bound key orphans every agreement pinned to it. Pass --force only if that is intended.`, `next_command: "kagent key show --output json"`. Bad key material is also exit 2.
+An existing key without `--force` is exit 2, hint `Replacing a bound key orphans every agreement pinned to it. Pass --force only if that is intended.`, `next_command: "kagent key show --output json"`. Bad key material is also exit 2. Before treating this as a force-or-not decision, check `kagent status --output json` for *whose* agent the key is bound to — a different agent or owner usually means the fix is `--config-dir <path>` for an isolated identity (see SKILL.md's "Running Multiple Seller Agents on One Machine"), not `--force`.
 
 File mechanics: the key and the state file are both written through an exclusive temp file that is chmod'd to `0600` **before** any bytes are written, then renamed into place — a pre-placed file or symlink at the target is never reused. The directory is `0700`. The key is stored as hex plus a newline. `agent-state.json` stays in the role directory even when `--key-file` moves the key.
 

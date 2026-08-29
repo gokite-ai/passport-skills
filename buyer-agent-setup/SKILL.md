@@ -63,11 +63,23 @@ The consequence matters for unattended runs: **the same agent invoked from a dif
 
 `--config-dir` **does not exist on the buyer surface** and is rejected rather than ignored: buyer state is anchored to `.kite-passport/`. Use `--key-file` to relocate the key.
 
+## Running Multiple Buyer Agents on One Machine
+
+Because buyer state is discovered upward from the working directory, the clean way to add a second (or third) buyer identity on the same machine is a **separate project directory with its own `.kite-passport/`** — not `--force` on the existing key. Each directory's key, binding, and owner JWT stay fully independent; nothing about the first agent is touched.
+
+**Create the directory before authenticating, not after.** `authenticate-user`'s `login`/`signup` writes `config.json` (the owner JWT) to the nearest `.kite-passport/` too, using the same upward search. Authenticate first in a directory with no local `.kite-passport/` and the JWT lands wherever the search resolves instead — often the home directory — leaving you to move `config.json` into the new directory by hand afterward. Avoid that by ordering it this way:
+
+1. `mkdir -p <project-dir>/.kite-passport` — this directory now wins upward discovery for everything run from inside it.
+2. From inside `<project-dir>`, run **`authenticate-user`** for the owning account this new buyer belongs to (a new email, or an existing one not already bound to a runtime here).
+3. Still from inside `<project-dir>`, run this skill's Steps 1–6 as normal. `kpass agent init` creates its own `runtime.key` here — it never touches the key in any other directory.
+
+Every later command for this agent — `bind`, `status`, `buyer-find-seller`, `buyer-purchase` — must also run from inside `<project-dir>`. `--key-file`/`KPASS_RUNTIME_KEY_FILE` is not a substitute for this: it relocates only `runtime.key`, while `agent-state.json` (the persona-card pin, and later the stream cursor) still resolves by upward discovery from the working directory. Pinning the right key from the wrong directory still reads and writes the wrong agent's card pin and cursor.
+
 ## Key Custody Rules
 
 - **The private key is never printed by any command.** `init`, `key show`, and `status` report the EVM address, the JWK thumbprint, the `keyId` fragment, and the public key. If you find yourself about to echo key material into a log, a message, or a chat reply, you have the wrong field — report `address` and `thumbprint` instead.
 - The key file is written with mode **0600** inside a **0700** directory, permissions applied before any bytes are written. Do not `chmod` it looser to make a container work; mount it with the right ownership instead.
-- **`init --force` on a bound key is destructive.** Replacing a bound key orphans every agreement pinned to it — the old key can no longer sign for agreements that named it. The CLI refuses an overwrite without `--force` for exactly that reason. Only pass `--force` when the owner has said the existing identity is being abandoned.
+- **`init --force` on a bound key is destructive.** Replacing a bound key orphans every agreement pinned to it — the old key can no longer sign for agreements that named it. The CLI refuses an overwrite without `--force` for exactly that reason. Only pass `--force` when the owner has said the existing identity is being abandoned. Wanting to run a second buyer agent alongside the first is **not** that case — see "Running Multiple Buyer Agents on One Machine" above instead.
 - One key, one agent. If `bind` reports `runtime_agent_mismatch`, the owner pointed you at a different agent record; ask rather than re-initializing.
 
 ## Defaults (Do Not Ask the Owner Unless They Specify Otherwise)
@@ -103,7 +115,11 @@ kpass agent init --output json
 
 `status: "success"` carries `state_dir`, `key_file`, `address`, `thumbprint`, `key_id_fragment`, and `pubkey`. Record the `address` and `thumbprint` — the owner needs one of them to identify this runtime, and `thumbprint` is how Passport looks the runtime up.
 
-Exit code 2 with a hint about orphaning means a key already exists at that path. That is usually good news: skip to Step 3 and check whether it is already bound. Only re-run with `--force` if the owner has explicitly abandoned the old identity.
+Exit code 2 with a hint about orphaning means a key already exists at that path. Run `kpass agent status --output json` and compare the bound agent to the one you're setting up:
+
+- **Same agent, and `binding.status` is `active`** — idempotent good news. Skip to Step 4; nothing left to do.
+- **Same agent, but `binding.status` is `pending`, `revoked`, or `unbound`** — the key matches, but the binding doesn't. Continue through Step 3/4 as usual (see Step 4's status table) rather than treating setup as complete.
+- **A different agent (or a different owner entirely)** — this is not a "force or leave it" choice. It usually means the owner wants a *second*, independent buyer identity, not to retire the first one. Default to setting up an isolated project directory for the new agent instead — see "Running Multiple Buyer Agents on One Machine" below — and only offer `--force` if the owner tells you the old identity is being abandoned.
 
 ### Step 2: Ask the Owner Which Agent to Bind To
 
@@ -230,7 +246,7 @@ The buyer lane uses the standard table extended with two agent-plane codes (7 an
 
 ### Specific Scenarios
 
-**`runtime key already exists` (exit 2):** A key is present at the resolved path. Run `kpass agent status --output json` first — if it is already bound and active, setup is complete and nothing needs doing. Only `--force` if the owner is abandoning that identity.
+**`runtime key already exists` (exit 2):** A key is present at the resolved path. Run `kpass agent status --output json` first and compare the bound agent to the one you're setting up. **Same agent, already active:** setup is complete, nothing needs doing. **A different agent or owner:** that's the normal signature of wanting a second buyer identity, not a reason to `--force` — set up an isolated project directory instead (see "Running Multiple Buyer Agents on One Machine"). Only `--force` if the owner explicitly says the old identity is being abandoned.
 
 **Binding stuck at `pending`:** Expected, and not an error. The owner has not approved it yet, or has not finished the passkey ceremony. Re-surface the approval message — including the thumbprint, so they can pick the right row. Do not re-run `bind` in a loop: each direct bind files a fresh request, and a key with several pending rows is harder to approve, not easier. It also outlives the moment — an agent that re-filed on every restart can leave a column of duplicate rows behind, and once approved they all count, which makes the key ambiguous to counterparties.
 

@@ -106,11 +106,17 @@ Relocation:
 
 Resolution order for the key: `--key-file`, then `KAGENT_RUNTIME_KEY_FILE`, then `<config-dir or ~/.kagent>/runtime.key`. Resolution creates nothing; a bad path is a usage error.
 
+## Running Multiple Seller Agents on One Machine
+
+Seller state is home-anchored (`~/.kagent/` by default), so a second seller identity needs its own role directory rather than a second working directory: pass `--config-dir <path>` (a fresh, dedicated directory per identity) to every `kagent` command for that agent — `init`, `bind`, `status`, and the serving commands in **`seller-fulfill`**. This keeps the key, `agent-state.json`, and published documents fully separate from any other seller on the machine; the default identity at `~/.kagent/` is never touched.
+
+As with the buyer lane, this only matters when `init` reports `runtime key already exists` for an agent that turns out to be a *different* one than intended — that's the signal to isolate with `--config-dir`, not to `--force` through the existing binding.
+
 ## Key Custody Rules
 
 - **The private key is never printed by any command.** `init`, `key show`, and `status` report the EVM address, the thumbprint, the `keyId` fragment, and the public key. If you are about to emit key material into a log, a card, or a message, you have the wrong field.
 - The key file is created `0600` inside a `0700` directory, with permissions applied **before** any bytes are written, through an exclusive temp file plus rename — so a pre-placed file or symlink at the target is never reused. Do not loosen the mode to make a container work; fix the ownership instead.
-- **`init --force` on a bound key is destructive.** It orphans every agreement pinned to that key. The CLI refuses an overwrite without `--force` for exactly this reason. Only pass it when the owner has agreed that the identity is being abandoned.
+- **`init --force` on a bound key is destructive.** It orphans every agreement pinned to that key. The CLI refuses an overwrite without `--force` for exactly this reason. Only pass it when the owner has agreed that the identity is being abandoned. Wanting to run a second seller agent alongside the first is **not** that case — see "Running Multiple Seller Agents on One Machine" above instead.
 - Any active runtime key of the agent may publish the card. Losing exclusive control of the key means losing control of what the agent advertises.
 
 ## Defaults (Do Not Ask the Owner Unless They Specify Otherwise)
@@ -147,7 +153,11 @@ kagent init --output json
 
 `status: "success"` reports `state_dir`, `key_file`, `address`, `thumbprint`, `key_id_fragment`, and `pubkey`. Record `address` and `thumbprint` — the owner needs one to identify this runtime, and Passport looks the runtime up by thumbprint.
 
-Exit 2 with a hint about orphaning means a key already exists. Check `kagent status --output json` before considering `--force`: usually the right move is to reuse the existing identity.
+Exit 2 with a hint about orphaning means a key already exists. Check `kagent status --output json` and compare the bound agent to the one you're setting up before considering `--force`:
+
+- **Same agent, and `binding.status` is `active`** — reuse it; nothing needs doing.
+- **Same agent, but `binding.status` is `pending`, `revoked`, or `unbound`** — the key matches, but the binding doesn't. Continue through Step 3/4 as usual (see Step 4's status table) rather than treating setup as complete.
+- **A different agent or owner** — the owner likely wants a second, independent seller identity, not to retire the first. Since seller state is home-anchored (unlike the buyer lane), the fix is `--config-dir <path>` to give the new seller its own role directory — see "Running Multiple Seller Agents on One Machine" below — not `--force`.
 
 ### Step 2: Ask the Owner Which Agent to Bind To
 
@@ -476,7 +486,7 @@ The owner approves the binding between the fourth and fifth commands, and flips 
 
 ### Specific Scenarios
 
-**`runtime key already exists` (exit 2):** run `kagent status --output json` first. An already-bound active key means setup is done. `--force` orphans agreements pinned to the old key.
+**`runtime key already exists` (exit 2):** run `kagent status --output json` first and check whose agent it's bound to. **Same agent, already active:** setup is done. **A different agent or owner:** this usually means the owner wants a second seller identity — use `--config-dir <path>` for an isolated role directory (see "Running Multiple Seller Agents on One Machine") rather than forcing. `--force` orphans agreements pinned to the old key and should only run with the owner's explicit go-ahead to abandon that identity.
 
 **Binding stuck at `pending`:** expected. The owner has not finished the passkey ceremony. Re-surface the URL; do not loop `bind`.
 
