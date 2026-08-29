@@ -187,7 +187,7 @@ This environment settles escrow on **Arc testnet** (`arc`) — the only chain a 
 > 2. Select token **USDC**
 > 3. Select the **Arc** testnet network
 > 4. Paste this wallet address: `<address from kpass wallet address --chain arc --output json>`
-> 5. Submit, then re-run `kpass wallet balance --output json` to confirm it arrived.
+> 5. Submit — Circle's faucet typically drops **~20 USDC** per request, not a fixed amount to promise precisely — then re-run `kpass wallet balance --output json` to confirm it arrived.
 
 This is informational, not a blocker — funding only matters once the owner actually proposes a purchase. **`buyer-purchase`** Step 4 checks again, and blocks, right before funding.
 

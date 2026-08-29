@@ -249,7 +249,7 @@ After displaying the balance card, check whether a proactive faucet suggestion a
   > 2. Select token **USDC**
   > 3. Select the **Arc** testnet network
   > 4. Paste this wallet address: `<address from kpass wallet address --chain arc --output json>`
-  > 5. Submit, then re-run `kpass wallet balance --output json` to confirm it arrived.
+  > 5. Submit — Circle's faucet typically drops **~20 USDC** per request, not a fixed amount to promise precisely — then re-run `kpass wallet balance --output json` to confirm it arrived.
 
   This is the same guidance **`buyer-agent-setup`** and **`buyer-purchase`** give when a buyer agent's Arc balance can't cover a purchase — reuse it verbatim rather than inventing new wording.
 
