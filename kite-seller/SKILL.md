@@ -5,8 +5,9 @@ description: >-
   --handler`: the per-operation response contract the standard handler
   (`kite-agent-handler`) expects on stdout. Produce a deliverable for a `start`,
   a typed reply or quote frame for a `request`, an accept/decline/escalate for a
-  `decide`, or one arm of the rejected fork — a revised delivery, an appeal, or a
-  refund consent — for a `rejected`. Invoke whenever the task prompt is a JSON
+  `decide`, one arm of the rejected fork — a revised delivery, an appeal, or a
+  refund consent — for a `rejected`, or a bookkeeping acknowledgment for a
+  `closed`. Invoke whenever the task prompt is a JSON
   item envelope carrying an `operation` field. Judgment and production are yours;
   serve validates and signs. Requires the active binding from seller-agent-setup.
 ---
@@ -35,8 +36,8 @@ for whoever operates the seller rather than for you.
 
 The task prompt is one JSON item envelope:
 
-- `operation` — what kind of answer is owed: `start`, `request`, `decide`, or
-  `rejected`.
+- `operation` — what kind of answer is owed: `start`, `request`, `decide`,
+  `rejected`, or `closed`.
 - `itemId`, `attempt` — identity and retry count. `attempt > 1` means a prior
   run failed: produce the SAME intended outcome, not a variation.
 - `agreement` — the full authoritative platform state, already fetched and
@@ -129,9 +130,9 @@ Answer with exactly one reply frame:
   **Record the quote** as `out/quotes/<threadId>.json`, carrying `threadId`,
   `from` (the buyer), `offeringId`, `registrationHash`, `price`,
   `priceSchedule`, and a one-line `scope` naming exactly what you priced. The
-  `scope` line is load-bearing: a proposal carries no thread id, so at decide
-  time it is the only way to tell the deal you quoted from a different job that
-  happens to cost the same.
+  `scope` line is load-bearing: a buyer that omits `threadId` from its proposal
+  terms leaves the scope as the only way to tell the deal you quoted from a
+  different job that happens to cost the same.
 
 ### decide — a proposal names this seller
 
@@ -140,17 +141,28 @@ The terms are already verified against the published registration
 rules. Judge **willingness and capacity**: is the deliverable within what this
 seller does, and can it be done well now?
 
-- First check `out/quotes/`. A recorded quote is a deal you already judged, but
-  only when ALL FOUR of these hold — a proposal carries no thread id, so a
-  matching price alone proves nothing, and a card with one flat line at a common
-  price matches almost any later proposal:
+- First check `out/quotes/`. A recorded quote is a deal you already judged.
+  **When the proposal's terms carry a `threadId` member** (a buyer proposing
+  from your quote writes the thread key into the co-signed terms), the lookup
+  is exact — read `out/quotes/<threadId>.json` and accept when ALL THREE hold:
+  1. the `priceSchedule` and `registrationHash` match the recorded quote,
+  2. the proposal's buyer is the buyer that quote was issued to (`from`),
+  3. the quote is **unconsumed**: no `out/quotes/used/<threadId>.json` exists.
+
+  A `threadId` naming no recorded quote, or a recorded quote whose members do
+  not match, is NOT a match — treat the proposal as unquoted; never let a
+  buyer-written thread key substitute for the checks.
+
+  **When the terms carry no `threadId`**, matching is heuristic — a matching
+  price alone proves nothing, and a card with one flat line at a common price
+  matches almost any later proposal — so ALL FOUR must hold:
   1. the `priceSchedule` and `registrationHash` match the recorded quote,
   2. the proposal's buyer is the buyer that quote was issued to (`from`),
   3. the proposal's deliverable is the `scope` that quote priced — the same
      work, not merely the same money,
   4. the quote is **unconsumed**: no `out/quotes/used/<threadId>.json` exists.
 
-  When all four hold, accept, and immediately write
+  On a match by either path, accept, and immediately write
   `out/quotes/used/<threadId>.json` (the agreement id, the quote's threadId, the
   date) so one quote can never license a second agreement. Otherwise treat the
   proposal as unquoted and judge it on the seller's own standard below.
@@ -193,6 +205,33 @@ and the prior rounds. Choose exactly ONE of three answers:
   ```
 
 Emit exactly one of these objects. Two arms, or none, is discarded fail-closed.
+
+### closed — a buyer closed a negotiation thread (bookkeeping only)
+
+`payload.message` is a `closed/v1` frame: `{frame, threadId, agreementId,
+reason}` — the buyer's notice that this thread converged on an agreement
+(PROPOSAL-thread-audit §4). Nothing you answer is signed or sent: serve
+acknowledges the buyer mechanically by echoing the frame back. Your job is
+this seller's own records, and your answer is one JSON object describing what
+you did:
+
+- `out/quotes/used/<threadId>.json` exists: cross-check its agreement id
+  against the frame's `agreementId`. Match → `{"archived": true, "threadId":
+  "…", "agreementId": "…"}`. Mismatch → do not rewrite your own record;
+  answer `{"archived": false, "note": "agreementId mismatch: quoted deal is
+  <ours>, buyer claims <theirs>"}` — the co-signed terms, not this frame, are
+  the authority, and the note is what the owner greps for later.
+- `out/quotes/<threadId>.json` exists but was never consumed: the buyer closed
+  a thread you quoted without buying through that quote (or the deal formed
+  without the terms carrying the thread). Leave the quote file as it is —
+  a closing notice is a claim, and it never consumes a quote on the buyer's
+  say-so. Record the notice as `out/threads/closed/<threadId>.json` (the frame
+  plus `from`) and say so in your answer.
+- Neither exists: a notice for a thread you never quoted on. Record it the
+  same way and answer `{"archived": true, "note": "no quote on this thread"}`.
+
+A thread is not locked by closing: later `request` frames on the same
+`threadId` are ordinary requests — answer them on their merits.
 
 ### dispute — you will not see it
 
