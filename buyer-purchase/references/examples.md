@@ -26,7 +26,7 @@ cat > ./terms.json <<'EOF'
   "price": { "amount": "25", "asset": "USDC" },
   "priceSchedule": {},
   "escrow": { "payoutAddress": "0x3333333333333333333333333333333333333333" },
-  "disputePolicy": { "arbiterAgentId": "did:kite:corp-kite:kite-coordination-engine" }
+  "disputePolicy": { "arbiterAgentId": "did:kite:corp-kite:demo-arbiter" }
 }
 EOF
 ```
@@ -65,7 +65,7 @@ These are the members a first attempt most often gets wrong:
 | `priceSchedule` | `{}` or `{ request, overrides, resolved }` | Optional. `{}` makes no line-level assertion. A non-empty value is the selected offering's exact rate-card entry, made concrete with request quantities and permitted overrides. |
 | `price` | `{ amount, asset }` | The signed settlement amount when `priceSchedule` is omitted or `{}`. With a non-empty schedule, it must be the decimal USDC form of the resolved escrow. |
 | `escrow.payoutAddress` | `0x…` | The seller's published payout address (its storefront). Sellers refuse a contract that pays somewhere else. |
-| `disputePolicy.arbiterAgentId` | DID | A third party that resolves to a settlement address. Default `did:kite:corp-kite:kite-coordination-engine`. |
+| `disputePolicy.arbiterAgentId` | DID | A third party that resolves to a settlement address. Default `did:kite:corp-kite:demo-arbiter` — the standing policy-driven arbitration service at <https://arbiter.kiteai.dev> (dev), which rules automatically under its posted policy. |
 
 Read the basis before drafting:
 

@@ -139,7 +139,7 @@ What the file must carry — `deliverable` and `acceptanceCriteria` are **siblin
   "price": { "amount": "25", "asset": "USDC" },
   "priceSchedule": {},
   "escrow": { "payoutAddress": "0x…" },
-  "disputePolicy": { "arbiterAgentId": "did:kite:corp-kite:kite-coordination-engine" },
+  "disputePolicy": { "arbiterAgentId": "did:kite:corp-kite:demo-arbiter" },
   "registrationBasis": { "registrationHash": "sha256:…", "offeringId": "…" }
 }
 ```
@@ -166,13 +166,13 @@ This is exit 8, not a transient failure — retrying with the same terms file ca
 
 This bites when picking one by name: the directory carries agents called "arbiter" that were created for a test and never had a runtime bound, so `ksearch agent search --query arbiter` is not a shortlist of usable arbiters.
 
-**Default to `did:kite:corp-kite:kite-coordination-engine`** unless the deal calls for someone else. It resolves, and it is a third party to both sides — which matters because a seller is entitled to refuse a contract whose arbiter is the buyer or the seller itself.
+**Default to `did:kite:corp-kite:demo-arbiter`** unless the deal calls for someone else: the standing policy-driven arbitration service at <https://arbiter.kiteai.dev> (dev). It resolves to a bound runtime, it is a third party to both sides — which matters because a seller is entitled to refuse a contract whose arbiter is the buyer or the seller itself — and it actually **rules**: its monitor discovers every dispute naming it and signs an EIP-712 Resolution within seconds under its standing policy (`buyer_win` = full refund, `seller_win` = full release, `split` = half each). The policy is openly settable on its status page and over A2A `message/send`, and every ruling is on record at `/history` — a demo device that makes dispute outcomes predictable, but a real ruling the vault executes.
 
 ```json
-"disputePolicy": { "arbiterAgentId": "did:kite:corp-kite:kite-coordination-engine" }
+"disputePolicy": { "arbiterAgentId": "did:kite:corp-kite:demo-arbiter" }
 ```
 
-Whoever it is, know who it is before signing: a dispute goes to that agent, not to Passport — though there is no CLI verb to invoke them today (see Step 8).
+Whoever it is, know who it is before signing: a dispute goes to that agent, not to Passport — and with the default above, check the standing policy at <https://arbiter.kiteai.dev/policy> first, because that policy IS the outcome of any appeal (see Step 8).
 
 **The formation relay happens inside this one command.** `propose` signs the terms, sends the contract, then immediately signs and relays the EIP-712 Agreement co-signature the seller needs in order to accept. Success reports `formation_relayed: true`. If the relay half fails, the command is an **error that still names the agreement** in `details.agreement_id` — the agreement exists but the seller cannot accept it yet. The relay is write-once and an identical resend is a no-op, so re-running is safe.
 
@@ -394,10 +394,10 @@ kpass agent agreement reject --agreement-id <id> --reason-code <code> --output j
 Rejecting opens the dispute branch, and what happens next is the seller's call, not this agent's:
 
 - **The seller agrees and consents to a refund** (`agreement refund-consent`, seller-only) — the escrow returns immediately and the agreement reaches a terminal state.
-- **The seller disagrees and appeals** (`agreement appeal`, seller-only — real, and buyer-inaccessible) — this stops the appeal-response window and starts the arbitration window, in which the contract-named arbiter decides. There is still no CLI verb on either binary for the arbiter to render that decision through, so today an appealed dispute opens the window but has no automated resolution beyond it.
+- **The seller disagrees and appeals** (`agreement appeal`, seller-only — real, and buyer-inaccessible) — this stops the appeal-response window and starts the arbitration window, in which the contract-named arbiter decides, rendered through `kagent agreement resolve --decision-id <id> --seller-bps <0-10000>` (arbiter seat only; a party's attempt is refused before anything is signed). With the default `did:kite:corp-kite:demo-arbiter` the decision is AUTOMATIC: the service rules within seconds of the appeal under its standing policy, the vault splits the escrow by the ruled `sellerBps`, and the agreement reaches `RESOLVED` — so an appealed dispute against the default arbiter is a fast, deterministic outcome, not an open window.
 - **Neither party acts.** The contract's `appealResponseWindow` (reported as `appeal_response_window`) elapsing with no seller action also ends in a refund to this agent.
 
-Know who the arbiter is before signing (Step 1) because the contract still names one and an appeal genuinely routes to them now — but this agent cannot trigger, accelerate, or answer an appeal itself; only the seller can appeal, and only the arbiter's own (still non-CLI) process resolves one.
+Know who the arbiter is before signing (Step 1) because an appeal genuinely routes to them — this agent cannot trigger, accelerate, or answer an appeal itself; only the seller can appeal, and only the contract-named arbiter can resolve. With the default demo arbiter, the standing policy at <https://arbiter.kiteai.dev/policy> tells you the outcome in advance, and `/history` records the ruling afterwards.
 
 ### Step 9: Review
 

@@ -385,7 +385,7 @@ Only valid from `REJECTED`. Running it on an agreement in any other state is ref
 
 Nothing else. Signs the EIP-712 Appeal the EscrowVault recovers, wraps it in a signed `kite.contract.appeal` command, and submits it. The anchors it commits to — the revision, the vault's current nonce, and the newest transition proof as `receiptHash` — are read back immediately before signing, same as every other settlement command.
 
-The long way out of a rejection: appealing stops the appeal-response window (whose expiry refunds the buyer by default) and starts the arbitration window, in which the contract-named arbiter decides. There is still no CLI verb on either binary to invoke the arbiter's decision itself — this command only opens the window it decides in.
+The long way out of a rejection: appealing stops the appeal-response window (whose expiry refunds the buyer by default) and starts the arbitration window, in which the contract-named arbiter decides — rendered through `kagent agreement resolve --decision-id <id> --seller-bps <0-10000>`, arbiter seat only (a party's attempt is refused before anything is signed). Against `did:kite:corp-kite:demo-arbiter` (the standing service at <https://arbiter.kiteai.dev>) the ruling lands within seconds under its posted policy.
 
 ```bash
 kagent agreement appeal --agreement-id agr_7f2a --output json

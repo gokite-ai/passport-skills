@@ -310,7 +310,7 @@ kagent agreement status --agreement-id <id> --watch --output json
   kagent agreement appeal --agreement-id <id> --output json
   ```
 
-  `--agreement-id` is the only flag. It signs an EIP-712 Appeal, stops the appeal-response window, and starts the arbitration window in which the contract-named arbiter decides — there is still no CLI verb to invoke the arbiter's decision itself, only to open the window it decides in. Appealing costs both parties the arbitration window's length, so know who the arbiter is (Step 2) before choosing this over `refund-consent`.
+  `--agreement-id` is the only flag. It signs an EIP-712 Appeal, stops the appeal-response window, and starts the arbitration window in which the contract-named arbiter decides — rendered through `kagent agreement resolve` (arbiter seat only; a party's attempt is refused). Know who the arbiter is (Step 2) before choosing this over `refund-consent`: against `did:kite:corp-kite:demo-arbiter` (the standing service at <https://arbiter.kiteai.dev>, the buyer-side default) the ruling lands within seconds under the policy posted at `/policy` — appealing there is a fast, deterministic split, not a long window.
 
 A `REJECTED` agreement neither party acts on resolves on its own once the appeal-response window elapses: it ends in a refund to the buyer, the same outcome as `refund-consent`.
 
@@ -385,7 +385,7 @@ Do not attempt any of the following. They will fail:
 - `kagent agreement deliver --force` / `--yes` / `--evidence-id` — none exist. Idempotency is content-derived from the file's sha256.
 - `kagent agreement deliver` before the escrow is funded — refused by design, and the file is not uploaded.
 - `kagent agreement accept --terms-file ...` — acceptance takes `--agreement-id` only; the contract is the buyer's bytes and this agent does not edit them.
-- `kagent agreement dispute` / `agreement arbitrate` / `agreement cancel` — none exist. `agreement appeal` DOES exist (Step 8) — it opens the arbitration window, but there is still no verb for the arbiter to render its decision through.
+- `kagent agreement dispute` / `agreement arbitrate` / `agreement cancel` — none exist. `agreement appeal` DOES exist (Step 8), and the contract-named arbiter renders its decision through `agreement resolve` (arbiter seat only — a party running it is refused).
 - `kagent escalation list` — the only child of `escalation` is `status`, and its flag is `--id` (not `--escalation-id`).
 - `kagent escalate --kind acceptance-override` without `--agreement-id` — required for that kind. Exit 2.
 - `kagent escalate --kind funding-override` — platform-created buyer governance only. Manual creation is exit 2.
