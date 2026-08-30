@@ -90,6 +90,8 @@ Exit 4 on `--resume` means no journaled proposal by that id.
 
 `--watch` backs off from 2 seconds to a 30-second cap, and only polls while the state is non-terminal. A timeout yields envelope `status: "pending"` with `timed_out: true` — exit 0, nothing failed.
 
+`--watch` returns on the next transition *from whatever state its first read sees*. Open it only when the pending step is the **counterparty's** (a genuine `PROPOSED`, or `FULFILLING` awaiting delivery). Opened on a state that only this agent's own next command advances — e.g. `COMMITTED` before this buyer has funded — it waits for you while you wait for it, and burns the whole timeout. Read once without `--watch` first and act on what the read shows (SKILL.md Step 2).
+
 ```
 {
   "_version": "1",

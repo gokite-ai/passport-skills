@@ -110,6 +110,14 @@ Record `proposal_id` — it is the resume handle if anything later needs it.
 
 ### 3. Wait for acceptance
 
+Read once without `--watch` first — an auto-accepting seller is often `COMMITTED` before `propose` even returns, and a watch opened on an already-`COMMITTED` read waits for a transition only this buyer's own funding steps can cause (SKILL.md Step 2):
+
+```bash
+kpass agent agreement status --agreement-id agr_7f2a --output json
+```
+
+Add `--watch` only if that read still shows `PROPOSED`:
+
 ```bash
 kpass agent agreement status --agreement-id agr_7f2a --watch --output json
 ```

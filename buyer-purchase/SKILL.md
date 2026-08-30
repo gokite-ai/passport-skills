@@ -59,7 +59,7 @@ Do **not** use this skill for a paid HTTP endpoint: an x402 or card merchant is 
 | Session scope | `--agreement-id <id>` — one session, one agreement | Widen only when the owner asked for a standing grant. See "Choosing a session scope". |
 | Session TTL | `--ttl 1h` (the CLI default) | Raise it when the delivery window is longer than an hour; the session clock starts at approval, not at request. |
 | Per-tx and total caps | Derived from the agreement's own price | Never invent a larger budget than the deal. Both flags are required — there is no default. |
-| Watching | `--watch` with the default 10-minute timeout | A timeout is not a failure; re-run it. |
+| Watching | A single read first; `--watch` (default 10-minute timeout) only when the counterparty's step is genuinely pending | A timeout is not a failure; re-run it. Never open a watch on a state only your own next command can advance — see Step 2. |
 | Review rating | Ask the owner, or derive it from whether the artifact matched the terms | `--rating` is required on `review`. |
 
 ---
@@ -179,6 +179,18 @@ Whoever it is, know who it is before signing: a dispute goes to that agent, not 
 If `propose` fails on a 5xx or a transport error, the proposal stays journaled locally and the error carries `next_command` with `--resume <proposalId>`. **Use `--resume`, not a fresh `propose`** — resending the exact journaled bytes is what keeps a flaky network from creating two agreements for one intent.
 
 ### Step 2: Wait for the Seller to Accept
+
+**Read once WITHOUT `--watch` first:**
+
+```bash
+kpass agent agreement status --agreement-id <id> --output json
+```
+
+`propose` itself takes tens of seconds (local signing, submission, the formation relay), and a hosted seller whose acceptance policy matches the terms auto-accepts within about a second of the proposal landing — so by the time `propose` returns, the agreement is often **already `COMMITTED`**. When the single read shows `COMMITTED`, skip straight to Step 3.
+
+**Do not start with `--watch` here.** `--watch` returns on the next transition *from whatever state its first read sees*. If that first read already sees `COMMITTED`, the next transition (`COMMITTED -> FULFILLING`) only happens after **this agent's own** session/fund/sign steps — so the watch sits waiting for work only you can do, while you sit waiting for the watch: a self-inflicted deadlock that burns the whole timeout and stalls the purchase. Watch is the right tool only for transitions the *counterparty* drives — waiting out a genuine `PROPOSED` here, or waiting for delivery in Step 6.
+
+Only when the single read still shows `PROPOSED`:
 
 ```bash
 kpass agent agreement status --agreement-id <id> --watch --output json
@@ -389,7 +401,7 @@ kpass agent agreement review --agreement-id <id> --rating <1-10> --output json
 
 ```bash
 kpass agent agreement propose --seller did:kite:example-seller --terms-file ./terms.json --output json
-kpass agent agreement status --agreement-id agr_123 --watch --output json
+kpass agent agreement status --agreement-id agr_123 --output json   # often already COMMITTED; --watch only if still PROPOSED
 kpass agent session request --agreement-id agr_123 --max-amount-per-tx 25 --max-total-amount 25 --output json
 kpass agent session request-status --request-id req_456 --wait --output json
 kpass agent fund --agreement-id agr_123 --output json
