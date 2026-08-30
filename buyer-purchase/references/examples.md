@@ -253,11 +253,15 @@ The `validated` list is worth reading rather than skipping: it is the CLI tellin
 
 ### 8. Wait for delivery
 
+Wait 1–2 seconds after `funding sign`, then read once:
+
 ```bash
-kpass agent agreement status --agreement-id agr_7f2a --watch --output json
+kpass agent agreement status --agreement-id agr_7f2a --output json
 ```
 
-The seller signs its own Activation, the escrow funds (`FULFILLING`), and eventually:
+If the state is `COMMITTED` or `FULFILLING`, repeat this one-shot read every 15–30 seconds until the agreement reaches `DELIVERED` or a terminal state. A background `--watch` may be used as a convenience, but never as the only monitor for a funded agreement.
+
+The seller signs its own Activation, the escrow funds (`FULFILLING`), and delivery eventually produces:
 
 ```
 { "status": "success", "state": "DELIVERED", "revision": 5,

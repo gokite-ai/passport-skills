@@ -59,7 +59,7 @@ Do **not** use this skill for a paid HTTP endpoint: an x402 or card merchant is 
 | Session scope | `--agreement-id <id>` — one session, one agreement | Widen only when the owner asked for a standing grant. See "Choosing a session scope". |
 | Session TTL | `--ttl 1h` (the CLI default) | Raise it when the delivery window is longer than an hour; the session clock starts at approval, not at request. |
 | Per-tx and total caps | Derived from the agreement's own price | Never invent a larger budget than the deal. Both flags are required — there is no default. |
-| Watching | A single read first (after a 1–2s pause); one-shot polls preferred over `--watch` (default 10-minute timeout), which is only worth opening when the counterparty's step is genuinely pending | A timeout is not a failure; re-run it. A silent watch has been observed to miss transitions entirely and sit past the true state until timeout — never let one be the only thing monitoring a funded agreement, and never open a watch on a state only your own next command can advance. See Steps 2 and 6. |
+| Watching | A single read first (after a 1–2s pause); one-shot polls preferred over `--watch` (default 8-minute timeout), which is only worth opening when the counterparty's step is genuinely pending | A timeout is not a failure; re-run it. A silent watch has been observed to miss transitions entirely and sit past the true state until timeout — never let one be the only thing monitoring a funded agreement, and never open a watch on a state only your own next command can advance. See Steps 2 and 6. |
 | Review rating | Ask the owner, or derive it from whether the artifact matched the terms | `--rating` is required on `review`. |
 
 ---
@@ -358,7 +358,7 @@ Hosted sellers often deliver within seconds of the escrow funding, so by the tim
 kpass agent agreement status --agreement-id <id> --watch --output json
 ```
 
-**Prefer short one-shot polls (re-running the read above every 15–30 seconds) over trusting a single long watch.** A `--watch` here has been observed to produce no output at all while the agreement transitioned `FULFILLING -> DELIVERED`, sitting silent until its own 10-minute timeout even though a direct one-shot read at any point in between would have shown `DELIVERED` immediately. A silent watch is indistinguishable from a slow seller, and given the `deliveryConfirmationWindow` auto-release risk (Step 7), never let a background watch be the only thing monitoring a funded agreement: if a watch has produced nothing for a couple of minutes, re-check with a one-shot read rather than continuing to trust it.
+**Prefer short one-shot polls (re-running the read above every 15–30 seconds) over trusting a single long watch.** A `--watch` here has been observed to produce no output at all while the agreement transitioned `FULFILLING -> DELIVERED`, sitting silent until its own 8-minute timeout even though a direct one-shot read at any point in between would have shown `DELIVERED` immediately. A silent watch is indistinguishable from a slow seller, and given the `deliveryConfirmationWindow` auto-release risk (Step 7), never let a background watch be the only thing monitoring a funded agreement: if a watch has produced nothing for a couple of minutes, re-check with a one-shot read rather than continuing to trust it.
 
 `FULFILLING` means the escrow is funded and the seller's delivery is next. `DELIVERED` means there is an artifact to check.
 
@@ -419,7 +419,7 @@ kpass agent session request-status --request-id req_456 --wait --output json
 kpass agent fund --agreement-id agr_123 --output json
 kpass agent agreement funding get --agreement-id agr_123 --output json
 kpass agent agreement funding sign --agreement-id agr_123 --output json
-kpass agent agreement status --agreement-id agr_123 --output json   # poll once first (state is often already DELIVERED); --watch only if still FULFILLING
+kpass agent agreement status --agreement-id agr_123 --output json   # after 1–2s; repeat every 15–30s while COMMITTED/FULFILLING; continue only at DELIVERED
 kpass agent agreement proofs --agreement-id agr_123 --verify --output json
 kpass agent agreement confirm --agreement-id agr_123 --output json
 kpass agent agreement review --agreement-id agr_123 --rating 9 --output json
