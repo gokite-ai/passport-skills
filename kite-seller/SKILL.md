@@ -130,8 +130,9 @@ Answer with exactly one reply frame:
   **Record the quote** as `out/quotes/<threadId>.json`, carrying `threadId`,
   `from` (the buyer), `offeringId`, `registrationHash`, `price`,
   `priceSchedule`, and a one-line `scope` naming exactly what you priced. The
-  `scope` line is load-bearing: a buyer that omits `threadId` from its proposal
-  terms leaves the scope as the only way to tell the deal you quoted from a
+  `scope` line is load-bearing: the deal-contract schema has no `threadId`
+  member (`additionalProperties: false`), so a proposal's terms never carry
+  one — `scope` is always the only way to tell the deal you quoted from a
   different job that happens to cost the same.
 
 ### decide — a proposal names this seller
@@ -154,28 +155,23 @@ seller does, and can it be done well now?
   `attempt > 1` must land on the same outcome, and a consumed quote must never
   demote its own agreement's retry to unquoted judgment.
 
-  **When the proposal's terms carry a `threadId` member** (a buyer proposing
-  from your quote writes the thread key into the co-signed terms), the lookup
-  is exact — read the live `out/quotes/<threadId>.json` and accept when ALL
-  FOUR hold:
+  **The deal-contract schema has no `threadId` member** (`additionalProperties:
+  false`) — a proposal's terms never carry one, so there is no thread key to
+  look up by. Matching a proposal against a live quote is instead one
+  deterministic check: scan `out/quotes/*.json` for the one live quote where
+  ALL FOUR hold:
   1. the `priceSchedule` and `registrationHash` match the recorded quote,
   2. the proposal's buyer is the buyer that quote was issued to (`from`),
-  3. the proposal's deliverable is the `scope` that quote priced — the thread
-     key finds the quote; it does not vouch for the work,
+  3. the proposal's deliverable is the `scope` that quote priced — this is
+     what disambiguates two quotes at the same price, since a matching price
+     alone proves nothing (a card with one flat line at a common price
+     matches almost any later proposal),
   4. the live quote file exists — a consumed or superseded quote never
      licenses a second deal.
 
-  A `threadId` naming no live quote, or one whose members do not match, is NOT
-  a match — treat the proposal as unquoted; never let a buyer-written thread
-  key substitute for the checks.
+  No match on all four is NOT a match — treat the proposal as unquoted.
 
-  **When the terms carry no `threadId`**, matching is heuristic — a matching
-  price alone proves nothing, and a card with one flat line at a common price
-  matches almost any later proposal — so scan the live quotes for one where
-  the same FOUR hold (deliverable-vs-`scope` doing the disambiguation the
-  thread key would have done).
-
-  On a match by either path, accept, then CONSUME: write
+  On a match, accept, then CONSUME: write
   `out/quotes/used/<threadId>-<agreementId>.json` (the quote as accepted, the
   buyer, the date) and delete `out/quotes/<threadId>.json`, so one quote can
   never license a second agreement. Otherwise treat the proposal as unquoted

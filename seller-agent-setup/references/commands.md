@@ -519,6 +519,34 @@ Clearing an unset pointer reports `cleared: false` and is a **no-op, not a failu
 
 Writes `storefront.json`, `rate-card.json`, and `workflow-terms.json`. The workflow-terms skeleton is the **v1** format: each offering's `workflow` member is `{templateId, config}` — `templateId` comes from `ksearch workflow-template list` (a public read), and `config` is an opaque JSON object the platform records verbatim (leave `{}` for the template's default behaviour). **Existing files are never overwritten** — that is exit 2 with `<path> already exists.` The storefront skeleton is identity + payout only; the rate-card skeleton is the price book (`model: fixed/v1`, CAIP-19 `currency`, one per-unit line, `escrow.basis`, `negotiation.mode`, and the worked example). The skeletons carry this runtime's bound agent DID when the binding resolves (placeholder otherwise), and the chain id from the **pinned coordination card** lands inside the currency asset (`eip155:<chainId>/erc20:…`) — with no pin it stays `eip155:0`, which `registration validate` refuses until edited, so run `kagent card fetch --pin` first. Every `<angle-bracket>` value must be edited; a forgotten one fails `registration validate` loudly.
 
+**Making an offering negotiable — the skeleton only shows `negotiation.mode: "none"`.** To let buyers negotiate within a bounded range on an otherwise-`fixed/v1` line, switch `negotiation` to `mode: "optional"` (or `"mandatory"`) and add one `negotiable` entry per bounded field — the model stays `fixed/v1`; nothing else in the skeleton changes shape:
+
+```json
+{
+  "offeringId": "haiku-standard",
+  "model": "fixed/v1",
+  "currency": { "code": "USDC", "asset": "eip155:5042002/erc20:0x3600000000000000000000000000000000000000", "decimals": 6 },
+  "lineItems": [
+    { "itemId": "haiku", "name": "one original escrow haiku", "kind": "flat", "amountMinor": "1000000" }
+  ],
+  "escrow": { "basis": "sum-of-line-funding" },
+  "negotiation": {
+    "mode": "optional",
+    "negotiable": [
+      { "itemId": "haiku", "field": "amountMinor", "minMinor": "500000", "maxMinor": "1000000" }
+    ]
+  },
+  "workedExample": {
+    "requestParams": {},
+    "escrow": { "requiredBeforeDeliveryMinor": "1000000" },
+    "lineItems": { "haiku": { "fundedMinor": "1000000" } }
+  },
+  "pricingMarkdown": "List price is 1.00 USDC. Negotiable between 0.50 and 1.00 USDC."
+}
+```
+
+`field` names the exact price member the bound applies to on that line (`amountMinor` for a `flat` line, `unitPriceMinor` for a `per-unit` line) — it must match the line's actual price field, `minMinor <= maxMinor`, and each `(itemId, field)` pair may appear at most once (a repeat is refused, naming the earlier index). The **`workedExample` still reflects the list price**, not a negotiated one — it is the platform's own funding-recomputation proof, not a sample negotiated deal. A fully open-ended `model: "negotiated/v1"` line (no `amountMinor` at all, price set per-request) is a separate model this reference does not yet carry a full worked example for; the validation rules two paragraphs below are the only spelled-out grammar for it today.
+
 ---
 
 ## `kagent registration validate`
@@ -543,6 +571,8 @@ Local pre-flight. It checks what this machine can check: JSON validity, the sche
 ```
 
 `windows` are duration overrides in seconds keyed by the chart's window names (the timeout knobs); `limits` are counter budgets (the retry knobs); `disabledCommands` lists `kite.contract.*` commands this offering does not admit (the skipped edges — engine-produced events cannot be named, and disabling must leave a path to closure, which nothing checks for you in this round); `markdown` overrides the offering's prose per command (display material, never logic); `parameters` stays `{}` until a template documents its own. All members optional; `{}` is complete. **The config is PUBLIC and immutable under its hash — never put credentials, secrets, private endpoints or personal data in it.** In this round the config is recorded, pinned and delivered but not yet executed by the runtime: it is published intent and buyer diligence material until the fulfill-engine integration lands.
+
+**The `registration template` skeleton literally emits the empty-member form above — `"windows": {}`, `"limits": {}`, `"disabledCommands": []`, `"markdown": {}` — and submitting that unedited has been observed to fail the platform dry-run for at least the `standard/v1` template** (`registration validate` exit 8, `"the platform dry-run refused this workflow: Request failed (HTTP 422): workflow refused"`, pointing at `/offerings/<n>/workflow`). Empty override objects are not equivalent to omitting them for every template, even though the schema itself treats all members as optional. Two known-safe paths: fill each member with real values you actually want, or delete every one of them down to a bare `"config": {}` if you want the template's pure defaults — do not leave the skeleton's empty placeholders in place and assume they mean "no override."
 
 Two checks stay platform-only, by design: the currency pin (the ONE CAIP-19 asset a deployment accepts is its settlement token — the CLI checks grammar and refuses the unfilled `eip155:0`, the platform compares exactly) and the registry projection limits. Passing locally is necessary, not sufficient.
 

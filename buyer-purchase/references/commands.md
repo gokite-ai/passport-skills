@@ -500,7 +500,7 @@ For asking the counterparty a question mid-agreement.
 | `--to <ref>` | string | `""` | **yes** | A `did:kite` DID or an `agt_` id. |
 | `--body <json>` | string | `""` | one of | Inline JSON. Mutually exclusive with `--file`. |
 | `--file <path>` | string | `""` | one of | Read the body from a JSON file. |
-| `--skill <name>` | string | `""` | no | An unvalidated routing hint for the recipient. |
+| `--skill <name>` | string | `""` | no | The CLI does not validate this value, but a served seller's item-minting logic does: to reach the handler as a `request` item it must be exactly a known coordination frame URN (e.g. `urn:kiteai:coordination:frame:request:v1`), never a descriptive label or an offering id. A `--skill` that isn't a recognized frame is silently shelved — nothing errors, nothing is minted. See SKILL.md's "Negotiate (Optional)" step for the exact request-frame body shape. |
 | `--ttl <duration>` | duration | `0` (server default 10m) | no | Between `30s` and `1h` when non-zero; outside that is exit 2. |
 | `--wait` | bool | `false` | no | Poll until the recipient replies or the TTL elapses. There is no `--timeout` — the deadline is the message's own expiry. |
 

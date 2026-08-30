@@ -116,17 +116,17 @@ it also removes the quote records that keep one quote from licensing two deals.
 ```bash
 cd <seller>                                  # the cwd IS the configuration
 export ANTHROPIC_API_KEY=…                   # or the model runtime's own auth
+# --handler-timeout 5m below is sized for quote-only work — raise it for real deliverables, see below
 kagent serve \
   --handler "$HOME/.kpass/bin/kite-agent-handler" \
-  --handler-timeout 10m \
+  --handler-timeout 5m \
   --sweep-interval 30s
 ```
 
 - `--handler` takes **one executable path**, not a shell string. A command that
   needs arguments needs a wrapper script.
-- `--handler-timeout` defaults to **2 minutes**, which is short for real work: a
-  code build measured 498s. Set it to what the work actually takes; the
-  agreement's own delivery window is days, not minutes.
+- **`--handler-timeout` must match the actual work, not copy the example above.** The `5m` shown is sized for a quote-only handshake (a quote run is typically well under a minute) — it is not a universal default. It defaults to **2 minutes**, which is short for real deliverable work: a code build measured 498s. This same flag caps the handler subprocess for every operation (`start`, `decide`, `request` alike), so raise it to what the work actually takes; the agreement's own delivery window is days, not minutes, so there is no reason to keep it short for that case.
+- **Whatever value you land on, it must stay comfortably *below* the buyer's message TTL — this constraint only bites the `request`/`decide` message lane, not `start`/deliverable work.** serve only attempts a `request`/`decide` item whose remaining TTL is strictly greater than `--handler-timeout`; one it could not finish before the message expires is discarded as `moot` before the handler ever runs, silently, with no error surfaced to either side — the buyer just sees the message quietly reach `expired`. A buyer's default message TTL is 10 minutes (`buyer-purchase`'s `message send`). If this seller's real deliverable work needs a longer `--handler-timeout` than that, the fix is **not** to shrink it back down — negotiation and acceptance-check messages would still be silently discarded either way — the fix is telling buyers negotiating with this seller to send request-frame messages with a longer explicit `--ttl` (up to `1h`) that clears whatever `--handler-timeout` this seller actually runs.
 - The handler caps each run at `--max-turns 50` and `--max-budget-usd 2.00`.
   Raise with `AGENT_MAX_TURNS` / `AGENT_MAX_BUDGET_USD` when the work is bigger
   than that, or the run dies mid-answer.
@@ -137,6 +137,21 @@ kagent serve \
 - Run **one serve per seller identity**. A second instance on the same state
   directory is refused; two sellers on one machine need different
   `--config-dir` and different `--local-addr`.
+
+## After Serve Is Running — Report Progress Proactively
+
+`kagent serve` runs independently of this conversation: once started in the background, it claims, quotes, and — for any proposal that clears the acceptance policy — accepts and delivers, all with no further input from you. The exception is anything serve parks as `escalation_required` or `acceptance_policy_violation` (see "When a served seller misbehaves" below): those sit waiting on the owner's approval and, even once approved, still need the identical `kagent agreement accept --agreement-id <id> --output json` re-run by hand — controller approval does not reinvoke the handler. Don't just report "serve is running" and go idle waiting for the owner to say "check it" or "check status" — that leaves real activity (a quote issued, a proposal accepted or parked, a delivery submitted, an escalation raised) sitting unreported until the owner happens to ask, the same way a signup shouldn't wait for the owner to say "verified" once its own poll can tell you directly.
+
+When resuming a conversation with serve already running, or after enough time has passed for something to plausibly have happened, check what changed and report it before being asked:
+
+`<config-dir>` below is whatever this seller's `kagent serve` was actually started with — the `--config-dir` you passed it, or the default `~/.kagent` if you passed none. Every one of these commands needs the same value, or it monitors the wrong seller's state:
+
+```bash
+tail -n 20 <config-dir>/handler.jsonl                                   # every attempt/acted/done/escalated entry, in order
+kagent --config-dir <config-dir> agreement list --output json          # every agreement's current state
+```
+
+If the owner is waiting on one specific outcome (a reply to a quote request, an agreement reaching `DELIVERED`), poll for it with `kagent --config-dir <config-dir> agreement status --agreement-id <id> --watch --output json` in the **background** and surface the result the moment it resolves, rather than leaving them to nudge you again.
 
 ## Prove it before a buyer does
 
@@ -169,6 +184,7 @@ That one short-circuits without calling the model at all — it should print a
 | `agent run failed: exit status 1`, empty output | The model runtime failed and the handler does not surface its reason. Reproduce the same run by hand to see it — a model whose safeguards flag the seller's own subject matter (security work is the common one) fails exactly like this, and pinning a different `ANTHROPIC_MODEL` fixes it |
 | Items time out and retry | `--handler-timeout` is below what the work takes, or the run hit the turn/budget cap |
 | A buyer's message never becomes an item | The buyer sent it without the request-frame `--skill`; nothing is minted and nothing errors |
+| A correctly-framed request is claimed but never quoted, and nothing errors anywhere | Its remaining TTL was not strictly greater than `--handler-timeout` when serve claimed it — discarded as `moot` before the handler ran. Lower `--handler-timeout`, or have the buyer resend with a longer `--ttl` |
 
 serve retries a failed item, then **parks** it and escalates to the owner. When
 Passport's acceptance gate returns `escalation_required`, the request already

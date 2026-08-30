@@ -96,6 +96,25 @@ confirm                  -> ACCEPTED     (escrow releases to the seller)
 review                                   (bounded window after a terminal state)
 ```
 
+### Step 0: Negotiate (Optional) — Ask for a Quote
+
+Skip this and go straight to Step 1 for a direct proposal at list price. To negotiate first (the offering's `negotiation.mode` is `optional` or `mandatory`), send the seller a typed request-frame message:
+
+```bash
+kpass agent message send \
+  --to <seller-did> \
+  --skill urn:kiteai:coordination:frame:request:v1 \
+  --body '{"frame":"urn:kiteai:coordination:frame:request:v1","threadId":"<a-key-you-choose>","offeringId":"<offering-id>","text":"Can you do 0.75 USDC?"}' \
+  --wait \
+  --output json
+```
+
+**`--skill` must be exactly this frame URN — not the offering id, and not any other descriptive string.** A served seller (`kagent serve`) only mints a handler item from a `message.received` whose `skill` matches a known coordination frame; the flag's own `--help` text calls it "an unvalidated routing hint," which reads as free-form but is not — anything other than a real frame URN is silently shelved in the listen/one-shot lane. Nothing errors, nothing is minted, and the message just sits until it expires. There is no recovery for a mistyped `--skill` short of resending correctly with a fresh message.
+
+If the seller runs the standard handler, the reply is a `quote/v1` frame on the same `threadId`, carrying `priceSchedule` and the active `registrationHash` — carry both (not the `threadId` itself) into the proposal's `terms.json` (see Step 1 below).
+
+**A correctly-framed request can still go silently unanswered if its TTL doesn't outlast the seller's serve setup.** `kagent serve` only attempts a request whose remaining TTL is strictly *greater than* its own `--handler-timeout`; one it could not finish before expiry is discarded as `moot` before the handler ever runs, with no error to either side — it just quietly reaches `expired` on your own `message status` check, indistinguishable from the seller being offline. The default `--ttl` here is 10 minutes. If a properly-framed request never gets claimed or answered, this timing mismatch — not a broken seller — is the first thing to suspect; resending with a longer explicit `--ttl` (up to `1h`) is the fix, not repeated identical resends.
+
 ### Step 1: Propose
 
 ```bash
@@ -125,20 +144,15 @@ What the file must carry — `deliverable` and `acceptanceCriteria` are **siblin
 }
 ```
 
-**Proposing from a negotiation? Carry the thread into the terms.** When this
-proposal closes a `quote/v1` received on a negotiation thread, add the quote's
-thread key as an optional business member:
+**Do NOT add `threadId` (or any other member) to `terms.json` beyond what's shown in the file above.** The vendored `deal-contract:v1` protocol schema declares a fixed property list with `additionalProperties: false` — `threadId` is not one of them, and including it is refused locally at `propose` time:
 
-```json
-"threadId": "<the negotiation thread's key>"
+```
+"error": "Refused locally: the contract does not validate against its protocol
+          schema: validating urn:kiteai:coordination:schema:deal-contract:v1:
+          unexpected additional properties [\"threadId\"]"
 ```
 
-It rides the canonical contract bytes, so the seller's acceptance co-signs
-"this deal came from that conversation" — the audit link between the thread and
-the agreement (PROPOSAL-thread-audit). It also makes the seller's own
-quote-recognition exact instead of heuristic, so a quoted proposal is accepted
-faster. A direct proposal (no negotiation) omits the member — never invent a
-threadId.
+This is exit 8, not a transient failure — retrying with the same terms file cannot help; the member must be removed. There is currently no schema-level way to carry a negotiation thread's key into the signed contract, so the audit link between a `quote/v1` thread and the agreement it produces has to be tracked out-of-band (your own notes) rather than on the contract itself.
 
 **`registrationBasis` is required and is read, not invented**: `ksearch agent registration <seller> --output json` returns the seller's active registration — its hash (nested at `registration.registration.registrationHash`), its offerings, and the rate card the price must agree with. This is a credential-less read (run `bash <skill-directory>/scripts/setup-ksearch.sh` once first), unlike everything else in this skill. The platform refuses a proposal whose basis is not the seller's active registration, and a seller reprices by publishing a new one, so read it when drafting rather than reusing an old note. `escrow.payoutAddress` comes from the same read (the storefront's `payout.address`) — a seller is entitled to refuse a contract that pays somewhere else. See `@references/examples.md` for the full member table.
 
@@ -188,7 +202,7 @@ A `--watch` timeout returns envelope `status: "pending"` with `timed_out: true`,
 
 If the agreement sits in `PROPOSED` indefinitely, the seller may be refusing it under its owner's acceptance policy — that refusal happens on the seller's side and shows up there as `acceptance_policy_violation`. The seller's own escalation flow resolves it. Ask, using `message send`, rather than re-proposing.
 
-**Once the seller accepts, close the negotiation thread.** If this agreement came from a negotiation (the terms carry `threadId`), append the closing notice to the thread — one message, fire-and-forget:
+**Once the seller accepts, close the negotiation thread.** If this agreement came from a negotiation (you sent a request-frame message and proposed from its `quote/v1` reply — track this yourself, since `terms.json` cannot carry the `threadId`), append the closing notice to the thread — one message, fire-and-forget:
 
 ```bash
 kpass agent message send --to <seller-did> \
@@ -235,6 +249,8 @@ This agreement needs your passkey approval to fund it:
 |---|---|
 | `{approval_url}`, `{request_id}`, `{approval_expires_at}` | `session request` response |
 | `{agreement_id}`, `{max_amount_per_tx}`, `{max_total_amount}` | the flags just passed to `session request` |
+
+**Never refer to the link as "above" in a later message without repeating it.** Once the poll resolves or the owner asks about approval, re-include the literal `{approval_url}` in that message too — a card shown earlier in the conversation may have scrolled past, been collapsed by the terminal UI, or simply not be visible to an owner reading only the latest message. "Open the approval link above" with no link in that same message leaves them nothing to click.
 
 **Only after that card is shown**, start polling — and start it in the **background** (`run_in_background`), not inline. A blocking foreground call leaves the owner staring at silence for up to the full `--timeout` with no visible link to act on, which is exactly the failure mode this card exists to prevent:
 
