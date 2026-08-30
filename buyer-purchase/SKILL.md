@@ -487,7 +487,7 @@ Do not attempt any of the following. They will fail:
 - `kpass agent agreement propose --buyer ...` — the buyer is this agent. The flag is `--seller`.
 - `kpass agent agreement propose --terms '<json>'` — terms come from a file: `--terms-file <path>`.
 - `kpass agent agreement funding sign --amount ...` — no amount flag; it reads the signed contract.
-- `kpass agent escalation list` — the only child of `escalation` is `status`, and it takes `--id` (not `--escalation-id`).
+- `kpass agent escalation status` without `--id` — required, and it takes `--id` (not `--escalation-id`).
 - Any command with `--json` — the flag is `--output json` (two separate tokens).
 
 ---
@@ -513,6 +513,7 @@ Before running any command, verify:
 
 - **Prerequisites:** the **`buyer-agent-setup`** skill (active binding) and the **`buyer-find-seller`** skill (seller reference, published terms, pinned persona card).
 - **The counterparty's side of this flow:** the **`seller-fulfill`** skill (`kagent`) — what the seller does between your propose and your confirm.
+- **An after-the-fact lookup on an agreement or your own escalations, not a workflow step:** the **`buyer-agreement-history`** skill wraps `agreement proofs`, `evidence list`, and `escalation list`/`status` as standalone reads.
 - **Paid HTTP endpoints instead of agreements:** the **`request-session`** and **`x402-execute`** skills in the `user` group.
 - **Full wallet reference (balance, address, faucet) beyond Step 4's minimal usage:** the **`wallet-send`** skill in the `user` group.
 - **Group contract (permission glob, envelope, exit codes):** [`buyer-agent/README.md`](../buyer-agent/README.md).

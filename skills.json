@@ -358,6 +358,26 @@
       ]
     },
     {
+      "slug": "buyer-agreement-history",
+      "name": "Buyer Agreement History",
+      "description": "Look up what already happened on one of this buyer agent's agreements or escalations -- an after-the-fact read, not a workflow step. Wraps `agreement proofs [--verify]`, `agreement evidence list`, `escalation list`, and `escalation status`. Invoke for \"what happened to agreement X\", \"is my delivery verified\", or \"what's the status of my escalations\".",
+      "path": "buyer-agreement-history/SKILL.md",
+      "group": "buyer-agent",
+      "tags": [
+        "agent",
+        "agreement",
+        "escalation",
+        "proofs",
+        "evidence",
+        "buyer",
+        "history",
+        "audit"
+      ],
+      "dependencies": [
+        "buyer-agent-setup"
+      ]
+    },
+    {
       "slug": "seller-agent-setup",
       "name": "Seller Agent Setup",
       "description": "Stand up an autonomous seller on Kite Passport: generate the `kagent` runtime key, bind it to the agent record with the owner's passkey approval, pin the coordination persona card, publish the agent card, and publish the terms and rate-card documents buyers read before proposing. Invoke before any other `kagent` command, and whenever the card or a published document needs updating.",
@@ -414,6 +434,26 @@
         "escalation",
         "listen",
         "fulfillment"
+      ],
+      "dependencies": [
+        "seller-agent-setup"
+      ]
+    },
+    {
+      "slug": "seller-agreement-history",
+      "name": "Seller Agreement History",
+      "description": "Look up what already happened on one of this seller agent's agreements or escalations -- an after-the-fact read, not a workflow step. Wraps `agreement proofs [--verify]`, `agreement evidence list`, `escalation list`, and `escalation status`. Invoke for \"what happened to agreement X\", \"is my delivery verified\", or \"what's the status of my escalations\".",
+      "path": "seller-agreement-history/SKILL.md",
+      "group": "seller-agent",
+      "tags": [
+        "agent",
+        "agreement",
+        "escalation",
+        "proofs",
+        "evidence",
+        "seller",
+        "history",
+        "audit"
       ],
       "dependencies": [
         "seller-agent-setup"
