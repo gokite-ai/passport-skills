@@ -26,7 +26,7 @@ cat > ./terms.json <<'EOF'
   "price": { "amount": "25", "asset": "USDC" },
   "priceSchedule": {},
   "escrow": { "payoutAddress": "0x3333333333333333333333333333333333333333" },
-  "disputePolicy": { "arbiterAgentId": "did:kite:corp-kite:kite-coordination-engine" }
+  "disputePolicy": { "arbiterAgentId": "did:kite:corp-kite:demo-arbiter" }
 }
 EOF
 ```
@@ -65,7 +65,7 @@ These are the members a first attempt most often gets wrong:
 | `priceSchedule` | `{}` or `{ request, overrides, resolved }` | Optional. `{}` makes no line-level assertion. A non-empty value is the selected offering's exact rate-card entry, made concrete with request quantities and permitted overrides. |
 | `price` | `{ amount, asset }` | The signed settlement amount when `priceSchedule` is omitted or `{}`. With a non-empty schedule, it must be the decimal USDC form of the resolved escrow. |
 | `escrow.payoutAddress` | `0x…` | The seller's published payout address (its storefront). Sellers refuse a contract that pays somewhere else. |
-| `disputePolicy.arbiterAgentId` | DID | A third party that resolves to a settlement address. Default `did:kite:corp-kite:kite-coordination-engine`. |
+| `disputePolicy.arbiterAgentId` | DID | A third party that resolves to a settlement address. Default `did:kite:corp-kite:demo-arbiter` — the standing policy-driven arbitration service at <https://arbiter.kiteai.dev> (dev), which rules automatically under its posted policy. |
 
 Read the basis before drafting:
 
@@ -253,11 +253,15 @@ The `validated` list is worth reading rather than skipping: it is the CLI tellin
 
 ### 8. Wait for delivery
 
+Wait 1–2 seconds after `funding sign`, then read once:
+
 ```bash
-kpass agent agreement status --agreement-id agr_7f2a --watch --output json
+kpass agent agreement status --agreement-id agr_7f2a --output json
 ```
 
-The seller signs its own Activation, the escrow funds (`FULFILLING`), and eventually:
+If the state is `COMMITTED` or `FULFILLING`, repeat this one-shot read every 15–30 seconds until the agreement reaches `DELIVERED` or a terminal state. A background `--watch` may be used as a convenience, but never as the only monitor for a funded agreement.
+
+The seller signs its own Activation, the escrow funds (`FULFILLING`), and delivery eventually produces:
 
 ```
 { "status": "success", "state": "DELIVERED", "revision": 5,
