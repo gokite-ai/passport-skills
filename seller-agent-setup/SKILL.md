@@ -217,7 +217,7 @@ kagent card fetch --pin --output json
 
 Required before **any** signing verb — `agreement accept`, `funding sign`, `deliver`, and the rest all read the pin for the chain context they sign against. Check `chain_context_complete`: when it is `false` the card is still pinned (the command succeeds), but the signing verbs will refuse with exit 8 because the backend publishes no chain id or escrow vault. That is an environment problem to report, not something to retry.
 
-Pin once per backend. Re-pin when the backend changes or when a verb says the pin is missing.
+The pin is a cache, not a one-time setup step. The pinned card's hash goes into every contract's `runtimeBinding.agentCardHash`, and that hash moves whenever a platform deployment changes what the card carries (the workflow-template catalog, the chain context, the endpoint). Re-pin when the backend changes, when a verb says the pin is missing or stale, and after any platform deployment — a long-running seller holding a stale pin refuses every incoming proposal with an `agentCardHash` mismatch ("an execution context this agent never read"). **`seller-serve`** covers the operational side.
 
 ### Step 5: Publish the Card
 
