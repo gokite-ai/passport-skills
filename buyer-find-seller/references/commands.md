@@ -228,7 +228,7 @@ ksearch agent offering did:kite:example-seller tract-slices --output json
     "offeringId": "tract-slices",
     "offeringKind": "dataset",
     "title": "...",
-    "workflowId": "fixed_outcome/v1",
+    "workflowId": "standard/v1",
     "priceModel": "fixed/v1",
     "staticTotalMinor": "25000",
     "ready": true,
@@ -262,7 +262,7 @@ Passing `<ref>` together with any search flag is refused as **exit 2 (usage)**: 
 |---|---|---|---|
 | `--query <text>` | string | `""` | Ranked full-text match over offering title, description and limitations prose (title weighted highest), with typo tolerance on title. |
 | `--offering-kind <kind>` | string | `""` | Exact match: `dataset`, `api`, `media`, `compute`, or `service`. |
-| `--workflow-template <id>` | string | `""` | Exact workflow-template id, e.g. `fixed_outcome/v1` (`--workflow` is a hidden alias). |
+| `--workflow-template <id>` | string | `""` | Exact workflow-template id, e.g. `standard/v1` (`--workflow` is a hidden alias). |
 | `--price-model <model>` | string | `""` | Exact match: `fixed/v1` or `negotiated/v1`. |
 | `--currency-asset <asset>` | string | `""` | Exact settlement asset string. |
 | `--max-total-price-minor <n>` | string | `""` | Upper bound on the static total, in minor units. Offerings with no static total (metered or negotiated pricing) never match this filter. |
@@ -291,7 +291,7 @@ ksearch agent offerings --offering-kind dataset --max-total-price-minor 1000000 
           "offeringId": "tract-slices",
           "offeringKind": "dataset",
           "title": "...",
-          "workflowId": "fixed_outcome/v1",
+          "workflowId": "standard/v1",
           "priceModel": "fixed/v1",
           "currencyCode": "...",
           "staticTotalMinor": "25000",
@@ -330,7 +330,7 @@ ksearch agent offerings did:kite:example-seller --output json
         "offeringId": "tract-slices",
         "offeringKind": "dataset",
         "title": "...",
-        "workflowId": "fixed_outcome/v1",
+        "workflowId": "standard/v1",
         "priceModel": "fixed/v1",
         "staticTotalMinor": "25000",
         "ready": true,
@@ -375,7 +375,7 @@ kpass agent card fetch --pin --output json
   "escrow_vault": "0x...",
   "extension_uri": "https://a2a.gokite.ai/extensions/coordination-workflow/v1",
   "chain_id": 8453,
-  "templates": [ "fixed_outcome/v1" ],
+  "templates": [ "standard/v1" ],
   "signature_profiles": [ ... ],
   "pin_file": "/path/to/.kite-passport/agent-state.json",
   "hint": "...",

@@ -93,8 +93,10 @@ group's documentation.
 
 | Skill | Purpose |
 |-------|---------|
+| [`seller-onboarding`](../seller-onboarding/SKILL.md) | The human entry point: interview a seller with zero Kite vocabulary about their own business and derive every platform artifact — identity, offer/rate-card, workflow template, governance mandate, standing orders — through one verified live deal. Drives the same commands the runbook skills below document. |
 | [`seller-agent-setup`](../seller-agent-setup/SKILL.md) | Runtime identity and the public face: `init`, `bind` with the owner's passkey approval, `card fetch --pin`, `card publish`, `docs publish`. The gateway skill. |
 | [`seller-fulfill`](../seller-fulfill/SKILL.md) | Serving agreements through the CLI: noticing proposals (`listen --forward` or polling), `agreement accept`, escalation when the acceptance policy refuses, `funding sign`, `deliver`, evidence, and buyer messages. |
+| [`seller-agreement-history`](../seller-agreement-history/SKILL.md) | After-the-fact, read-only lookups: `agreement proofs [--verify]`, `agreement evidence list`, `escalation list`/`status` — not a workflow step. |
 | [`seller-serve`](../seller-serve/SKILL.md) | **The default way to take work**: run the seller as a work function under `kagent serve --handler kite-agent-handler`, so the platform binary answers each item by running the seller's own skills and the seller writes no code. Covers the inherited working directory, the two skills the seller authors, and the card facts the model reads from disk. |
 | [`kite-seller`](../kite-seller/SKILL.md) | The handler shape of the same serving role: the per-operation response contract a `kagent serve --handler` run answers (`start` / `request` / `decide` / `rejected`), for a seller that is a work function rather than a CLI caller. serve signs; the handler only decides and produces. |
 

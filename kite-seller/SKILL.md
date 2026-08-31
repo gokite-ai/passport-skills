@@ -135,6 +135,15 @@ Answer with exactly one reply frame:
   one — `scope` is always the only way to tell the deal you quoted from a
   different job that happens to cost the same.
 
+  **Before quoting**, check whether `seller-acceptance/SKILL.md` (this
+  seller's own acceptance-criteria skill, per `decide` below) has a
+  `## request` section. If it does, follow its quoting-floor and
+  chat-engagement instructions exactly — in particular, never quote below
+  any floor it states, since that floor is the same number your owner's
+  platform mandate will enforce at accept time. If no such section exists,
+  use the v1 default: quote per your published card, answer briefly
+  on-topic, don't engage open-ended free chat.
+
 ### decide — a proposal names this seller
 
 The terms are already verified against the published registration
@@ -196,7 +205,17 @@ correct, not a failure.
 
 REJECTED opens the appeal-response window, and its expiry refunds the buyer by
 default, so this item must be answered. `history` carries the rejection reason
-and the prior rounds. Choose exactly ONE of three answers:
+and the prior rounds.
+
+**Before choosing**, check whether `seller-acceptance/SKILL.md` (this
+seller's own acceptance-criteria skill, per `decide` above) has a
+`## rejected` section. If it does, follow its stated policy for which of
+the three arms to take. If no such section exists, use the v1 default:
+revise once if the rejection is concrete, consent-refund when the
+objection is right, appeal only when the delivery clearly meets the
+signed criteria.
+
+Choose exactly ONE of three answers:
 
 - **Redeliver** — a revised deliverable that answers the rejection (same shape
   as `start`; re-sending the rejected content unchanged wastes the round):

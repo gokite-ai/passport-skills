@@ -25,7 +25,8 @@ There used to be references here to a `functional-workspace/` transcript store, 
 | 84-88 | upgrade-passport | user |
 | 89-92 | kite-passport (gateway routing) | user |
 | 76, 93-97 | seller-serve | seller-agent |
-| 98-101 | kite-seller | seller-agent |
+| 98-101, 109-110 | kite-seller | seller-agent |
+| 102-108, 111-115 | seller-onboarding | seller-agent |
 
 `form-session-delegation`, `cloud-deploy`, and `report-feedback` have no evals and were explicitly out of scope for the 2026-08-28 correctness pass below.
 
