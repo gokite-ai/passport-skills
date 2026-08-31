@@ -53,6 +53,7 @@ An **unsigned** link fails the check too: an engine deployed without a proof-sig
       "proofHash": "sha256:...",
       "previousProofHash": ""
     }
+    /* ...sequences 2 and 3 elided; all served links appear here... */
   ],
   "verified": false,
   "_version": "1",
@@ -103,7 +104,7 @@ Note the `next_command` still offers `--verify` here, but running it against zer
 }
 ```
 
-`receipt_hash_for_next_command` is the newest link's `proofHash` — the value a settlement signature would quote next. `signer_attested` reports whether the key set could be resolved and checked at all; when it could not (the signer agent's key set is unreadable), the chain reports `signer_attested: false` with a note, rather than as a hard failure — the cryptography still holds even when "whose key is this" cannot be answered.
+`receipt_hash_for_next_command` is the newest link's `proofHash` — the value a settlement signature would quote next. `signer_attested` reports whether every link's `signedBy` was found in the attesting agent's published key set. An unreadable key set (the signer agent's keys cannot be resolved) fails the verification like any other check: exit 8 (`PROTOCOL`), `status: "error"`, `verified: false`, with `attestation_notes` in `details` naming the resolution failure. The note distinguishes this from a bad signature — the signatures themselves may have verified — but a chain whose signer cannot be attested is never reported as verified.
 
 ### Error Output — Verification Failed (exit 8, `PROTOCOL`)
 
