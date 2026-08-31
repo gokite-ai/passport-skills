@@ -14,7 +14,7 @@ End-to-end walkthroughs for the `seller-agreement-history` skill. Per-command sy
 kagent agreement proofs --agreement-id agr_7f2a --verify --output json
 ```
 
-Output:
+Output (abbreviated — the full verified shape, including the verbatim `proofs` array, `_version`, and `next_command`, is in `commands.md`):
 
 ```json
 {
@@ -26,7 +26,7 @@ Output:
   "proof_hashes_recomputed": true,
   "signatures_verify": true,
   "signer_attested": true,
-  "receipt_hash_for_next_command": "sha256:cde456...",
+  "receipt_hash_for_next_command": "sha256:1f9e0d...",
   "status": "success",
   "hint": "3 link(s) verified: ordered, linked, recomputed, and signed by an attested key."
 }
@@ -60,7 +60,7 @@ Output:
 
 **Step 3:** Present to the owner:
 
-> Agreement `agr_7f2a`: 3 verified state transitions, all signed and internally consistent. Delivery registered 2026-08-20 — one artifact, hash `sha256:cde456...`, which matches the chain's receipt hash. Nothing here indicates a problem.
+> Agreement `agr_7f2a`: 3 verified state transitions, all signed and internally consistent. Delivery registered 2026-08-20 — one artifact, hash `sha256:cde456...`. Note the chain's receipt hash (`receipt_hash_for_next_command`) is the newest proof link's `proofHash`, not the artifact hash — it vouches for the transition record, not the bytes. To verify the artifact itself, compare its own sha256 against the registered evidence hash, and against the `deliveryHash` in this seller's signed deliver command; until that comparison is made, artifact verification has not been established.
 
 ---
 
@@ -93,7 +93,7 @@ Output:
 }
 ```
 
-Present: "One pending escalation on `agr_7f2a` — an acceptance-override that needs your decision by 2026-08-21T10:00:00Z. Decide it at the approval URL from when this agent originally raised it, or poll `escalation status --id agent_escalation_01HZY` for the link again."
+Present: "One pending escalation on `agr_7f2a` — an acceptance-override that needs your decision by 2026-08-21T10:00:00Z. Decide it at the approval URL from when this agent originally raised it, or on Passport web's Governance page; `escalation status --id agent_escalation_01HZY` reports the decision state but does not carry the link."
 
 If the escalation was raised a while ago and the approval URL was lost, note that `escalation list`/`status` do not re-mint it — the URL comes from the original `escalate` response or Passport web's Governance page for this agent.
 

@@ -101,7 +101,7 @@ Every escalation this agent has raised, most recent first — its own history, n
 kpass agent escalation status --id <id> [--wait] [--timeout <d>]
 ```
 
-Polls one escalation for its owner's decision. `--wait` blocks with backoff until it leaves `pending` or the timeout elapses; without it, one read. A denial and a lapsed decision window both report `status: expired` — nothing further will happen either way. `escalation list`'s rows carry the same shape minus the escalation-id path argument, so a caller that already has the list rarely needs a second `status` poll unless watching one escalation change live.
+Polls one escalation for its owner's decision. `--wait` blocks with backoff until it leaves `pending` or the timeout elapses; without it, one read. A denial and a lapsed decision window both land on envelope `status: expired` — nothing further will happen either way — but they are distinguishable: a denial reads `escalation_status: "decided"` with a `decision` member recording the owner's no, while a window that lapsed undecided reads `escalation_status: "expired"` with no `decision` at all. `escalation list`'s rows carry the same shape minus the escalation-id path argument, so a caller that already has the list rarely needs a second `status` poll unless watching one escalation change live.
 
 ---
 
