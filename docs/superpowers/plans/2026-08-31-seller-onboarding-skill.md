@@ -16,7 +16,7 @@
 - No new `passport-cli` or `passport` backend work is in scope — every task in this plan touches only `passport-skills`.
 - No automated eval runner exists in this repo (`evals/README.md`, confirmed 2026-08-28). "Testing" a skill means: write the eval case in `evals/evals.json` first (short literal `assertions`), then after writing the skill content, dispatch a subagent that reads the relevant `SKILL.md`/`references/*.md` files and responds to the eval `prompt`, and manually check every string in `assertions` appears in its response.
 - Governance (phase 4) writes to `PUT /v1/agents/{agent}/acceptancePolicy` with plain owner-JWT auth — **no passkey step-up** (removed in `passport` commit `39131fa9`, 2026-08-24). Never write skill copy implying a passkey ceremony for this endpoint.
-- The 9 workflow template IDs are: `fixed_outcome/v1`, `standard/v1`, `fast-clocks/v1`, `us-04-research-report/v1`, `recruiting/v1`, `data-seller/v1`, `content-generator/v1`, `coding/v1`, `security-audit/v1`. Only `standard/v1`, `recruiting/v1`, `data-seller/v1`, `content-generator/v1`, `coding/v1`, `security-audit/v1` have descriptor JSON (`passport` repo `pkg/a2a/templates/v1/*.json`) as of this writing. Descriptor JSON gives real *structural* facts (funding/delivery/appeal/arbitration windows, which lifecycle states are configurable) but has no `evaluationMode`/oracle field — the plain-English "choose this when" framing is still manually curated for all 9, just schema-grounded for 6 of them now instead of pure guesswork.
+- **Corrected 2026-08-31, mid-execution:** the workflow template catalog is now exactly 6 IDs — `standard/v1`, `recruiting/v1`, `data-seller/v1`, `content-generator/v1`, `coding/v1`, `security-audit/v1` — confirmed against `origin/main` in the `passport` repo (`git ls-tree -r --name-only origin/main -- pkg/a2a/templates/v1/`). The previously-referenced `fixed_outcome/v1`, `fast-clocks/v1`, `us-04-research-report/v1` were removed from the catalog (commit `25b4949f`, "remove the fast-clock test templates from the catalog") — there is no undescribed-template case to handle anymore. Every remaining template's descriptor JSON now also carries a `descriptor.presentation.name` and `descriptor.presentation.summary` field (added alongside the same commits) — a real, platform-authored one-line plain-English description, e.g. `standard/v1` → "Standard delivery" / "The full agreement lifecycle with delivery review, appeal, and third-party arbitration." This is authoritative source content for the "choose this when" column, not a curated guess. There is still no `evaluationMode`/oracle field — evaluation is always buyer-driven (implicit in whether `REJECTING`/`REJECTED` states are configurable), confirmed by grepping `evidence.items[].producer` across all 6 descriptors (only `buyer`/`seller`/`buyerOwner`/`chain`, never an oracle role).
 
 ---
 
@@ -211,20 +211,35 @@ check a specific template's raw definition.
 
 ## Governance (phase 4)
 
-- `curl -X PUT https://<passport-api-host>/v1/agents/<agent-did>/acceptancePolicy`
-  with owner JWT bearer auth and a JSON body:
+**Corrected 2026-08-31, mid-execution** (per `docs/Seller Onboarding
+Artifacts -- Runtime Key, Registration Files, Mandate.md` §7, user-supplied
+reference): the PUT requires optimistic concurrency. GET first, then PUT
+with the version it returned:
+
+- `curl -H "Authorization: Bearer <owner-jwt>" https://<passport-api-host>/v1/agents/<agent-did>/acceptancePolicy`
+  -- read the current policy (and its `version`) before writing. No policy
+  yet = `version: 0`.
+- `curl -X PUT -H "Authorization: Bearer <owner-jwt>" -H 'Content-Type: application/json' https://<passport-api-host>/v1/agents/<agent-did>/acceptancePolicy --data @policy.json`
+  with a JSON body:
   ```json
   {
+    "version": <integer -- echo what GET returned; 0 if none existed>,
     "templates": ["<template-id>"],
     "price_floors": {"<template-id>": "<minor-units-integer>"},
     "price_ceilings": {"<template-id>": "<minor-units-integer>"},
     "max_open_obligations": <integer-or-null>
   }
   ```
+  A stale `version` is refused with 409 -- if that happens, GET again and
+  retry with the fresh version, never guess.
   Field names and minor-units convention per `seller-agent-setup/SKILL.md:334-391`.
   No passkey step-up -- plain owner JWT is sufficient (`passport` commit
   `39131fa9`). Fail-closed: no row set = refuse everything, so this step
-  is mandatory before phase 6 can succeed.
+  is mandatory before phase 6 can succeed. `templates` must name exactly
+  the workflow ids in the registration, and the floor must sit at or below
+  the rate-card price -- otherwise the agent refuses the very deal it
+  advertises (this is the pricing-chain consistency requirement, see
+  phase 5).
 
 ## Standing orders (phase 5)
 
@@ -349,6 +364,11 @@ Record `seller.agent_did` and `seller.public_name` for later phases.
 Run: dispatch a `general-purpose` subagent per prompt, this time telling it to read the full current `seller-onboarding/SKILL.md` (phase map + interaction rules + phases 0/1).
 Expected: PASS — eval 103's response mentions the detected DID, says "skip"/"already", and moves to phase 2; eval 104's response asks for the public name and mentions permanence.
 
+- [ ] **Step 4b: Re-run eval 102 (deferred from Task 1) for a full pass**
+
+Task 1 Step 6 only checked eval 102's routing behavior, deferring its `"public name"` assertion until phase 1 existed. Re-run eval 102's prompt now against the full current `SKILL.md`.
+Expected: PASS — all three assertions (`seller-onboarding`, `phase`, `public name`) present in the response.
+
 - [ ] **Step 5: Commit**
 
 ```bash
@@ -366,9 +386,11 @@ git commit -m "feat(seller-onboarding): add phase 0 (detect state) and phase 1 (
 **Interfaces:**
 - Produces: the table phase 3 (Task 6) looks up by `template_id`. Columns are fixed here; phase 3's task depends on these exact column names.
 
-- [ ] **Step 1: Confirm the structural facts against the real descriptor JSON**
+**Corrected 2026-08-31, mid-execution (supersedes the version Task 4 originally shipped and passed review under):** the catalog is now 6 templates only — `fixed_outcome/v1`, `fast-clocks/v1`, `us-04-research-report/v1` were removed (see Global Constraints). Every remaining template's descriptor now also carries a real `descriptor.presentation.name`/`descriptor.presentation.summary` — platform-authored, not curated. Steps below are rewritten against this corrected ground truth; a prior version of `template-characteristics.md` describing 9 templates with 3 marked "needs curation owner input" is stale and must be replaced, not merely appended to.
 
-Run, for each of the 6 described templates, from the `passport` repo (read-only, no changes there):
+- [ ] **Step 1: Confirm the structural facts and presentation summaries against the real descriptor JSON**
+
+Run, for each of the 6 templates, from the `passport` repo (read-only, no changes there):
 
 ```bash
 for f in standard recruiting data-seller content-generator coding security-audit; do
@@ -377,6 +399,9 @@ for f in standard recruiting data-seller content-generator coding security-audit
 import json
 d = json.load(open('/Users/spring-kite/Dev/gokite/passport/pkg/a2a/templates/v1/$f.json'))
 props = d['descriptor']['spec']['configuration']['schema']['properties']
+pres = d['descriptor']['presentation']
+print('name:', pres['name'])
+print('summary:', pres['summary'])
 print('windows:', list(props['windows']['properties'].keys()))
 print('maxRedeliveries max:', props['limits']['properties']['maxRedeliveries']['maximum'])
 print('skippable states:', props['skippedStates']['items']['enum'])
@@ -384,10 +409,17 @@ print('skippable states:', props['skippedStates']['items']['enum'])
 done
 ```
 
-Expected: output matches the structural groupings below (confirmed once already during design research on 2026-08-31 — this step re-verifies before writing the table, in case the descriptors changed):
-- `standard`: full lifecycle (funding/delivery/deliveryConfirmation/appeal/arbitration windows; skip-eligible states include the full reject→appeal→dispute→arbitration→resolve chain).
-- `recruiting`, `data-seller`: short lifecycle (funding/delivery/deliveryConfirmation windows only; no reject/appeal/dispute states configurable at all; only `REFUNDING_UNDELIVERED` in the refund family).
-- `content-generator`, `coding`, `security-audit`: mid lifecycle (funding/delivery/deliveryConfirmation/appeal windows; reject→redeliver→refund states configurable, but no appeal/dispute/arbitration escalation states).
+If the local `passport` checkout is stale, fetch first: `cd /Users/spring-kite/Dev/gokite/passport && git fetch origin main --quiet` and read files via `git show origin/main:pkg/a2a/templates/v1/<f>.json` instead of the working tree, to avoid depending on which branch happens to be checked out locally.
+
+Expected: output matches the groupings below (re-confirmed 2026-08-31 against `origin/main`):
+- `standard`: name "Standard delivery", summary "The full agreement lifecycle with delivery review, appeal, and third-party arbitration." Full lifecycle (funding/delivery/deliveryConfirmation/appeal/arbitration windows; skip-eligible states include the full reject→appeal→dispute→arbitration→resolve chain).
+- `recruiting`: name "Recruiting", summary "Candidate-sourcing delivery with buyer confirmation and no dispute branch." Short lifecycle (funding/delivery/deliveryConfirmation windows only; no reject/appeal/dispute states configurable; only `REFUNDING_UNDELIVERED` in the refund family).
+- `data-seller`: name "Data seller", summary "Dataset delivery with buyer confirmation and no dispute branch." Same short-lifecycle shape as `recruiting`.
+- `content-generator`: name "Content generator", summary "Content delivery with rejection and bounded redelivery, no arbitration." Mid lifecycle (funding/delivery/deliveryConfirmation/appeal windows; reject→redeliver→refund states configurable, no appeal/dispute/arbitration states).
+- `coding`: name "Coding", summary "Software-deliverable workflow with rejection and bounded redelivery, no arbitration." Same mid-lifecycle shape.
+- `security-audit`: name "Security audit", summary "Audit-report delivery with rejection and bounded redelivery, no arbitration." Same mid-lifecycle shape.
+
+Also confirm no `evaluationMode`/oracle field exists anywhere in any of the 6 files, and that every `evidence.items[].producer` value is one of `buyer`/`seller`/`buyerOwner`/`chain` (never an oracle role) — this is what backs the claim that evaluation is always buyer-driven on this platform today.
 
 - [ ] **Step 2: Write the reference file**
 
@@ -398,29 +430,31 @@ Loaded only during phase 3 (deal shape). The template name never appears
 in a question to the seller -- it appears only in the phase-3 summary
 ("this maps to `<template_id>`").
 
-Two kinds of columns here:
-- **Structural** (Windows, Max redeliveries, Escalation path) -- verified
-  directly against each template's descriptor JSON in the `passport`
-  repo (`pkg/a2a/templates/v1/*.json`). Re-run Task 4 Step 1's script if
-  this table is ever suspected stale.
-- **Business framing** (Choose this when) -- manually curated. The
-  descriptor JSON has no `evaluationMode`/oracle field at all, for any
-  template, described or not -- confirmed 2026-08-31. Treat this column
-  as product judgment, not a machine-verified fact, and route changes to
-  it through whoever owns the template catalog (open item in the source
-  design doc, "Template table curation owner").
+Three kinds of columns here:
+- **Name / Summary** -- the platform's own `descriptor.presentation.name`
+  and `.summary` fields (`pkg/a2a/templates/v1/*.json` in the `passport`
+  repo). Authoritative, not curated -- quote them directly.
+- **Structural** (Windows, Max redeliveries, Escalation path) -- also
+  verified directly against the descriptor JSON. Re-run Task 4 Step 1's
+  script if this table is ever suspected stale.
+- **Choose this when** -- built from the Summary field plus the
+  structural shape, not invented from scratch. There is still no
+  `evaluationMode`/oracle field in any descriptor (confirmed 2026-08-31)
+  -- evaluation is always buyer-driven, inferred from whether
+  `REJECTING`/`REJECTED` states are configurable at all.
 
-| Template ID | Descriptor? | Windows | Max redeliveries | Escalation path | Choose this when |
-|---|---|---|---|---|---|
-| `standard/v1` | yes | funding, delivery, deliveryConfirmation, appeal, arbitration | 0-3 | Full: reject -> appeal -> dispute -> arbitration -> resolve | Default choice for anything where a buyer might reasonably dispute quality and you want a formal appeal/arbitration escalation available as a last resort. |
-| `recruiting/v1` | yes | funding, delivery, deliveryConfirmation | 0-3 | None: delivered or not; only `REFUNDING_UNDELIVERED` available | Candidate-sourcing / matching work where "delivered" is binary (a candidate list either arrived or didn't) -- no post-delivery quality dispute lane. |
-| `data-seller/v1` | yes | funding, delivery, deliveryConfirmation | 0-3 | None: same shape as `recruiting/v1` | Data/dataset delivery where the artifact is verifiable at delivery time (hash match) and there's no meaningful "I don't like the data" rejection path. |
-| `content-generator/v1` | yes | funding, delivery, deliveryConfirmation, appeal | 0-3 | Mid: reject -> redeliver -> refund; no appeal/dispute/arbitration escalation | Creative/generated-content work where the buyer might reasonably ask for one redo, but a formal arbitration escalation is overkill. |
-| `coding/v1` | yes | funding, delivery, deliveryConfirmation, appeal | 0-3 | Mid: same shape as `content-generator/v1` | Code/implementation deliverables -- redeliver-on-reject fits "the tests didn't pass, try again" better than a dispute process. |
-| `security-audit/v1` | yes | funding, delivery, deliveryConfirmation, appeal | 0-3 | Mid: same shape as `content-generator/v1` | Audit/report deliverables with a possible one-shot revision, no formal appeal process. |
-| `fixed_outcome/v1` | no | unknown -- no descriptor | unknown | unknown | **Needs curation owner input** (source design doc open item). Name suggests: fixed price, paid regardless of a graded outcome. Do not present to a seller as verified until confirmed. |
-| `fast-clocks/v1` | no | unknown -- no descriptor | unknown | unknown | **Needs curation owner input.** Name suggests: short time windows end-to-end. Do not present as verified until confirmed. |
-| `us-04-research-report/v1` | no | unknown -- no descriptor | unknown | unknown | **Needs curation owner input.** Name suggests: a specific research-report deliverable shape. Do not present as verified until confirmed. |
+The catalog is exactly these 6 templates as of 2026-08-31 (`origin/main`,
+`passport` repo) -- there is no undescribed/unavailable-template case to
+handle; every template a seller could pick has a real descriptor.
+
+| Template ID | Name | Summary | Windows | Max redeliveries | Escalation path | Choose this when |
+|---|---|---|---|---|---|---|
+| `standard/v1` | Standard delivery | The full agreement lifecycle with delivery review, appeal, and third-party arbitration. | funding, delivery, deliveryConfirmation, appeal, arbitration | 0-3 | Full: reject -> appeal -> dispute -> arbitration -> resolve | Default choice for anything where a buyer might reasonably dispute quality and you want a formal appeal/arbitration escalation available as a last resort. |
+| `recruiting/v1` | Recruiting | Candidate-sourcing delivery with buyer confirmation and no dispute branch. | funding, delivery, deliveryConfirmation | 0-3 | None: delivered or not; only `REFUNDING_UNDELIVERED` available | Candidate-sourcing / matching work where "delivered" is binary (a candidate list either arrived or didn't) -- no post-delivery quality dispute lane. |
+| `data-seller/v1` | Data seller | Dataset delivery with buyer confirmation and no dispute branch. | funding, delivery, deliveryConfirmation | 0-3 | None: same shape as `recruiting/v1` | Data/dataset delivery where the artifact is verifiable at delivery time (hash match) and there's no meaningful "I don't like the data" rejection path. |
+| `content-generator/v1` | Content generator | Content delivery with rejection and bounded redelivery, no arbitration. | funding, delivery, deliveryConfirmation, appeal | 0-3 | Mid: reject -> redeliver -> refund; no appeal/dispute/arbitration escalation | Creative/generated-content work where the buyer might reasonably ask for one redo, but a formal arbitration escalation is overkill. |
+| `coding/v1` | Coding | Software-deliverable workflow with rejection and bounded redelivery, no arbitration. | funding, delivery, deliveryConfirmation, appeal | 0-3 | Mid: same shape as `content-generator/v1` | Code/implementation deliverables -- redeliver-on-reject fits "the tests didn't pass, try again" better than a dispute process. |
+| `security-audit/v1` | Security audit | Audit-report delivery with rejection and bounded redelivery, no arbitration. | funding, delivery, deliveryConfirmation, appeal | 0-3 | Mid: same shape as `content-generator/v1` | Audit/report deliverables with a possible one-shot revision, no formal appeal process. |
 
 ## How phase 3 uses this table
 
@@ -438,12 +472,12 @@ Then pick the matching row and only *afterward* reveal the template ID in
 the phase-3 summary.
 ```
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 3: Stage**
 
 ```bash
 git add seller-onboarding/references/template-characteristics.md
-git commit -m "docs(seller-onboarding): add template characteristics table"
 ```
+(No commit -- this repo requires manual, GPG-signed commits by the owner.)
 
 ---
 
@@ -514,11 +548,7 @@ Ask about characteristics, never template names, using
 guidance. Once you have enough answers to pick a row, tell the seller
 the mapping in the summary only: **"This maps to `<template_id>`."**
 
-If the seller's answers point at one of the three undescribed templates
-(`fixed_outcome/v1`, `fast-clocks/v1`, `us-04-research-report/v1`), say
-so plainly and flag that this template's characteristics aren't yet
-platform-verified (per the reference table) rather than presenting a
-guess as fact.
+Every template in `references/template-characteristics.md` is now platform-described (no undescribed-template case exists as of the 2026-08-31 catalog correction). If the seller's answers genuinely don't fit any of the 6 rows, default to `standard/v1` -- the full lifecycle (reject -> appeal -> dispute -> arbitration -> resolve) is the safest general-purpose fallback -- and say so plainly rather than silently forcing a fit.
 
 Record `seller.offer.template_id`.
 ```
@@ -582,11 +612,14 @@ already decided in phase 2:
 
 Show the owner the exact computed values, explained as "the guardrail
 behind your agent -- it can't be read or changed by the agent itself,"
-and ask for explicit confirmation before writing. This write is a plain
-owner-JWT `PUT` (see `references/commands.md#governance-phase-4`) --
-**no passkey ceremony, no separate dashboard approval needed for this
-step** (removed from the platform 2026-08-24). Do not describe this as
-requiring a passkey or a dashboard trip.
+and ask for explicit confirmation before writing. GET the current policy
+first to read its `version` (0 if none exists yet), then write via a
+plain owner-JWT `PUT` including that version (see
+`references/commands.md#governance-phase-4`) -- **no passkey ceremony, no
+separate dashboard approval needed for this step** (removed from the
+platform 2026-08-24). Do not describe this as requiring a passkey or a
+dashboard trip. If the PUT is refused with 409 (stale version), GET again
+and retry -- never guess the version.
 
 One genuine question here, not derived: **"Your agent will auto-accept
 anything in-scope and priced, and decline the rest -- do you want
@@ -626,11 +659,7 @@ git commit -m "feat(seller-onboarding): add phase 4 (governance)"
 ```markdown
 # Standing Orders Template
 
-Phase 5 fills this scaffold with the seller's interview answers and
-writes it to `<seller-repo>/.claude/skills/seller-acceptance/SKILL.md`.
-Section headings (`decide`, `request`, `rejected`) are read by
-`kite-seller/SKILL.md` -- do not rename them without updating that file
-too (see Task 9).
+Phase 5 fills this scaffold with the seller's interview answers and writes it to `<seller-repo>/.claude/skills/seller-acceptance/SKILL.md`. Section headings (`decide`, `request`, `rejected`) are read by `kite-seller/SKILL.md` -- do not rename them without updating that file too (see Task 9).
 
 ```markdown
 ---
@@ -644,10 +673,7 @@ description: Your agent's standing orders -- your business judgment for each buy
 
 Accept a proposal when:
 - The template matches: `<seller.offer.template_id>`.
-- The price is at or above your private floor
-  (`<seller.offer.reserve_floor_minor>` minor units) -- this number is
-  enforced by the platform mandate too, so a deal your agent accepts here
-  can never be parked by the mandate afterward.
+- The price is at or above your private floor (`<seller.offer.reserve_floor_minor>` minor units) -- this number is enforced by the platform mandate too, so a deal your agent accepts here can never be parked by the mandate afterward.
 - The scope fits what you actually offer: <seller.offer.service_description>.
 
 Escalate (do not auto-decide) when:
@@ -658,19 +684,14 @@ Decline everything else.
 ## request
 
 Pre-deal chat, quote asks, clarifications, sample requests:
-- Quote per your published card -- never quote below
-  `<seller.offer.reserve_floor_minor>` minor units, since that's the same
-  number your mandate will refuse to let you accept.
-- Answer briefly, on-topic. Don't engage open-ended free chat -- it costs
-  your agent's tokens with no payment guarantee.
+- Quote per your published card -- never quote below `<seller.offer.reserve_floor_minor>` minor units, since that's the same number your mandate will refuse to let you accept.
+- Answer briefly, on-topic. Don't engage open-ended free chat -- it costs your agent's tokens with no payment guarantee.
 
 ## rejected
 
 If a buyer rejects your delivery:
 - Revise once if the rejection names something concrete and fixable.
-- Consent-refund if the objection is right, or if finishing would take
-  far longer than the deal is worth -- an early honest refund protects
-  your reputation more than a garbage delivery.
+- Consent-refund if the objection is right, or if finishing would take far longer than the deal is worth -- an early honest refund protects your reputation more than a garbage delivery.
 - Appeal only when the delivery clearly meets what was signed for.
 ```
 ```
@@ -713,24 +734,11 @@ Expected: FAIL — no phase 5 instructions exist yet.
 ```markdown
 ## Phase 5 -- Standing orders review
 
-Refuse to proceed if `seller.governance.confirmed` is not `true` --
-phase 4 must complete first (fail-closed, matches phase 6's own
-fail-closed default).
+Refuse to proceed if `seller.governance.confirmed` is not `true` -- phase 4 must complete first (fail-closed, matches phase 6's own fail-closed default).
 
-Fill `references/standing-orders-template.md` with the interview
-answers, using the **exact same numeric values** already written to the
-mandate in phase 4 -- `seller.offer.reserve_floor_minor` appears in both
-the mandate's `price_floors` and this file's `request`/`decide` sections,
-computed once in phase 2 and never re-derived. This is what guarantees
-the seller's agent can never quote a price its own mandate would later
-park.
+Fill `references/standing-orders-template.md` with the interview answers, using the **exact same numeric values** already written to the mandate in phase 4 -- `seller.offer.reserve_floor_minor` appears in both the mandate's `price_floors` and this file's `request`/`decide` sections, computed once in phase 2 and never re-derived. This is what guarantees the seller's agent can never quote a price its own mandate would later park.
 
-Present the filled scaffold to the seller as: "these are your agent's
-standing orders; they live in your repo; you own them." Explain the two
-layers this file sits between: Kite's skills are the how-to-operate
-runbooks, this file is the seller's own business judgment. Require
-explicit OK before writing to
-`<seller-repo>/.claude/skills/seller-acceptance/SKILL.md`.
+Present the filled scaffold to the seller as: "these are your agent's standing orders; they live in your repo; you own them." Explain the two layers this file sits between: Kite's skills are the how-to-operate runbooks, this file is the seller's own business judgment. Require explicit OK before writing to `<seller-repo>/.claude/skills/seller-acceptance/SKILL.md`.
 ```
 
 - [ ] **Step 4: Re-run eval 108**
@@ -789,25 +797,13 @@ Expected: FAIL — per prior research, `kite-seller/SKILL.md:178-184` only reads
 In the `request` section (around line 68-136), add a paragraph immediately after whatever currently describes default quoting behavior:
 
 ```markdown
-Before quoting, check whether
-`<seller-repo>/.claude/skills/seller-acceptance/SKILL.md` has a `##
-request` section. If it does, follow its quoting-floor and chat-engagement
-instructions exactly -- in particular, never quote below any floor it
-states, since that floor is the same number your owner's platform mandate
-will enforce at accept time. If no such section exists, use the v1
-default: quote per your published card, answer briefly on-topic, don't
-engage open-ended free chat.
+Before quoting, check whether `<seller-repo>/.claude/skills/seller-acceptance/SKILL.md` has a `## request` section. If it does, follow its quoting-floor and chat-engagement instructions exactly -- in particular, never quote below any floor it states, since that floor is the same number your owner's platform mandate will enforce at accept time. If no such section exists, use the v1 default: quote per your published card, answer briefly on-topic, don't engage open-ended free chat.
 ```
 
 In the `rejected` section (around line 195-217), add a similar paragraph:
 
 ```markdown
-Before choosing revise / consent-refund / appeal, check whether
-`<seller-repo>/.claude/skills/seller-acceptance/SKILL.md` has a `##
-rejected` section. If it does, follow its stated policy for which of the
-three arms to take. If no such section exists, use the v1 default: revise
-once if the rejection is concrete, consent-refund when the objection is
-right, appeal only when the delivery clearly meets the signed criteria.
+Before choosing revise / consent-refund / appeal, check whether `<seller-repo>/.claude/skills/seller-acceptance/SKILL.md` has a `## rejected` section. If it does, follow its stated policy for which of the three arms to take. If no such section exists, use the v1 default: revise once if the rejection is concrete, consent-refund when the objection is right, appeal only when the delivery clearly meets the signed criteria.
 ```
 
 - [ ] **Step 5: Re-run evals 109/110 against the modified file**
@@ -875,33 +871,17 @@ Expected: FAIL — phases 6-8 don't exist in `SKILL.md` yet.
 ```markdown
 ## Phase 6 -- Publish
 
-Refuse to proceed if `seller.governance.confirmed` is not `true` or the
-standing-orders file from phase 5 wasn't written -- fail-closed is the
-correct default for a fresh seller (no policy means refuse everything,
-which looks exactly like a broken agent, not a safety net).
+Refuse to proceed if `seller.governance.confirmed` is not `true` or the standing-orders file from phase 5 wasn't written -- fail-closed is the correct default for a fresh seller (no policy means refuse everything, which looks exactly like a broken agent, not a safety net).
 
-Run `kagent registration validate` (see
-`references/commands.md#publish-phase-6`), then `kagent registration
-publish`, then confirm with `kagent registration get`. Only declare
-success once readiness is actually confirmed by that last call -- not
-merely because the publish command didn't error.
+Run `kagent registration validate` (see `references/commands.md#publish-phase-6`), then `kagent registration publish`, then confirm with `kagent registration get`. Only declare success once readiness is actually confirmed by that last call -- not merely because the publish command didn't error.
 
 ## Phase 7 -- Serve
 
-Print the exact command from `references/commands.md#serve-phase-7`
-(`kagent serve --handler kite-agent-handler ...`). Describe what a
-healthy start looks like (the process stays running, logs incoming
-operations). **Never run this command yourself** -- it's long-running and
-must survive independently of this conversation. Tell the seller what to
-come back with once it's running.
+Print the exact command from `references/commands.md#serve-phase-7` (`kagent serve --handler kite-agent-handler ...`). Describe what a healthy start looks like (the process stays running, logs incoming operations). **Never run this command yourself** -- it's long-running and must survive independently of this conversation. Tell the seller what to come back with once it's running.
 
 ## Phase 8 -- Verify
 
-Hand off to the Passport web Playground (or seller console): the seller,
-as a human, runs one deal against their own agent, step by step. **Never**
-improvise a buyer agent inside this same conversation to test against --
-two engines in one workspace has caused real confusion in trials.
-Onboarding is complete only once the seller has watched one deal settle.
+Hand off to the Passport web Playground (or seller console): the seller, as a human, runs one deal against their own agent, step by step. **Never** improvise a buyer agent inside this same conversation to test against -- two engines in one workspace has caused real confusion in trials. Onboarding is complete only once the seller has watched one deal settle.
 ```
 
 - [ ] **Step 4: Re-run evals 111-113**
@@ -928,15 +908,17 @@ git commit -m "feat(seller-onboarding): add phase 6 (publish), 7 (serve), 8 (ver
 - Modify: `evals/README.md`
 
 **Interfaces:**
-- Consumes: the final eval id range from Tasks 1-10 (102-113)
+- Consumes: the final eval id range from Tasks 1-10 plus the mid-flight fallback-template correction (102-114)
 - Produces: nothing — documentation only.
+
+**Corrected 2026-08-31, mid-execution:** eval id 114 was added after Task 10 (a mid-flight fallback-template correction to Task 5's Phase 3 content, requested by the user) -- the coverage row must include it.
 
 - [ ] **Step 1: Add a coverage-table row**
 
 In the `## Coverage by skill` table, add:
 
 ```markdown
-| 102-108, 111-113 | seller-onboarding | seller-agent |
+| 102-108, 111-114 | seller-onboarding | seller-agent |
 ```
 
 (Ids 109-110 belong to `kite-seller`'s existing row, not a new one — they test `kite-seller`'s behavior, not `seller-onboarding`'s. Update the existing `kite-seller` row from `98-101` to `98-101, 109-110`.)
@@ -944,7 +926,7 @@ In the `## Coverage by skill` table, add:
 - [ ] **Step 2: Verify the full eval file is still valid JSON**
 
 Run: `python3 -c "import json; d = json.load(open('evals/evals.json')); print(len(d))"`
-Expected: prints a count equal to the previous count plus 12 (ids 102-113).
+Expected: prints a count equal to the previous count plus 13 (ids 102-114).
 
 - [ ] **Step 3: Commit**
 
@@ -966,7 +948,7 @@ git commit -m "docs(evals): add seller-onboarding coverage row"
 - Testing — every phase task writes its eval case first, per repo convention (manual grading, no automated runner).
 - Corrections table from the spec (template count, passkey removal, no-CLI-change, URL/URN) — all reflected in the relevant task's content (Task 4's structural facts, Task 6's phase-4 copy, Task 9's no-passport-cli-change framing, Task 3's dropped URL/URN cushion).
 
-**Placeholder scan:** no TBD/TODO; the three undescribed templates' "needs curation owner input" language in Task 4 is a factual, sourced statement (no descriptor exists) rather than a deferred-work placeholder, and is explicitly flagged as a confidence caveat rather than presented as verified fact.
+**Placeholder scan:** no TBD/TODO. **Superseded 2026-08-31:** Task 4 originally shipped with 3 templates marked "needs curation owner input" (no descriptor existed for them); the catalog has since dropped those 3 entirely and every remaining template now carries a platform-authored `presentation.name`/`.summary`, so that caveat no longer applies -- see Task 4's corrected content above.
 
 **Type/name consistency:** `seller.agent_did`, `seller.public_name`, `seller.offer.service_description`, `seller.offer.advertised_price_minor`, `seller.offer.reserve_floor_minor`, `seller.offer.template_id`, `seller.governance.confirmed` — each introduced once (Tasks 3, 5, 6) and referenced identically by every later task that consumes it; checked no drift in naming across tasks 6, 7, 8.
 
