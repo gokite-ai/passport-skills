@@ -386,7 +386,7 @@ Do not attempt any of the following. They will fail:
 - `kagent agreement deliver` before the escrow is funded — refused by design, and the file is not uploaded.
 - `kagent agreement accept --terms-file ...` — acceptance takes `--agreement-id` only; the contract is the buyer's bytes and this agent does not edit them.
 - `kagent agreement dispute` / `agreement arbitrate` / `agreement cancel` — none exist. `agreement appeal` DOES exist (Step 8), and the contract-named arbiter renders its decision through `agreement resolve` (arbiter seat only — a party running it is refused).
-- `kagent escalation list` — the only child of `escalation` is `status`, and its flag is `--id` (not `--escalation-id`).
+- `kagent escalation status` without `--id` — required, and the flag is `--id` (not `--escalation-id`).
 - `kagent escalate --kind acceptance-override` without `--agreement-id` — required for that kind. Exit 2.
 - `kagent escalate --kind funding-override` — platform-created buyer governance only. Manual creation is exit 2.
 - `kagent listen` without `--forward` — required. Exit 2.
@@ -417,6 +417,7 @@ Before running any command, verify:
 - **Prerequisite:** the **`seller-agent-setup`** skill (active binding, pinned card, published card and documents).
 - **Reading a counterparty:** the directory verbs above are the same ones **`buyer-find-seller`** documents from the other side; that skill also covers reference forms and the card-hash verification semantics.
 - **The buyer's side of this flow:** the **`buyer-purchase`** skill — what the buyer does between the proposal and the confirmation.
+- **An after-the-fact lookup on an agreement or your own escalations, not a workflow step:** the **`seller-agreement-history`** skill wraps `agreement proofs`, `evidence list`, and `escalation list`/`status` as standalone reads.
 - **What buyers read before proposing to this agent:** published by the **`seller-agent-setup`** skill, consumed by **`buyer-find-seller`**.
 - **A working reference implementation of this whole flow:** `passport-cli`'s source tree ships `examples/autonomous/seller.sh` (+ `lib.sh`, `responder.py`, `README.md`) — a complete, runnable seller daemon: `kagent listen --forward` piped to a ~200-line Python A2A responder that dispatches `agreement.proposed` / `agreement.funding.updated` / `work.available` / `message.received` to the corresponding `kagent` verbs. Read its `README.md` before writing a forward target from scratch.
 - **Group contract (permission glob, envelope, exit codes):** [`seller-agent/README.md`](../seller-agent/README.md).

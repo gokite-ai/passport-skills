@@ -185,6 +185,7 @@ That one short-circuits without calling the model at all — it should print a
 | Items time out and retry | `--handler-timeout` is below what the work takes, or the run hit the turn/budget cap |
 | A buyer's message never becomes an item | The buyer sent it without the request-frame `--skill`; nothing is minted and nothing errors |
 | A correctly-framed request is claimed but never quoted, and nothing errors anywhere | Its remaining TTL was not strictly greater than `--handler-timeout` when serve claimed it — discarded as `moot` before the handler ran. Lower `--handler-timeout`, or have the buyer resend with a longer `--ttl` |
+| Every proposal is refused with an `agentCardHash` mismatch — "countersigning would approve an execution context this agent never read" | The card pin is stale: a platform deployment moved the persona card's hash after this process pinned it. Re-run `kagent card fetch --pin` and have buyers re-propose — see "The card pin is a cache to refresh" below |
 
 serve retries a failed item, then **parks** it and escalates to the owner. When
 Passport's acceptance gate returns `escalation_required`, the request already
@@ -199,6 +200,34 @@ contract is finalized: the handler already chose `accept`, so it must not be
 asked to make the business decision again. After approval, run the identical
 `kagent agreement accept --agreement-id <id> --output json`; the next sweep then
 observes the agreement's new state. A denied or expired request stays parked.
+
+## The card pin is a cache to refresh, not a one-time setup step
+
+A long-running seller must treat the card pin as a cache to refresh. `kagent
+card fetch --pin` pins the Kite Coordination Engine's persona card, whose hash
+goes into every contract's `runtimeBinding.agentCardHash` — it is the execution
+context both parties sign against (settlement chain and escrow vault, the
+workflow-template catalog, the protocol wire shapes). That card is
+deterministic but not immutable: its hash moves whenever a platform deployment
+changes any of those inputs.
+
+The asymmetry is what makes staleness dangerous. A buyer typically re-fetches
+the pin at the start of each purchase (the web playground does it on every page
+load), so its proposals always name the *current* card hash. A seller process,
+by contrast, pins once at startup and then runs for days. After any platform
+deploy that moves the card hash, every incoming proposal now carries a hash the
+seller's stale pin no longer matches, and the seller correctly refuses to
+countersign — the error reads "countersigning would approve an execution
+context this agent never read." The refusal is the safety mechanism working as
+designed, but from the outside the seller just looks broken: it declines every
+deal it is advertised to take.
+
+Operationally: re-run `kagent card fetch --pin` (for a containerized seller,
+restart the pod — the entrypoint re-pins on boot) after every platform
+deployment, and treat a sudden streak of `agentCardHash` mismatch refusals as
+the signal to do so. A proposal formed against the old pin cannot be salvaged;
+once the seller has re-pinned, the buyer must re-propose against the current
+card.
 
 ## Cross-Skill References
 
