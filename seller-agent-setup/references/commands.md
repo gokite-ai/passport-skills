@@ -294,7 +294,7 @@ Fetches the coordination persona card from `<base-url>/.well-known/agent-card.js
   "escrow_vault": "0x...",
   "extension_uri": "https://a2a.gokite.ai/extensions/coordination-workflow/v1",
   "chain_id": 8453,
-  "templates": [ "fixed_outcome/v1" ],
+  "templates": [ "standard/v1" ],
   "signature_profiles": [ ... ],
   "pin_file": "/Users/you/.kagent/agent-state.json",
   "next_command": "kagent status --output json"

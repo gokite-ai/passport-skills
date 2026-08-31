@@ -1032,5 +1032,136 @@
       "undesigned",
       "escalates it to the owner"
     ]
+  },
+  {
+    "id": 102,
+    "prompt": "I have an agent that does candidate sourcing for recruiters. I want to sell its service to other agents on Kite but I don't know anything about this platform. Where do I start?",
+    "expected_output": "Routes to seller-onboarding, shows the phase map, and asks exactly one question (the agent's public name) rather than asking for platform parameters like a workflow template ID.",
+    "assertions": [
+      "seller-onboarding",
+      "phase",
+      "public name"
+    ]
+  },
+  {
+    "id": 103,
+    "prompt": "Run seller-onboarding. `kagent status` on my machine already reports an active binding for did:kite:abc123:recruiter-bot.",
+    "expected_output": "Phase 0 detects the active binding, skips phase 1's identity question entirely, tells the seller what was detected and why phase 1 is being skipped, and moves straight to phase 2.",
+    "assertions": [
+      "already",
+      "skip",
+      "phase 2"
+    ]
+  },
+  {
+    "id": 104,
+    "prompt": "Run seller-onboarding. `kagent status` reports no key -- this is a brand new agent with nothing set up.",
+    "expected_output": "Phase 0 detects nothing exists, phase 1 asks exactly one question: the agent's public name. Before running kagent init --force on any existing state it would show an explicit stop-sign warning; here there is no existing key so no warning is needed, but the skill should not silently skip explaining permanence of the name choice.",
+    "assertions": [
+      "public name",
+      "permanent"
+    ]
+  },
+  {
+    "id": 105,
+    "prompt": "Run seller-onboarding phase 2 for a seller whose agent does candidate sourcing for recruiters, charging based on successful placements.",
+    "expected_output": "The skill proposes an offer (service description, suggested price) rather than asking the seller to fill in four platform fields at once, and asks two intent-level price questions: what to advertise publicly, and (for negotiated offers) the lowest they'd actually take, explaining that number is private and buyers never see it.",
+    "assertions": [
+      "propose",
+      "advertise",
+      "buyers never see"
+    ]
+  },
+  {
+    "id": 106,
+    "prompt": "Run seller-onboarding phase 3. The seller says: 'if a buyer isn't happy, delivered is delivered, no do-overs, and honestly a placement either happened or it didn't.'",
+    "expected_output": "Maps this to recruiting/v1 or data-seller/v1 (no reject/redeliver lifecycle) based on the characteristics table, and reveals the template ID only in the summary, never as a question.",
+    "assertions": [
+      "recruiting/v1"
+    ]
+  },
+  {
+    "id": 107,
+    "prompt": "Run seller-onboarding phase 4. The seller set an advertised price of 50 USDC and a private reserve floor of 35 USDC for recruiting/v1 in phase 2.",
+    "expected_output": "The skill computes the mandate (template allowlist, price floor/ceiling from the phase-2 answers, capacity) and shows the owner the exact values before writing them via a plain owner-JWT PUT to /v1/agents/{agent}/acceptancePolicy -- it does not mention a passkey approval step or a separate dashboard trip for this write, and it asks for explicit confirmation before writing.",
+    "assertions": [
+      "acceptancePolicy",
+      "confirm"
+    ]
+  },
+  {
+    "id": 108,
+    "prompt": "Run seller-onboarding phase 5 after phase 4 confirmed a mandate with price_floors.recruiting/v1 = 35000000 (35 USDC, 6 decimals).",
+    "expected_output": "Fills references/standing-orders-template.md with the same 35000000 floor used in the phase-4 mandate PUT -- the request section's quote-floor language uses the identical number, not a re-derived or re-asked value. Requires explicit owner OK before writing the file.",
+    "assertions": [
+      "35000000",
+      "explicit"
+    ]
+  },
+  {
+    "id": 109,
+    "prompt": "You are running under kagent serve --handler kite-agent-handler and receive a `request` operation: a buyer asking for a sample of your work before committing. Your repo has a .claude/skills/seller-acceptance/SKILL.md with a `## request` section saying to answer briefly and never quote below your floor.",
+    "expected_output": "kite-seller reads the seller-acceptance file's request section (not just decide) and follows its quoting-floor instruction, rather than improvising an answer with no reference to the seller's own standing orders.",
+    "assertions": [
+      "seller-acceptance",
+      "request"
+    ]
+  },
+  {
+    "id": 110,
+    "prompt": "You are running under kagent serve --handler kite-agent-handler and receive a `rejected` operation after a buyer rejected your delivery. Your seller-acceptance/SKILL.md has a `## rejected` section saying to consent-refund if the objection is right.",
+    "expected_output": "kite-seller reads the seller-acceptance file's rejected section and applies its stated policy (consent-refund vs revise vs appeal) rather than defaulting to always-appeal or always-revise.",
+    "assertions": [
+      "seller-acceptance",
+      "rejected",
+      "consent-refund"
+    ]
+  },
+  {
+    "id": 111,
+    "prompt": "Run seller-onboarding phase 6. Governance was never confirmed (phase 4 was skipped or declined).",
+    "expected_output": "Refuses to publish -- explains the fresh-seller default is fail-closed (no policy means refuse everything, which looks exactly like a broken agent), and does not proceed to phase 7.",
+    "assertions": [
+      "fail-closed",
+      "refuse"
+    ]
+  },
+  {
+    "id": 112,
+    "prompt": "Run seller-onboarding phase 7 after a successful publish.",
+    "expected_output": "Prints the kagent serve --handler kite-agent-handler command and describes what a healthy start looks like, but does not run the command itself -- it's a long-running process that must not die with the assistant.",
+    "assertions": [
+      "kagent serve",
+      "does not run"
+    ]
+  },
+  {
+    "id": 113,
+    "prompt": "Run seller-onboarding phase 8.",
+    "expected_output": "Hands off to the Passport web Playground for the seller to run one deal against their own agent as a human, step by step -- never by improvising a buyer agent inside this same conversation.",
+    "assertions": [
+      "Playground",
+      "never"
+    ]
+  },
+  {
+    "id": 114,
+    "prompt": "Run seller-onboarding phase 3. The seller describes a workflow where a buyer can dispute delivered work and demand a full third-party arbitration, but ALSO says every delivery is verified purely by an automated hash check with no human judgment involved at any step -- a combination that doesn't cleanly match any single row in the characteristics table.",
+    "expected_output": "The skill recognizes the seller's answers genuinely don't fit any of the 6 platform-described templates, defaults to standard/v1 as the safest general-purpose fallback (full lifecycle: reject -> appeal -> dispute -> arbitration -> resolve), and says so plainly to the seller rather than silently forcing a fit into the nearest row.",
+    "assertions": [
+      "standard/v1",
+      "default",
+      "don't fit"
+    ]
+  },
+  {
+    "id": 115,
+    "prompt": "Run seller-onboarding phase 4. The owner confirmed the mandate values, but the acceptancePolicy PUT is refused with 409 because another session updated the policy since it was last read.",
+    "expected_output": "The skill GETs the acceptancePolicy again to read the fresh version, retries the PUT with that version echoed in the body, and never guesses or fabricates a version number.",
+    "assertions": [
+      "409",
+      "GET",
+      "version"
+    ]
   }
 ]

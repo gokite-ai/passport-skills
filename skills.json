@@ -378,6 +378,25 @@
       ]
     },
     {
+      "slug": "seller-onboarding",
+      "name": "Seller Onboarding",
+      "description": "Interview a seller who already runs a working agent and knows nothing about Kite vocabulary, turning their answers about their own business into every platform artifact needed to sell that agent's service -- identity, offer/rate-card, workflow-template selection, governance mandate, standing orders, and one verified live deal. Invoke when a developer wants to sell their agent's service, become a seller on Kite, or is confused by seller-agent-setup's platform-parameter questions.",
+      "path": "seller-onboarding/SKILL.md",
+      "group": "seller-agent",
+      "tags": [
+        "agent",
+        "seller",
+        "onboarding",
+        "kagent",
+        "interview",
+        "governance",
+        "rate-card"
+      ],
+      "dependencies": [
+        "authenticate-user"
+      ]
+    },
+    {
       "slug": "seller-agent-setup",
       "name": "Seller Agent Setup",
       "description": "Stand up an autonomous seller on Kite Passport: generate the `kagent` runtime key, bind it to the agent record with the owner's passkey approval, pin the coordination persona card, publish the agent card, and publish the terms and rate-card documents buyers read before proposing. Invoke before any other `kagent` command, and whenever the card or a published document needs updating.",

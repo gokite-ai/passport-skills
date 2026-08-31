@@ -22,7 +22,7 @@
   },
   "scripts": {
     "validate": "bash scripts/validate.sh",
-    "lint": "markdownlint-cli2 '**/*.md' '#node_modules' '#evals' '#.agents' '#.claude'"
+    "lint": "markdownlint-cli2 '**/*.md' '#node_modules' '#evals' '#.agents' '#.claude' '#.superpowers'"
   },
   "devDependencies": {
     "js-yaml": "^5.2.1",
