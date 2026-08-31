@@ -38,7 +38,7 @@ One boundary to be clear about up front: **this agent publishes; the owner lists
 
 A request phrased as a finished outcome — "set up a seller agent for me", "make my agent live", "get me selling X" — is asking for the whole chain through **listed and mandated**, run in one pass, not a sequence of "want me to continue?" check-ins after every step. Treat it differently from "prepare my offer, don't publish" (the previous paragraph):
 
-- **Gather everything this needs before running anything.** Before Step 1, make sure you actually have: the agent `uid` (Step 2 — cannot be guessed, and cannot be changed later), what the seller is selling (one-line offering identity), the price and currency, and the workflow template (default `fixed_outcome/v1` if the owner has no preference). If any of these is missing and wasn't already established earlier in the conversation, ask for all of them **up front, in one batch**, before touching a command — not one field at a time between Bash calls, and never fabricated to keep the flow moving.
+- **Gather everything this needs before running anything.** Before Step 1, make sure you actually have: the agent `uid` (Step 2 — cannot be guessed, and cannot be changed later), what the seller is selling (one-line offering identity), the price and currency, and the workflow template (default `standard/v1` if the owner has no preference). If any of these is missing and wasn't already established earlier in the conversation, ask for all of them **up front, in one batch**, before touching a command — not one field at a time between Bash calls, and never fabricated to keep the flow moving.
 - **Run Steps 1–9 straight through**, including `card publish`, `registration publish`, and — per Step 9 — the listing PATCH, as one continuous execution once the inputs above are known. Do not stop mid-flow to ask permission for a step that's simply next in the chain the owner already asked for. Confirm the resulting verification tier (`verified` is the correct, complete outcome for the default platform-held card — see Step 9) rather than treating it as unfinished work.
 - **The only real interruption points are the ones nothing here can resolve programmatically:** a `binding.status: "pending"` runtime approval that needs the owner's passkey (Step 3's fallback path), `owner-bootstrap.md`'s onboarding/KYC steps if they come back `rejected` or stuck `pending`, and **no owner JWT available to this session.** That last one is not a minor gap — Step 9's listing PATCH and Step 8's acceptance-policy PUT are both owner-JWT-authorized calls with no other way to issue them, so without one the setup is genuinely incomplete, not just missing a nice-to-have. Get the owner authenticated first (**`authenticate-user`**) rather than skipping those calls silently or inventing a token. Those are genuine stops — everything else in the chain, including listing, is not.
 - Setting the acceptance policy (Step 8) is part of this same pass, not an optional extra — an unlisted or unmandated agent can't actually transact, so leaving it for later defeats the "set up a seller agent for me" ask. But write it from **this seller's actual values**, not Step 8's illustrative example: `templates` from the workflow id(s) this seller actually registered in Step 7, `price_floors`/`price_ceilings` from the real price the owner set (or explicitly confirmed), and `max_open_obligations` only if the owner stated a cap. If any of those is genuinely unconfirmed, do not guess a number to complete the pass — leave the policy unset (`configured: false`) and tell the owner to set it in Passport (see Step 8).
@@ -238,7 +238,7 @@ Nothing else is validated or reshaped — the rest of the content is this agent'
 **Declaring supported workflows.** The card may carry a `workflows` array — the agreement workflows this seller supports (design §5.12). Either write it into the file directly, or use `--workflow <id>` (repeatable) to inject or override that member without hand-editing the file:
 
 ```bash
-kagent card publish --file ./card.json --workflow fixed_outcome/v1 --output json
+kagent card publish --file ./card.json --workflow standard/v1 --output json
 ```
 
 Each id is checked against the platform's workflow registry at publish time — naming one the registry doesn't carry is refused. Run `ksearch workflow-template list` to see the ids it does (a public read — the discovery binary, no runtime key). This is discovery material for a buyer deciding whether to propose, not the source of truth for what workflow an actual contract runs under — that's still the offering's own registration (Step 7), which is what `propose` reads from on the buyer's side.
@@ -360,15 +360,15 @@ curl -fsS -H "Authorization: Bearer <owner-jwt>" \
 the absence of a policy is a **position**, not a gap: it means every acceptance
 is refused, and reading it as "unconfigured, therefore permissive" is backwards.
 
-Write one — an atomic FULL REPLACE, guarded by optimistic concurrency. **The body below is illustrative, not a default to copy verbatim** — `fixed_outcome/v1` and `500000` are this example's numbers, not this seller's. Fill `templates` from the workflow id(s) actually registered in this seller's commerce registration (Step 7) and `price_floors`/`price_ceilings` from the real price the owner set or confirmed; a mismatched floor (e.g. an example's 0.50 USDC floor sitting above this seller's actual 0.10 USDC offering) would make the agent refuse the exact deal it was just set up to take. If those real values aren't known yet, don't invent them — leave the policy unset and point the owner at Passport instead (see above).
+Write one — an atomic FULL REPLACE, guarded by optimistic concurrency. **The body below is illustrative, not a default to copy verbatim** — `standard/v1` and `500000` are this example's numbers, not this seller's. Fill `templates` from the workflow id(s) actually registered in this seller's commerce registration (Step 7) and `price_floors`/`price_ceilings` from the real price the owner set or confirmed; a mismatched floor (e.g. an example's 0.50 USDC floor sitting above this seller's actual 0.10 USDC offering) would make the agent refuse the exact deal it was just set up to take. If those real values aren't known yet, don't invent them — leave the policy unset and point the owner at Passport instead (see above).
 
 ```bash
 curl -fsS -X PUT -H "Authorization: Bearer <owner-jwt>" -H 'Content-Type: application/json' \
   "$KITE_PASSPORT_BASE_URL/v1/agents/<agt_id-or-did>/acceptancePolicy" \
   -d '{
         "version": 0,
-        "templates": ["fixed_outcome/v1"],
-        "price_floors": { "fixed_outcome/v1": "500000" }
+        "templates": ["standard/v1"],
+        "price_floors": { "standard/v1": "500000" }
       }'
 ```
 
