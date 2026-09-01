@@ -25,7 +25,7 @@
     "lint": "markdownlint-cli2 '**/*.md' '#node_modules' '#evals' '#.agents' '#.claude' '#.superpowers'"
   },
   "devDependencies": {
-    "js-yaml": "^5.2.1",
+    "js-yaml": "^5.4.1",
     "markdownlint-cli2": "^0.23.2",
     "skills": "^1.5.23"
   }
