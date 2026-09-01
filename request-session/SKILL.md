@@ -51,10 +51,34 @@ Do NOT use this skill when the user already has an **attachable session ID**
 one approval; creating here would mint a redundant session and burn a second
 approval on a policy the owner already defined.
 
-Do NOT use this skill for the **buyer agreement lane** (funding a
-`kpass agent agreement ...` deal): those sessions are requested with
-`kpass agent session request` -- the ONLY session entry for the buyer agent --
-covered by the **`buyer-purchase`** skill.
+### `session create` vs `session request` -- route on what the money pays for
+
+Two commands sit under `kpass agent session` and read almost identically. They
+are not interchangeable, and the wrong one costs an owner approval on a session
+that can never be used.
+
+| The money will pay for | Command | This skill? |
+|---|---|---|
+| A paid HTTP endpoint (x402), a shopping checkout, any priced API call | **`kpass agent session create`** | **yes -- this skill** |
+| An escrowed agreement (`kpass agent agreement propose/fund ...`) | **`kpass agent session request --agreement-id ...`** | no -- **`buyer-purchase`** |
+
+The difference is not "which lane you are on", which nothing observable tells
+you. It is **what the session will be spent on**, which the task always says.
+
+Note that `agent` in `kpass agent session create` means *about* an agent, not
+*as* one: the command authenticates with the **human's** JWT (so `kpass login`
+first) and authorizes an agent to spend. `session request` is the agent signing
+with **its own runtime key**, and it carries a v2 **scope** -- an agreement id,
+a seller allowlist, or a template -- which `create` has no way to express.
+
+**A `create` session cannot fund an agreement.** Funding is fail-closed on the
+scope, so it refuses with `error_code: session_scope_forbidden` and
+
+> `agreement funding requires a session-request v2 session carrying a scope`
+
+If you see that, the session was minted on this lane and the deal needs one
+from `buyer-purchase` instead. Do not retry, and do not widen the budget --
+neither is the problem.
 
 **Never reach Passport over MCP, for either lane.** Passport has no MCP
 surface: the hosted connector and the `passport-mcp` stdio server are both

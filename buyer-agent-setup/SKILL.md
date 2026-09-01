@@ -84,7 +84,7 @@ Every later command for this agent — `bind`, `status`, `buyer-find-seller`, `b
 
 ## The Only Session Entry for This Agent
 
-Once this buyer agent is bound, **`kpass agent session request` (see the `buyer-purchase` skill) is the ONLY way to request a spending session for it.**
+Once this buyer agent is bound, **`kpass agent session request` (see the `buyer-purchase` skill) is the ONLY way to request a spending session for it.** Its sibling `kpass agent session create` is a different lane -- the human's JWT authorizing an agent to spend on paid APIs and shopping -- and it cannot express the v2 scope an agreement needs, so a session from it is refused at funding with `session_scope_forbidden`. Route on what the money pays for: an agreement means `request`, a priced API call or a checkout means `create`.
 
 More generally: **Passport has no MCP surface, so nothing about this agent is reached over MCP.** The hosted connector and the `passport-mcp` stdio server are both deleted; the CLI is the access path. An `mcp__kite-passport__*` tool still listed in a session is a stale local build of a server that no longer exists in the tree. **Do not use any of it.** Note that "deleted" does not mean "harmless": the session and funding tools now call routes that 404, but `search_agents`, `get_agent` and `bind_runtime` go to the agent registry and binding APIs, which are **still live** -- so a stale build can still bind a runtime key, and `bind_runtime` shadows the `init` and `bind` steps below exactly as `request_session` shadowed the session verb. Working is the problem, not the fix.
 

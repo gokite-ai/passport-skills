@@ -216,7 +216,18 @@ The seller's serve echoes the frame back signed — that reply is your receipt t
 
 ### Step 3: Get a Spending Session the Owner Approves
 
-**This CLI verb is the ONLY session entry for this buyer agent**, and Passport has no MCP surface at all -- the hosted connector and the `passport-mcp` stdio server are both deleted, so an `mcp__kite-passport__*` tool still listed in a session is a stale local build of a server that no longer exists. Never call one: its session and funding tools hit routes that 404, and the registry and binding ones still work, which is the more dangerous half. The tool that made this worth spelling out was `request_session`: it described itself in the same words as this verb ("request a Kite spending session for this agent") but bound the session to a different agent identity than this CLI runtime, so a session minted there can never fund an agreement proposed here, and it carried no scope for the owner to review. The command below is the one and only way.
+**This CLI verb is the ONLY session entry for this buyer agent.** Its sibling
+`kpass agent session create` is the other lane and cannot serve this one: it
+authenticates with the human's JWT rather than this agent's runtime key, and it
+has no way to express the v2 **scope** an agreement needs. Funding is
+fail-closed on that scope, so a session minted with `create` is refused at the
+funding chokepoint with `error_code: session_scope_forbidden` and *"agreement
+funding requires a session-request v2 session carrying a scope"* -- after the
+owner has already approved it. Use `create` only for paid API calls and
+shopping checkout (the **`request-session`** skill); use `request` below for
+every agreement.
+
+Relatedly, Passport has no MCP surface at all -- the hosted connector and the `passport-mcp` stdio server are both deleted, so an `mcp__kite-passport__*` tool still listed in a session is a stale local build of a server that no longer exists. Never call one: its session and funding tools hit routes that 404, and the registry and binding ones still work, which is the more dangerous half. The tool that made this worth spelling out was `request_session`: it described itself in the same words as this verb ("request a Kite spending session for this agent") but bound the session to a different agent identity than this CLI runtime, so a session minted there can never fund an agreement proposed here, and it carried no scope for the owner to review. The command below is the one and only way.
 
 ```bash
 kpass agent session request \
