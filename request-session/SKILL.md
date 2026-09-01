@@ -59,13 +59,15 @@ covered by the **`buyer-purchase`** skill.
 **Never reach Passport over MCP, for either lane.** Passport has no MCP
 surface: the hosted connector and the `passport-mcp` stdio server are both
 deleted, and the CLI (`kpass` for a person, `kagent` for a seller runtime) plus
-A2A between agents is the whole access path. If an `mcp__kite-passport__*` tool
-is still listed in this session, it is a stale local build of a deleted server
-pointed at routes that no longer exist -- do not call any of them. That family
-included `request_session`, whose description ("request a Kite spending session
-for this agent") read like this skill's own: it bound the session to a
-different agent identity than the CLI runtime, so what it minted could not fund
-CLI-lane work, and it took no scope for the owner to review.
+A2A between agents is the whole access path. An `mcp__kite-passport__*` tool
+still listed in this session is a stale local build of a server that no longer
+exists -- do not call any of them. Its session and funding tools now hit routes
+that 404, but its registry and binding tools still work against live APIs,
+which is why the rule is the whole family rather than the broken half. The one
+that caused real harm was `request_session`, whose description ("request a Kite
+spending session for this agent") read like this skill's own: it bound the
+session to a different agent identity than the CLI runtime, so what it minted
+could not fund CLI-lane work, and it took no scope for the owner to review.
 
 ## Sessions Are Protocol-Agnostic
 
