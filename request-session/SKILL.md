@@ -51,6 +51,16 @@ Do NOT use this skill when the user already has an **attachable session ID**
 one approval; creating here would mint a redundant session and burn a second
 approval on a policy the owner already defined.
 
+Do NOT use this skill for the **buyer agreement lane** (funding a
+`kpass agent agreement ...` deal): those sessions are requested with
+`kpass agent session request` -- the ONLY session entry for the buyer agent --
+covered by the **`buyer-purchase`** skill. And never substitute the
+`kite-passport` MCP server's `request_session` tool for either lane: it bound
+the session to a different agent identity than the CLI runtime, so what it
+minted could not fund CLI-lane work, and it took no scope for the owner to
+review. Current `passport-mcp` builds have removed that tool; never call it
+on an older build that still offers it.
+
 ## Sessions Are Protocol-Agnostic
 
 A single approved session is fungible across paid-API and shopping flows. The settlement protocol (x402, paygate, tempo, or crossmint checkout) is detected at execute time from the merchant's preflight response — the delegation does **not** carry a protocol field. The authorization boundary is per-tx / total spending caps (`max_amount_per_tx` / `max_total_amount`, denominated in `payment_policy.currency`, default `USD`) plus optional `execution_constraints` endpoint scoping — there is **no `assets` allowlist field** and the caps are never expressed per-asset. The settlement asset itself is a separate, merchant-selected concern: the merchant's 402 dictates which token settles (normalized into the budget currency for cap enforcement), and the session locks to that first settled asset automatically (single-asset lock) — this lock is an emergent side effect of settlement, not a user-configurable allowlist. See the **`form-session-delegation`** skill for the full schema.

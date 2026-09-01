@@ -82,6 +82,10 @@ Every later command for this agent — `bind`, `status`, `buyer-find-seller`, `b
 - **`init --force` on a bound key is destructive.** Replacing a bound key orphans every agreement pinned to it — the old key can no longer sign for agreements that named it. The CLI refuses an overwrite without `--force` for exactly that reason. Only pass `--force` when the owner has said the existing identity is being abandoned. Wanting to run a second buyer agent alongside the first is **not** that case — see "Running Multiple Buyer Agents on One Machine" above instead.
 - One key, one agent. If `bind` reports `runtime_agent_mismatch`, the owner pointed you at a different agent record; ask rather than re-initializing.
 
+## The Only Session Entry for This Agent
+
+Once this buyer agent is bound, **`kpass agent session request` (see the `buyer-purchase` skill) is the ONLY way to request a spending session for it.** The `kite-passport` MCP server (`passport-mcp`) used to expose a `request_session` tool whose description ("request a Kite spending session for this agent") sounded like the same thing -- it was not, and current builds have removed it. That tool minted a session bound to a **different agent identity** (the MCP server's own runtime key), so the session it produced could never fund an agreement proposed by this CLI runtime, and it took no scope, so the owner approved a grant without seeing what it covered. If an older `passport-mcp` build still offers `mcp__kite-passport__request_session`, never call it; when a session is needed, it is the CLI verb, with an explicit scope.
+
 ## Defaults (Do Not Ask the Owner Unless They Specify Otherwise)
 
 | Setting | Default | Override |
