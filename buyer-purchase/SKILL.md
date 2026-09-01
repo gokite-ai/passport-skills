@@ -216,7 +216,7 @@ The seller's serve echoes the frame back signed — that reply is your receipt t
 
 ### Step 3: Get a Spending Session the Owner Approves
 
-**This CLI verb is the ONLY session entry for this buyer agent.** The `kite-passport` MCP server (`passport-mcp`) used to expose a `request_session` tool that described itself in the same words ("request a Kite spending session for this agent") but bound the session to a different agent identity than this CLI runtime -- a session minted there can never fund an agreement proposed here, and it carried no scope for the owner to review. Current builds have removed that tool; if an older build still offers `mcp__kite-passport__request_session`, never call it -- the command below is the one and only way.
+**This CLI verb is the ONLY session entry for this buyer agent**, and Passport has no MCP surface at all -- the hosted connector and the `passport-mcp` stdio server are both deleted, so an `mcp__kite-passport__*` tool still listed in a session is a stale local build calling routes that no longer exist. Never call one. The tool that made this worth spelling out was `request_session`: it described itself in the same words as this verb ("request a Kite spending session for this agent") but bound the session to a different agent identity than this CLI runtime, so a session minted there can never fund an agreement proposed here, and it carried no scope for the owner to review. The command below is the one and only way.
 
 ```bash
 kpass agent session request \

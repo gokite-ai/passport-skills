@@ -84,7 +84,11 @@ Every later command for this agent — `bind`, `status`, `buyer-find-seller`, `b
 
 ## The Only Session Entry for This Agent
 
-Once this buyer agent is bound, **`kpass agent session request` (see the `buyer-purchase` skill) is the ONLY way to request a spending session for it.** The `kite-passport` MCP server (`passport-mcp`) used to expose a `request_session` tool whose description ("request a Kite spending session for this agent") sounded like the same thing -- it was not, and current builds have removed it. That tool minted a session bound to a **different agent identity** (the MCP server's own runtime key), so the session it produced could never fund an agreement proposed by this CLI runtime, and it took no scope, so the owner approved a grant without seeing what it covered. If an older `passport-mcp` build still offers `mcp__kite-passport__request_session`, never call it; when a session is needed, it is the CLI verb, with an explicit scope.
+Once this buyer agent is bound, **`kpass agent session request` (see the `buyer-purchase` skill) is the ONLY way to request a spending session for it.**
+
+More generally: **Passport has no MCP surface, so nothing about this agent is reached over MCP.** The hosted connector and the `passport-mcp` stdio server are both deleted; the CLI is the access path. An `mcp__kite-passport__*` tool still listed in a session is a stale local build of a deleted server, calling routes that no longer exist -- do not use any of it, including `bind_runtime`, which shadowed the `init` and `bind` steps below.
+
+The one that caused real damage is worth knowing by name. `request_session` described itself as "request a Kite spending session for this agent" -- the same words as the CLI verb -- but minted a session bound to a **different agent identity** (that server's own runtime key), so the session could never fund an agreement proposed by this CLI runtime, and it took no scope, so the owner approved a grant without seeing what it covered. An approval ceremony was spent on a session that could not be used.
 
 ## Defaults (Do Not Ask the Owner Unless They Specify Otherwise)
 

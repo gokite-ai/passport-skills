@@ -54,12 +54,18 @@ approval on a policy the owner already defined.
 Do NOT use this skill for the **buyer agreement lane** (funding a
 `kpass agent agreement ...` deal): those sessions are requested with
 `kpass agent session request` -- the ONLY session entry for the buyer agent --
-covered by the **`buyer-purchase`** skill. And never substitute the
-`kite-passport` MCP server's `request_session` tool for either lane: it bound
-the session to a different agent identity than the CLI runtime, so what it
-minted could not fund CLI-lane work, and it took no scope for the owner to
-review. Current `passport-mcp` builds have removed that tool; never call it
-on an older build that still offers it.
+covered by the **`buyer-purchase`** skill.
+
+**Never reach Passport over MCP, for either lane.** Passport has no MCP
+surface: the hosted connector and the `passport-mcp` stdio server are both
+deleted, and the CLI (`kpass` for a person, `kagent` for a seller runtime) plus
+A2A between agents is the whole access path. If an `mcp__kite-passport__*` tool
+is still listed in this session, it is a stale local build of a deleted server
+pointed at routes that no longer exist -- do not call any of them. That family
+included `request_session`, whose description ("request a Kite spending session
+for this agent") read like this skill's own: it bound the session to a
+different agent identity than the CLI runtime, so what it minted could not fund
+CLI-lane work, and it took no scope for the owner to review.
 
 ## Sessions Are Protocol-Agnostic
 
