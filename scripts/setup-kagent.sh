@@ -72,7 +72,7 @@ fi
 # Fails on unparseable input, so an unreadable version counts as too old and
 # gets reinstalled rather than silently accepted.
 version_at_least() {
-  local a="$1" b="$2"
+  local a="${1%%+*}" b="${2%%+*}"  # build metadata is ignored in precedence (SemVer §10)
   local a_core="${a%%-*}" b_core="${b%%-*}"
   local a_pre="" b_pre=""
   [[ "$a" == *-* ]] && a_pre="${a#*-}"

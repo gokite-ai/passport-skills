@@ -109,7 +109,7 @@ If stable is deployed in this environment, the CLI fetches that channel pointer 
 
 ## Example 5 — Skip auto-upgrade because the user is mid-task
 
-The user is in the middle of a checkout flow — `kpass agent:session create` returned `human_action_required` (waiting for the user to approve a delegation via passkey). The response included:
+The user is in the middle of a checkout flow — `kpass session create` returned `human_action_required` (waiting for the user to approve a delegation via passkey). The response included:
 
 ```json
 {
@@ -118,7 +118,7 @@ The user is in the middle of a checkout flow — `kpass agent:session create` re
   "_version": "1",
   "status": "human_action_required",
   "hint": "Visit the approval URL to authorize the session.",
-  "next_command": "kpass agent:session status --request-id req_… --wait",
+  "next_command": "kpass session status --request-id req_… --wait",
   "update_available": {
     "current_bundle": 21,
     "latest_bundle": 22,
@@ -128,7 +128,7 @@ The user is in the middle of a checkout flow — `kpass agent:session create` re
 }
 ```
 
-`update_available` is present, but Rule 3 applies — the user is mid-flow waiting on approval. **Do not auto-upgrade right now.** Continue with `kpass agent:session status --wait`. After the session is approved AND the user's downstream task (the actual purchase / API call) completes, then upgrade.
+`update_available` is present, but Rule 3 applies — the user is mid-flow waiting on approval. **Do not auto-upgrade right now.** Continue with `kpass session status --wait`. After the session is approved AND the user's downstream task (the actual purchase / API call) completes, then upgrade.
 
 This is the most common reason to defer: a new CLI version mid-flow could change behavior under the user's feet, and the new bundle's skills might not match the version the agent just loaded into context.
 

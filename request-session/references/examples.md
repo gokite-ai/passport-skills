@@ -77,7 +77,7 @@ Shall I proceed with creating this session?
 
 **Step 6:** Create the session.
 ```bash
-kpass agent:session create --delegation '{"task":{"summary":"Query the weather forecast API at weather.example.com."},"payment_policy":{"max_amount_per_tx":"1","max_total_amount":"10","ttl_seconds":3600},"execution_constraints":{"x402":{"scope_mode":"scoped","allowed_endpoints":[{"method":"POST","host":"weather.example.com","path_prefix":"/v1/forecast"}]}}}' --output json
+kpass session create --delegation '{"task":{"summary":"Query the weather forecast API at weather.example.com."},"payment_policy":{"max_amount_per_tx":"1","max_total_amount":"10","ttl_seconds":3600},"execution_constraints":{"x402":{"scope_mode":"scoped","allowed_endpoints":[{"method":"POST","host":"weather.example.com","path_prefix":"/v1/forecast"}]}}}' --output json
 ```
 Output:
 ```json
@@ -89,7 +89,7 @@ Output:
   "_version": "1",
   "status": "human_action_required",
   "hint": "A session request was created. Show the approval URL to the user: https://passport.dev.gokite.ai/approve/req_abc123",
-  "next_command": "kpass agent:session status --request-id req_abc123 --output json"
+  "next_command": "kpass session status --request-id req_abc123 --output json"
 }
 ```
 
@@ -115,7 +115,7 @@ A spending session needs your approval:
 
 **Step 7:** Poll for approval.
 ```bash
-kpass agent:session status --request-id req_abc123 --wait --output json
+kpass session status --request-id req_abc123 --wait --output json
 ```
 Output (user approves):
 ```json
@@ -175,7 +175,7 @@ You do not pre-check with `list`. Just construct the delegation and run `create`
 
 **Step 1:** Create as normal (current goal: "query weather forecast at weather.example.com", expected spend ~2 USDC). Build the **same scoped delegation** you would for a fresh session — keep `execution_constraints.x402.allowed_endpoints`. Do NOT drop scoping just because you expect a reusable session: an unscoped request is broader than a scoped session, so reuse would be missed, and if none is found you would create an over-broad session.
 ```bash
-kpass agent:session create --delegation '{"task":{"summary":"Query the weather forecast API at weather.example.com."},"payment_policy":{"max_amount_per_tx":"1","max_total_amount":"5","ttl_seconds":1800},"execution_constraints":{"x402":{"scope_mode":"scoped","allowed_endpoints":[{"method":"POST","host":"weather.example.com","path_prefix":"/v1/forecast"}]}}}' --output json
+kpass session create --delegation '{"task":{"summary":"Query the weather forecast API at weather.example.com."},"payment_policy":{"max_amount_per_tx":"1","max_total_amount":"5","ttl_seconds":1800},"execution_constraints":{"x402":{"scope_mode":"scoped","allowed_endpoints":[{"method":"POST","host":"weather.example.com","path_prefix":"/v1/forecast"}]}}}' --output json
 ```
 Output (an existing session already covers this request):
 ```json
@@ -193,7 +193,7 @@ Output (an existing session already covers this request):
   "_version": "1",
   "status": "success",
   "hint": "Detected 1 existing active session(s) that cover this request. Confirm the goal matches, then reuse — or pass --no-reuse to create a new one.",
-  "next_command": "kpass agent:session use --session-id session_xyz789 --output json"
+  "next_command": "kpass session use --session-id session_xyz789 --output json"
 }
 ```
 
@@ -201,10 +201,10 @@ The CLI has already confirmed asset/per-tx/budget/TTL/scope fit. Your only check
 
 **Step 2:** Run the returned `next_command` to reuse it.
 ```bash
-kpass agent:session use --session-id session_xyz789 --output json
+kpass session use --session-id session_xyz789 --output json
 ```
 
-`agent:session use` only returns `current_session_id`, so build the confirmation card from the **`reuse_candidate` fields** you already have (not from the `use` output, and do not use the `🚀 Session Approved` card, which needs `delegation`/`usage`/`expires_at` that `use` does not return):
+`session use` only returns `current_session_id`, so build the confirmation card from the **`reuse_candidate` fields** you already have (not from the `use` output, and do not use the `🚀 Session Approved` card, which needs `delegation`/`usage`/`expires_at` that `use` does not return):
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🔄 Reusing Existing Session — Ready to Transact!
@@ -251,7 +251,7 @@ Shall I proceed with creating this session?
 
 **Step 4:** On confirmation, create with `--use-card` and the individual flags (no `--delegation`; `--max-total-amount` is required).
 ```bash
-kpass agent:session create --use-card \
+kpass session create --use-card \
   --task-summary "Buy one item from card-only-store.example" \
   --max-amount-per-tx 40 \
   --max-total-amount 40 \
@@ -265,4 +265,4 @@ The CLI pre-flights card eligibility and refuses early if it is not met:
 - **Cards disabled on this backend** → exit 2, `error: "The cards feature is not enabled on this environment. Retry without --use-card …"`. Offer a normal session if the merchant supports x402.
 - **Sandbox mode** → exit 2, `error: "--use-card is not available in sandbox mode. Run 'kpass sandbox off' …"`.
 
-**Step 5:** On success the output is the usual `human_action_required` envelope. Show the Approval Required card, open the URL, and poll with `agent:session status --request-id <id> --wait --output json` — identical to a normal session. The scoped card is issued when the user approves. Reuse is skipped automatically, so a fresh session (and card) is always created.
+**Step 5:** On success the output is the usual `human_action_required` envelope. Show the Approval Required card, open the URL, and poll with `session status --request-id <id> --wait --output json` — identical to a normal session. The scoped card is issued when the user approves. Reuse is skipped automatically, so a fresh session (and card) is always created.
