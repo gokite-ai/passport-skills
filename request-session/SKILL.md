@@ -75,18 +75,19 @@ to express. (The legacy verbs used to live at `kpass agent session <verb>`,
 where the two lanes shared a prefix; those spellings are now tombstones that
 name the move.)
 
-**A `create` session cannot fund an agreement through the buyer runtime.**
-The runtime lane's `kpass agent fund` is fail-closed on the v2 scope, so it
-refuses with `error_code: session_scope_forbidden` and
+**A `create` session cannot fund an agreement, at all.** The legacy
+`fund-agreement` verb and its backend route are deleted; the only funding
+lane is the buyer runtime's, and its `kpass agent fund` is fail-closed on
+the v2 scope, so a `create` session is refused with
+`error_code: session_scope_forbidden` and
 
 > `agreement funding requires a session-request v2 session carrying a scope`
 
 If you see that, the session was minted on this lane and the deal needs one
 from `buyer-purchase` instead. Do not retry, and do not widen the budget --
-neither is the problem. (A deprecated compatibility exception exists on the
-legacy lane itself -- `kpass session fund-agreement`, owner-level funding
-through the session key -- but it is not part of either flow these skills
-drive and is slated for removal with the rest of the legacy spending lane.)
+neither is the problem. (`kpass session fund-agreement`, the legacy lane's
+old compatibility path onto the escrow, is REMOVED together with its backend
+route -- it answers with a tombstone naming the runtime-key lane.)
 
 **Never reach Passport over MCP, for either lane.** Passport has no MCP
 surface: the hosted connector and the `passport-mcp` stdio server are both
