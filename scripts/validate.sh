@@ -198,6 +198,18 @@ done < <(find "$REPO_ROOT" -maxdepth 3 -name "setup-kagent.sh" -path "*/scripts/
 
 # ---- Summary ----
 echo ""
+echo "Checking the version comparison copies..."
+# The comparison is duplicated into each standalone setup script; this drives
+# one case table through EVERY copy so no single copy can drift unnoticed.
+if out=$(bash "$REPO_ROOT/scripts/test-version-compare.sh" 2>&1); then
+  echo "  [OK] every version_at_least copy passes the shared case table"
+else
+  printf '%s\n' "$out" | sed 's/^/  /'
+  echo "  FAIL: a version_at_least copy has drifted (scripts/test-version-compare.sh)"
+  ERRORS=$((ERRORS+1))
+fi
+
+echo ""
 if [[ "$ERRORS" -gt 0 ]]; then
   echo "FAILED: $ERRORS error(s) found"
   exit 1
