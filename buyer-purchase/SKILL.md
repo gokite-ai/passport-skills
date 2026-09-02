@@ -223,6 +223,21 @@ The seller's serve echoes the frame back signed — that reply is your receipt t
 
 ### Step 3: Get a Spending Session the Owner Approves
 
+**This CLI verb is the ONLY session entry for this buyer agent.** The legacy
+spending-agent lane's `kpass session create` (formerly `kpass agent session
+create`, now a tombstone) is the other lane and cannot serve this one: it
+authenticates with the registration-time agent token rather than this agent's
+bound runtime key, and it has no way to express the v2 **scope** an agreement
+needs. This runtime's funding is fail-closed on that scope, so a session
+minted with `create` is refused at `kpass agent fund` with
+`error_code: session_scope_forbidden` and *"agreement
+funding requires a session-request v2 session carrying a scope"* -- after the
+owner has already approved it. Use `create` only for paid API calls and
+shopping checkout (the **`request-session`** skill); use `request` below for
+every agreement.
+
+Relatedly, Passport has no MCP surface at all -- the hosted connector and the `passport-mcp` stdio server are both deleted, so an `mcp__kite-passport__*` tool still listed in a session is a stale local build of a server that no longer exists. Never call one: its session and funding tools hit routes that 404, and the registry and binding ones still work, which is the more dangerous half. The tool that made this worth spelling out was `request_session`: it described itself in the same words as this verb ("request a Kite spending session for this agent") but bound the session to a different agent identity than this CLI runtime, so a session minted there can never fund an agreement proposed here, and it carried no scope for the owner to review. The command below is the one and only way.
+
 ```bash
 kpass agent session request \
   --agreement-id <id> \
@@ -556,10 +571,10 @@ Do not attempt any of the following. They will fail:
 
 - `kpass agent agreement accept` / `agreement deliver` / `agreement evidence add` — **seller-only** verbs, on the `kagent` binary. A buyer confirms; it does not accept.
 - `kpass agent agreement cancel` / `agreement arbitrate` — none exist. `kpass agent agreement appeal` also does not exist — `agreement appeal` is real, but it's a **seller-only** verb on `kagent`; see Step 8 for how a rejection resolves from this agent's side (seller `refund-consent`, seller `appeal`, or the `appealResponseWindow` timeout).
-- `kpass agent session status --request-id ...` — resolves to a **different, legacy command**. The buyer-lane verb is `session request-status`.
+- `kpass agent session status --request-id ...` — a **tombstone** for the human-lane verb that moved to `kpass session status`. The buyer-lane verb is `session request-status`.
 - `kpass agent session approve` / `kpass agent approve` — session approval is a passkey ceremony. No CLI verb can approve one.
 - `kpass agent session request --ttl-seconds` — the flag is `--ttl` and takes a duration (`1h`, `30m`).
-- `kpass agent session request --delegation` — that is the human-facing `kpass agent:session create` interface in the `user` group. The agent lane takes scope flags plus the two amount caps.
+- `kpass agent session request --delegation` — that is the human-facing `kpass session create` interface in the `user` group. The agent lane takes scope flags plus the two amount caps.
 - `kpass agent session request --agreement-id <id> --all-agreements` — `--all-agreements` cannot be combined with any narrowing scope. Exit 2.
 - `kpass agent fund --amount ...` — the amount comes from the signed contract. `fund` takes `--agreement-id` and optionally `--session-id`.
 - `kpass agent escalate --kind funding-override ...` — platform-created only. Passport creates it from an exact funding cap breach; manual creation is exit 2.

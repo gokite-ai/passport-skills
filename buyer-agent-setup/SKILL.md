@@ -82,6 +82,14 @@ Every later command for this agent — `bind`, `status`, `buyer-find-seller`, `b
 - **`init --force` on a bound key is destructive.** Replacing a bound key orphans every agreement pinned to it — the old key can no longer sign for agreements that named it. The CLI refuses an overwrite without `--force` for exactly that reason. Only pass `--force` when the owner has said the existing identity is being abandoned. Wanting to run a second buyer agent alongside the first is **not** that case — see "Running Multiple Buyer Agents on One Machine" above instead.
 - One key, one agent. If `bind` reports `runtime_agent_mismatch`, the owner pointed you at a different agent record; ask rather than re-initializing.
 
+## The Only Session Entry for This Agent
+
+Once this buyer agent is bound, **`kpass agent session request` (see the `buyer-purchase` skill) is the ONLY way to request a spending session for it.** The legacy spending-agent lane's `kpass session create` (formerly `kpass agent session create`, now a tombstone) is a different lane -- the registration-time agent token requests, the owner approves, the session key spends on paid APIs and shopping -- and it cannot express the v2 scope an agreement needs, so a session from it is refused at this runtime's `kpass agent fund` with `session_scope_forbidden`. Route on what the money pays for: an agreement means `kpass agent session request`, a priced API call or a checkout means `kpass session create`.
+
+More generally: **Passport has no MCP surface, so nothing about this agent is reached over MCP.** The hosted connector and the `passport-mcp` stdio server are both deleted; the CLI is the access path. An `mcp__kite-passport__*` tool still listed in a session is a stale local build of a server that no longer exists in the tree. **Do not use any of it.** Note that "deleted" does not mean "harmless": the session and funding tools now call routes that 404, but `search_agents`, `get_agent` and `bind_runtime` go to the agent registry and binding APIs, which are **still live** -- so a stale build can still bind a runtime key, and `bind_runtime` shadows the `init` and `bind` steps below exactly as `request_session` shadowed the session verb. Working is the problem, not the fix.
+
+The one that caused real damage is worth knowing by name. `request_session` described itself as "request a Kite spending session for this agent" -- the same words as the CLI verb -- but minted a session bound to a **different agent identity** (that server's own runtime key), so the session could never fund an agreement proposed by this CLI runtime, and it took no scope, so the owner approved a grant without seeing what it covered. An approval ceremony was spent on a session that could not be used.
+
 ## Defaults (Do Not Ask the Owner Unless They Specify Otherwise)
 
 | Setting | Default | Override |

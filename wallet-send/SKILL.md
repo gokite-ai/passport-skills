@@ -54,7 +54,7 @@ No agent registration or spending session is required. Wallet commands operate w
 | `tempo` | `evm` (`0x…`) | USDC | physically USDC.e (surfaced as USDC); ~0.01 USDC is reserved for gas — the `amount` the CLI shows is already the spendable figure |
 | `solana` | `solana` (base58) | USDC, PYUSD | separate Solana address; optional (omitted if the user has no Solana wallet) |
 | `robinhood` | `evm` (`0x…`) | USDG | **USDG only**; same EVM address as base/polygon/avalanche/tempo; no faucet |
-| `arc` | `evm` (`0x…`) | USDC | **dev environment only** — Arc testnet (chainId 5042002), the a2a escrow settlement chain. Circle USDC doubles as Arc's gas token, so there is no separate native token to avoid. Balance/address only: **Passport dev exposes no direct sends or routing on arc, and its faucet cannot fund arc** (restrictions of the Passport deployment, not of Arc itself) — a2a escrow funding flows through `kpass agent:session fund-agreement`. |
+| `arc` | `evm` (`0x…`) | USDC | **dev environment only** — Arc testnet (chainId 5042002), the a2a escrow settlement chain. Circle USDC doubles as Arc's gas token, so there is no separate native token to avoid. Balance/address only: **Passport dev exposes no direct sends or routing on arc, and its faucet cannot fund arc** (restrictions of the Passport deployment, not of Arc itself) — a2a escrow funding flows through the buyer runtime's `kpass agent fund`. |
 
 The mainnet rows above are what staging/prod serve; **on dev, `arc` is the ONLY chain** — never offer the mainnet chains there.
 

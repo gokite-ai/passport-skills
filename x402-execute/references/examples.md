@@ -10,13 +10,13 @@ End-to-end walkthroughs for the `x402-execute` skill. Per-command syntax, argume
 
 **Step 1:** Verify there is an active session (optional but recommended).
 ```bash
-kpass agent:session list --status active --output json
+kpass session list --status active --output json
 ```
 Output confirms an active session exists with delegation for the weather API, budget of 10.00 USDC with 3.00 spent.
 
 **Step 2:** Execute the request.
 ```bash
-kpass agent:session execute \
+kpass session execute \
   --url https://weather.example.com/v1/forecast \
   --method POST \
   --body '{"city": "San Francisco", "days": 5}' \
@@ -84,7 +84,7 @@ Extract `x402.parsed_response_body.forecast` and present it naturally.
 ## Complete Worked Example: GET Request with Custom Headers
 
 ```bash
-kpass agent:session execute \
+kpass session execute \
   --url https://data.example.com/v1/report/2026-q1 \
   --method GET \
   --headers '{"Accept": "application/json"}' \
@@ -100,7 +100,7 @@ Note: No `--body` is needed for GET requests.
 If the user has multiple sessions and wants to use a specific one:
 
 ```bash
-kpass agent:session execute \
+kpass session execute \
   --url https://api.example.com/v1/resource \
   --session-id session_specific123 \
   --output json

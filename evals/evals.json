@@ -64,22 +64,22 @@
   {
     "id": 7,
     "prompt": "Create an agent session to access api.example.com",
-    "expected_output": "Agent preflights api.example.com to discover 402 payment requirements, then constructs a delegation JSON with task.summary, payment_policy (max_amount_per_tx and max_total_amount), and optional execution_constraints, then passes it to kpass agent:session create --delegation '<INNER-JSON>' --output json",
+    "expected_output": "Agent preflights api.example.com to discover 402 payment requirements, then constructs a delegation JSON with task.summary, payment_policy (max_amount_per_tx and max_total_amount), and optional execution_constraints, then passes it to kpass session create --delegation '<INNER-JSON>' --output json",
     "assertions": [
       "delegation",
       "payment_policy",
-      "kpass agent:session create",
+      "kpass session create",
       "--output json"
     ]
   },
   {
     "id": 8,
     "prompt": "Set up a session with a $5 budget to call the Exa search API at exa.mpp.tempo.xyz",
-    "expected_output": "Agent preflights exa.mpp.tempo.xyz to discover payment requirements, then constructs a delegation with max_total_amount reflecting the $5 total budget and max_amount_per_tx set to the per-request price, then calls kpass agent:session create",
+    "expected_output": "Agent preflights exa.mpp.tempo.xyz to discover payment requirements, then constructs a delegation with max_total_amount reflecting the $5 total budget and max_amount_per_tx set to the per-request price, then calls kpass session create",
     "assertions": [
       "delegation",
       "max_total_amount",
-      "kpass agent:session create"
+      "kpass session create"
     ]
   },
   {
@@ -133,19 +133,19 @@
   {
     "id": 14,
     "prompt": "Set up a spending session so I can make payments",
-    "expected_output": "Agent runs kpass agent:register --type claude --output json to register the agent, then constructs a delegation and runs kpass agent:session create, then opens the approval URL for the user",
+    "expected_output": "Agent runs kpass agent:register --type claude --output json to register the agent, then constructs a delegation and runs kpass session create, then opens the approval URL for the user",
     "assertions": [
       "kpass agent:register",
-      "agent:session create",
+      "session create",
       "--output json"
     ]
   },
   {
     "id": 15,
     "prompt": "Use my existing session to make a payment",
-    "expected_output": "Agent calls kpass agent:session create --delegation '<INNER-JSON>' --output json for the payment; reuse is detected automatically at create time -- the CLI mechanically checks existing active sessions (asset, per-tx, budget, TTL, scope) and returns a reuse_available result with candidates if one already covers the request. The agent does not need to run kpass agent:session list first -- that command is optional, useful only for diagnostics or manual inspection. On reuse_available, the agent confirms the goal/merchant genuinely matches, then runs the returned next_command (agent:session use --session-id <id>) to reuse it before proceeding with payment execution.",
+    "expected_output": "Agent calls kpass session create --delegation '<INNER-JSON>' --output json for the payment; reuse is detected automatically at create time -- the CLI mechanically checks existing active sessions (asset, per-tx, budget, TTL, scope) and returns a reuse_available result with candidates if one already covers the request. The agent does not need to run kpass session list first -- that command is optional, useful only for diagnostics or manual inspection. On reuse_available, the agent confirms the goal/merchant genuinely matches, then runs the returned next_command (session use --session-id <id>) to reuse it before proceeding with payment execution.",
     "assertions": [
-      "agent:session create",
+      "session create",
       "reuse_available",
       "--output json"
     ]
@@ -153,9 +153,9 @@
   {
     "id": 16,
     "prompt": "Check the status of my pending session",
-    "expected_output": "Agent runs kpass agent:session status --request-id <request_id> --output json (add --wait to poll) to check whether the pending approval request is still pending, was approved, rejected, or expired. Note: kpass agent:session list only returns actual sessions with status active or expired -- it does not surface a request still awaiting approval.",
+    "expected_output": "Agent runs kpass session status --request-id <request_id> --output json (add --wait to poll) to check whether the pending approval request is still pending, was approved, rejected, or expired. Note: kpass session list only returns actual sessions with status active or expired -- it does not surface a request still awaiting approval.",
     "assertions": [
-      "kpass agent:session status --request-id",
+      "kpass session status --request-id",
       "--output json"
     ]
   },
@@ -212,9 +212,9 @@
   {
     "id": 22,
     "prompt": "Make a paid API call to api.example.com/data",
-    "expected_output": "Agent runs kpass agent:session execute --url api.example.com/data --output json and displays the response content from the paid API endpoint",
+    "expected_output": "Agent runs kpass session execute --url api.example.com/data --output json and displays the response content from the paid API endpoint",
     "assertions": [
-      "agent:session execute",
+      "session execute",
       "--url",
       "--output json"
     ]
@@ -222,9 +222,9 @@
   {
     "id": 23,
     "prompt": "POST to api.example.com/submit with body {\"key\": \"value\"}",
-    "expected_output": "Agent runs kpass agent:session execute --url api.example.com/submit --method POST --body '{\"key\": \"value\"}' --output json",
+    "expected_output": "Agent runs kpass session execute --url api.example.com/submit --method POST --body '{\"key\": \"value\"}' --output json",
     "assertions": [
-      "agent:session execute",
+      "session execute",
       "--body",
       "--output json"
     ]
@@ -303,9 +303,9 @@
   {
     "id": 31,
     "prompt": "I approved the session in my Passport app — is it active yet?",
-    "expected_output": "Agent runs kpass agent:session status --request-id <REQUEST_ID> --output json -- a single check without --wait, since the user has already signaled approval -- and reports whether the session is now active",
+    "expected_output": "Agent runs kpass session status --request-id <REQUEST_ID> --output json -- a single check without --wait, since the user has already signaled approval -- and reports whether the session is now active",
     "assertions": [
-      "kpass agent:session status --request-id",
+      "kpass session status --request-id",
       "--output json"
     ]
   },
@@ -404,9 +404,9 @@
   {
     "id": 41,
     "prompt": "PUT to api.example.com/resource/42 with body {\"status\": \"done\"}",
-    "expected_output": "Agent runs kpass agent:session execute --url api.example.com/resource/42 --method PUT --body '{\"status\": \"done\"}' --output json",
+    "expected_output": "Agent runs kpass session execute --url api.example.com/resource/42 --method PUT --body '{\"status\": \"done\"}' --output json",
     "assertions": [
-      "agent:session execute",
+      "session execute",
       "--method PUT",
       "--body",
       "--output json"
@@ -415,9 +415,9 @@
   {
     "id": 42,
     "prompt": "Call api.example.com/ingest with a custom header X-Api-Version: 2",
-    "expected_output": "Agent runs kpass agent:session execute --url api.example.com/ingest --headers '{\"X-Api-Version\": \"2\"}' --output json with the header passed as a JSON object",
+    "expected_output": "Agent runs kpass session execute --url api.example.com/ingest --headers '{\"X-Api-Version\": \"2\"}' --output json with the header passed as a JSON object",
     "assertions": [
-      "agent:session execute",
+      "session execute",
       "--headers",
       "X-Api-Version",
       "--output json"
@@ -435,9 +435,9 @@
   {
     "id": 44,
     "prompt": "How much of my session budget have I used so far?",
-    "expected_output": "Agent runs kpass agent:session list --status active --output json and reads usage.spent_total vs payment_policy.max_total_amount to show remaining budget",
+    "expected_output": "Agent runs kpass session list --status active --output json and reads usage.spent_total vs payment_policy.max_total_amount to show remaining budget",
     "assertions": [
-      "kpass agent:session list --status active",
+      "kpass session list --status active",
       "spent_total",
       "max_total_amount",
       "--output json"
@@ -457,9 +457,9 @@
   {
     "id": 46,
     "prompt": "The session approval request I sent expired before I approved it",
-    "expected_output": "Agent recognises the expired session request error (exit code 3, session request expired) and creates a new session with kpass agent:session create, presenting a new approval URL",
+    "expected_output": "Agent recognises the expired session request error (exit code 3, session request expired) and creates a new session with kpass session create, presenting a new approval URL",
     "assertions": [
-      "agent:session create",
+      "session create",
       "--output json"
     ]
   },
@@ -510,9 +510,9 @@
   {
     "id": 51,
     "prompt": "Set up a session for fal.ai with $0.03 per-tx and $3 total budget",
-    "expected_output": "Agent preflights fal.ai to discover payment requirements, then calls kpass agent:session create --delegation '<INNER-JSON>' --output json. The inner JSON must contain payment_policy.max_amount_per_tx (\"0.03\") and payment_policy.max_total_amount (\"3\") -- sessions are protocol-agnostic, so the delegation must NOT include payment_policy.allowed_payment_approaches or any protocol/approach field; that is detected automatically at execute time. Amount strings must be clean decimals (e.g. 0.03, not 0.029999999999999998) so the USDC 6-decimal check does not reject the value at execute time.",
+    "expected_output": "Agent preflights fal.ai to discover payment requirements, then calls kpass session create --delegation '<INNER-JSON>' --output json. The inner JSON must contain payment_policy.max_amount_per_tx (\"0.03\") and payment_policy.max_total_amount (\"3\") -- sessions are protocol-agnostic, so the delegation must NOT include payment_policy.allowed_payment_approaches or any protocol/approach field; that is detected automatically at execute time. Amount strings must be clean decimals (e.g. 0.03, not 0.029999999999999998) so the USDC 6-decimal check does not reject the value at execute time.",
     "assertions": [
-      "kpass agent:session create",
+      "kpass session create",
       "--delegation",
       "max_amount_per_tx",
       "max_total_amount",
@@ -522,9 +522,9 @@
   {
     "id": 52,
     "prompt": "Create a session for a service that uses tempo payment protocol",
-    "expected_output": "Agent preflights the merchant to discover payment requirements, then constructs a delegation containing only payment_policy.max_amount_per_tx, payment_policy.max_total_amount (and optional ttl_seconds / execution_constraints), and calls kpass agent:session create --delegation '<INNER-JSON>' --output json. Sessions are protocol-agnostic: the delegation must NOT include a payment_policy.allowed_payment_approaches field or any protocol/approach field -- legacy and silently ignored by the backend. Tempo settlement is detected automatically at execute time from the merchant's preflight response, not declared by the agent.",
+    "expected_output": "Agent preflights the merchant to discover payment requirements, then constructs a delegation containing only payment_policy.max_amount_per_tx, payment_policy.max_total_amount (and optional ttl_seconds / execution_constraints), and calls kpass session create --delegation '<INNER-JSON>' --output json. Sessions are protocol-agnostic: the delegation must NOT include a payment_policy.allowed_payment_approaches field or any protocol/approach field -- legacy and silently ignored by the backend. Tempo settlement is detected automatically at execute time from the merchant's preflight response, not declared by the agent.",
     "assertions": [
-      "kpass agent:session create",
+      "kpass session create",
       "--delegation",
       "max_amount_per_tx",
       "max_total_amount",
@@ -534,13 +534,13 @@
   {
     "id": 53,
     "prompt": "I created a session in the Passport dashboard, here's the ID: session_dash7788. Use it so you can make payments.",
-    "expected_output": "Agent registers itself if needed, then runs kpass agent:session attach --session-id session_dash7788 --output json directly — no merchant preflight, no delegation JSON construction, since the owner already defined the session's policy. Displays the Attach Approval Required card with the approval_url, opens it, and polls kpass agent:session status --request-id <id> --wait --output json until the owner approves, then shows the Session Attached card with the task summary and budget read from the approved session's delegation.",
+    "expected_output": "Agent registers itself if needed, then runs kpass session attach --session-id session_dash7788 --output json directly — no merchant preflight, no delegation JSON construction, since the owner already defined the session's policy. Displays the Attach Approval Required card with the approval_url, opens it, and polls kpass session status --request-id <id> --wait --output json until the owner approves, then shows the Session Attached card with the task summary and budget read from the approved session's delegation.",
     "assertions": [
-      "kpass agent:session attach",
+      "kpass session attach",
       "--session-id session_dash7788",
       "--output json",
       "human_action_required",
-      "kpass agent:session status --request-id",
+      "kpass session status --request-id",
       "--wait",
       "Session Attached"
     ]
@@ -548,9 +548,9 @@
   {
     "id": 54,
     "prompt": "Attach session_dedicated4421 to this agent — I already have it.",
-    "expected_output": "Agent runs kpass agent:session attach --session-id session_dedicated4421 --output json, which returns exit code 2 with error_code: session_not_attachable because the session is a dedicated (create-time-bound) session, not an attachable one. Agent explains the distinction and points to request-session for creating a new session, rather than retrying attach on the same ID.",
+    "expected_output": "Agent runs kpass session attach --session-id session_dedicated4421 --output json, which returns exit code 2 with error_code: session_not_attachable because the session is a dedicated (create-time-bound) session, not an attachable one. Agent explains the distinction and points to request-session for creating a new session, rather than retrying attach on the same ID.",
     "assertions": [
-      "kpass agent:session attach",
+      "kpass session attach",
       "session_not_attachable",
       "request-session"
     ]
@@ -558,9 +558,9 @@
   {
     "id": 55,
     "prompt": "Attach session_foreignowner902 to this agent.",
-    "expected_output": "Agent runs kpass agent:session attach --session-id session_foreignowner902 --output json, which returns exit code 6 with error_code: agent_not_same_owner because the session belongs to a different account's agent. Agent explains the ownership boundary and does not retry with a different fabricated --agent-id or suggest re-registering as a workaround.",
+    "expected_output": "Agent runs kpass session attach --session-id session_foreignowner902 --output json, which returns exit code 6 with error_code: agent_not_same_owner because the session belongs to a different account's agent. Agent explains the ownership boundary and does not retry with a different fabricated --agent-id or suggest re-registering as a workaround.",
     "assertions": [
-      "kpass agent:session attach",
+      "kpass session attach",
       "agent_not_same_owner",
       "--output json"
     ]

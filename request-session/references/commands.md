@@ -1,6 +1,6 @@
 # Request Session — Command Reference
 
-Full per-command reference for the `request-session` skill. Read this when constructing a command, validating flags, or interpreting an error response. SKILL.md contains trigger logic and the canonical Full Session Creation Flow; this file contains command-level detail (including the 6-check session-reuse evaluation, which lives under `agent:session list`).
+Full per-command reference for the `request-session` skill. Read this when constructing a command, validating flags, or interpreting an error response. SKILL.md contains trigger logic and the canonical Full Session Creation Flow; this file contains command-level detail (including the 6-check session-reuse evaluation, which lives under `session list`).
 
 ## `agent:register` — Register Agent Identity
 
@@ -99,13 +99,13 @@ For the **already registered** no-op case (hint contains "already registered"):
 
 ---
 
-## `agent:session list` — List Agent Sessions
+## `session list` — List Agent Sessions
 
 Lists sessions for the registered agent, optionally filtered by status.
 
 ```
-kpass agent:session list --output json
-kpass agent:session list --status active --output json
+kpass session list --output json
+kpass session list --status active --output json
 ```
 
 ### Arguments
@@ -160,7 +160,7 @@ kpass agent:session list --status active --output json
 
 ### What to Do After This Command — Reuse Evaluation
 
-**You usually do NOT need to run `list` for reuse anymore.** `agent:session create` performs the mechanical reuse checks automatically and returns `reuse_available` candidates (see `agent:session create` → "Automatic Reuse Detection"). Run `list` only for diagnostics, or when you want to inspect/compare sessions directly.
+**You usually do NOT need to run `list` for reuse anymore.** `session create` performs the mechanical reuse checks automatically and returns `reuse_available` candidates (see `session create` → "Automatic Reuse Detection"). Run `list` only for diagnostics, or when you want to inspect/compare sessions directly.
 
 The six checks below are the full criteria. The CLI now enforces checks **2–6 mechanically** (asset, per-tx, budget, expiry, scope); your remaining responsibility on a `reuse_available` result is **check 1 (goal match)**, which is a semantic judgement the CLI cannot make. When evaluating a `list` result by hand, verify ALL six:
 
@@ -192,18 +192,18 @@ Decision: {Reuse this session | Create new session}
 Resolution:
 
 - **0 sessions returned** → proceed to create a new session.
-- **All 6 checks pass for exactly one session** → reuse it. If it is not already the current session, call `agent:session use --session-id <id>` first. Then display the `🚀 Session Approved` card (from `agent:session status` below) so the user sees the active session details.
+- **All 6 checks pass for exactly one session** → reuse it. If it is not already the current session, call `session use --session-id <id>` first. Then display the `🚀 Session Approved` card (from `session status` below) so the user sees the active session details.
 - **All 6 checks pass for 2+ sessions** → display the evaluation card for each candidate, then ask the user which to use.
 - **No session passes all 6 checks** → proceed to create a new session. Briefly tell the user which check(s) failed so they understand why a new approval is needed.
 
 ---
 
-## `agent:session create` — Create a Spending Session with Delegation
+## `session create` — Create a Spending Session with Delegation
 
 Creates a new spending session request using a delegation object. The user MUST approve it via the returned `approval_url` before the session becomes active.
 
 ```
-kpass agent:session create --delegation '<JSON>' --output json
+kpass session create --delegation '<JSON>' --output json
 ```
 
 ### Arguments
@@ -221,7 +221,7 @@ kpass agent:session create --delegation '<JSON>' --output json
 
 ### Automatic Reuse Detection
 
-Before minting a new session, `create` automatically scans the agent's existing **active** sessions (that this CLI can sign with locally) and checks each one **mechanically** against the requested delegation — asset coverage, per-tx limit, remaining budget, remaining TTL, and endpoint scope. This is the deterministic replacement for the manual list-then-eyeball flow; you no longer need to run `agent:session list` first.
+Before minting a new session, `create` automatically scans the agent's existing **active** sessions (that this CLI can sign with locally) and checks each one **mechanically** against the requested delegation — asset coverage, per-tx limit, remaining budget, remaining TTL, and endpoint scope. This is the deterministic replacement for the manual list-then-eyeball flow; you no longer need to run `session list` first.
 
 If a covering session is found, behavior depends on the output mode:
 
@@ -235,7 +235,7 @@ Pass `--no-reuse` to bypass detection entirely and always create.
 Use `--use-card` when the agent must pay a merchant by **virtual card** rather than x402/wallet transfer. It creates a session bound to a **scoped card**: issued at approval, spending limit = `--max-total-amount`, usable for multiple purchases until the limit is used up or it expires (lifetime-limit, not single-use). The CLI sends `execution_constraints.card.enabled=true`; the backend derives the card amount (= max total) and expiry (= TTL).
 
 ```
-kpass agent:session create --use-card \
+kpass session create --use-card \
   --task-summary "<goal incl. merchant>" \
   --max-amount-per-tx <PER_TX> \
   --max-total-amount <CARD_LIMIT> \
@@ -296,14 +296,14 @@ Recovery for each is in SKILL.md → Error Handling → "Scoped-card (`--use-car
   "_version": "1",
   "status": "success",
   "hint": "Detected 1 existing active session(s) that cover this request. Confirm the goal matches, then reuse — or pass --no-reuse to create a new one.",
-  "next_command": "kpass agent:session use --session-id session_xyz789 --output json"
+  "next_command": "kpass session use --session-id session_xyz789 --output json"
 }
 ```
 
 **What to do when you get `reuse_available`:**
 
 1. **Goal match (your job).** For the best candidate (the one in `next_command`), check that its `task_summary` is the *same merchant and same kind of action* as the current goal. The CLI already guaranteed asset/per-tx/budget/TTL/scope fit; the only remaining risk is reusing a session approved for a *different purpose*. When in doubt, do NOT reuse.
-2. **If it matches** → run the `next_command` (`agent:session use --session-id <id>`). `use` only returns `current_session_id`, so build the confirmation card from the **`reuse_candidate` fields** you already have — do NOT use the `🚀 Session Approved` card (it needs `delegation`/`usage`/`expires_at` that `use` does not return). No new approval is needed:
+2. **If it matches** → run the `next_command` (`session use --session-id <id>`). `use` only returns `current_session_id`, so build the confirmation card from the **`reuse_candidate` fields** you already have — do NOT use the `🚀 Session Approved` card (it needs `delegation`/`usage`/`expires_at` that `use` does not return). No new approval is needed:
    ```
    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
    🔄 Reusing Existing Session — Ready to Transact!
@@ -328,7 +328,7 @@ Recovery for each is in SKILL.md → Error Handling → "Scoped-card (`--use-car
    | `{expires_at}` | `reuse_candidate.expires_at` |
    | `{asset}` | The settlement asset from the merchant's 402 (e.g. `USDC`); omit if unknown |
 
-3. **If it does NOT match** (different merchant/action), or the user prefers a fresh session → re-run `agent:session create … --no-reuse` to force a new session, and briefly tell the user why.
+3. **If it does NOT match** (different merchant/action), or the user prefers a fresh session → re-run `session create … --no-reuse` to force a new session, and briefly tell the user why.
 4. **Multiple candidates** → `reuse_candidates` is ordered best-first (latest expiry, most budget). Pick the goal-matching one; if several match, ask the user which to use.
 
 **The `--delegation` flag accepts an inline JSON string.** Wrap with single quotes on the outside for shell safety. See the **`form-session-delegation`** skill for the complete schema.
@@ -344,7 +344,7 @@ Recovery for each is in SKILL.md → Error Handling → "Scoped-card (`--use-car
   "_version": "1",
   "status": "human_action_required",
   "hint": "A session request was created. Show the approval URL to the user: https://passport.dev.gokite.ai/approve/req_abc123",
-  "next_command": "kpass agent:session status --request-id req_abc123 --output json"
+  "next_command": "kpass session status --request-id req_abc123 --output json"
 }
 ```
 
@@ -352,14 +352,14 @@ Recovery for each is in SKILL.md → Error Handling → "Scoped-card (`--use-car
 - `status` is `"human_action_required"` — NOT an error. Exit code is 0.
 - `request_id` — needed for polling the approval status.
 - `approval_url` — MUST be shown to the user. This is the URL where they review and approve the session.
-- `next_command` — contains the `agent:session status` command to check approval.
+- `next_command` — contains the `session status` command to check approval.
 
 ### What to Do After This Command
 
 1. **Show the approval URL to the user** by displaying the mandatory card below.
 2. **MANDATORY — Open the approval URL in the user's default browser automatically.**
 
-   `{approval_url}` is backend-generated (from the `agent:session create` response), not user input — but treat it as untrusted anyway: do not splice it into the command as bare text or inside double quotes (double quotes still expand `$(...)`, backticks, and `$VAR`). Assign it to a shell variable as a **single-quoted literal** (inert — no expansion, even on later reference; escape any embedded `'` as `'\''`), then reference the variable in double quotes:
+   `{approval_url}` is backend-generated (from the `session create` response), not user input — but treat it as untrusted anyway: do not splice it into the command as bare text or inside double quotes (double quotes still expand `$(...)`, backticks, and `$VAR`). Assign it to a shell variable as a **single-quoted literal** (inert — no expansion, even on later reference; escape any embedded `'` as `'\''`), then reference the variable in double quotes:
    ```bash
    APPROVAL_URL='<value of the approval_url field, single-quoted, unmodified>'
    open "$APPROVAL_URL"                        # macOS
@@ -367,7 +367,7 @@ Recovery for each is in SKILL.md → Error Handling → "Scoped-card (`--use-car
    cmd.exe /c start "" "$APPROVAL_URL"         # Windows (via Bash, e.g. WSL/git-bash)
    ```
    The Windows form needs the empty `""` title argument — `start "$APPROVAL_URL"` alone makes `cmd.exe` treat the URL as the window title instead of the target, and nothing opens. Detect the OS and use the appropriate command. This saves the user from having to copy-paste the URL. If `open` fails, the URL is still in the card — the user can click or copy it manually.
-3. **Immediately start polling for approval** using `agent:session status --request-id <request_id> --wait --output json`. Never skip this step. Never tell the user "let me know when done" without polling first.
+3. **Immediately start polling for approval** using `session status --request-id <request_id> --wait --output json`. Never skip this step. Never tell the user "let me know when done" without polling first.
 
 **CRITICAL:** Do NOT attempt to execute any transactions until the session is approved. The session is not active until the user approves it.
 
@@ -404,19 +404,19 @@ A spending session needs your approval:
 
 ---
 
-## `agent:session status` — Check Session Approval Status
+## `session status` — Check Session Approval Status
 
 Checks the current status of a session approval request. Use with `--wait` to automatically poll until approved, rejected, expired, or timed out (5 minutes).
 
 ```
-kpass agent:session status --request-id <request_id> --wait --output json
+kpass session status --request-id <request_id> --wait --output json
 ```
 
 ### Arguments
 
 | Argument | Flag | Required | Source | Validation |
 |----------|------|----------|--------|------------|
-| Request ID | `--request-id` | Yes | From `agent:session create` output: `request_id` field | String starting with `req_` |
+| Request ID | `--request-id` | Yes | From `session create` output: `request_id` field | String starting with `req_` |
 | Wait for resolution | `--wait` | Yes (MANDATORY) | Always pass | Polls every 3 seconds for up to 300 seconds (5 minutes) |
 | Poll interval | `--poll-interval` | No | Default `3` (seconds) | Positive integer. Do not change unless instructed. |
 | Timeout | `--timeout` | No | Default `300` (seconds = 5 minutes) | Positive integer. Do not change unless instructed. |
@@ -429,7 +429,7 @@ kpass agent:session status --request-id <request_id> --wait --output json
 Use the `--wait` flag with default settings:
 
 ```
-kpass agent:session status --request-id <request_id> --wait --output json
+kpass session status --request-id <request_id> --wait --output json
 ```
 
 This polls the backend every 3 seconds for up to 5 minutes automatically.
@@ -445,7 +445,7 @@ Still waiting for your approval. Please let me know once you've approved the ses
 Then wait for the user to respond. When they indicate approval (e.g., "done", "approved", "I approved it", "ok"), do a single status check:
 
 ```
-kpass agent:session status --request-id <request_id> --output json
+kpass session status --request-id <request_id> --output json
 ```
 
 If still pending after the user says they approved, retry 2–3 more times with short pauses, then inform the user there may be an issue:
@@ -492,7 +492,7 @@ The session still shows as pending. There might be an issue with the approval. P
 }
 ```
 
-**Important:** When a session is approved, the CLI automatically sets `current_session_id` in the agent config. You do NOT need to run `agent:session use` separately.
+**Important:** When a session is approved, the CLI automatically sets `current_session_id` in the agent config. You do NOT need to run `session use` separately.
 
 **MANDATORY — After this command returns an approved session, display this card:**
 
@@ -529,7 +529,7 @@ All set. I can now execute payments on your behalf.
   "_version": "1",
   "status": "error",
   "error": "Session request was rejected by the user.",
-  "hint": "Create a new session request with 'kpass agent:session create'.",
+  "hint": "Create a new session request with 'kpass session create'.",
   "next_command": ""
 }
 ```
@@ -543,7 +543,7 @@ If rejected, inform the user: "The session request was not approved. Would you l
   "_version": "1",
   "status": "error",
   "error": "Session request expired before approval.",
-  "hint": "Create a new session request with 'kpass agent:session create'.",
+  "hint": "Create a new session request with 'kpass session create'.",
   "next_command": ""
 }
 ```
@@ -559,7 +559,7 @@ If expired, inform the user and offer to create a new session request.
   "_version": "1",
   "status": "pending",
   "hint": "Session request is still pending approval.",
-  "next_command": "kpass agent:session status --request-id req_abc123 --output json"
+  "next_command": "kpass session status --request-id req_abc123 --output json"
 }
 ```
 
@@ -567,19 +567,19 @@ The user has not yet approved, rejected, or let the request expire. If you used 
 
 ---
 
-## `agent:session use` — Set Current Session
+## `session use` — Set Current Session
 
 Sets a specific session as the current active session in the agent config. Use this when you want to switch to a different session.
 
 ```
-kpass agent:session use --session-id <session_id> --output json
+kpass session use --session-id <session_id> --output json
 ```
 
 ### Arguments
 
 | Argument | Flag | Required | Source | Validation |
 |----------|------|----------|--------|------------|
-| Session ID | `--session-id` | Yes | From `agent:session list` or `agent:session status` output | String starting with `session_` |
+| Session ID | `--session-id` | Yes | From `session list` or `session status` output | String starting with `session_` |
 | Output format | `--output json` | Yes | Always pass | Literal value `json` |
 
 ### Success Output (exit code 0)
@@ -594,4 +594,4 @@ kpass agent:session use --session-id <session_id> --output json
 }
 ```
 
-**Note:** You usually do NOT need to call this command after `agent:session status` returns `approved`, because that command auto-sets the current session. Use `agent:session use` only when switching between multiple sessions.
+**Note:** You usually do NOT need to call this command after `session status` returns `approved`, because that command auto-sets the current session. Use `session use` only when switching between multiple sessions.

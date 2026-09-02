@@ -4,7 +4,7 @@ description: Construct a delegation object for agent session creation. Covers pr
 user-invocable: false
 allowed-tools:
   - "Bash(curl *)"
-  - "Bash(kpass agent:session create *)"
+  - "Bash(kpass session create *)"
 ---
 
 # Form Session Delegation
@@ -16,7 +16,7 @@ Use this skill when you need to create an agent session in Passport and must con
 Produce a valid `delegation` draft and pass it to the session create command:
 
 ```bash
-kpass agent:session create --delegation '<JSON>' --output json
+kpass session create --delegation '<JSON>' --output json
 ```
 
 ## What the Delegation Means
@@ -38,7 +38,7 @@ The authorization boundary is:
 - **Single-asset lock** — once a session has settled in one asset, the backend rejects subsequent transactions in any other asset.
 - **TTL** (`ttl_seconds`) — session lifetime.
 
-Optional `execution_constraints` can narrow what the session can do (e.g. `x402.allowed_endpoints` restricts the session to specific paid-API endpoints). `execution_constraints.card.enabled = true` requests a **session-bound scoped virtual card** (issued at approval, spending limit = `max_total_amount`, multi-use until the limit is reached or it expires) — for merchants that take a card rather than x402/wallet transfer. Prefer creating this via `agent:session create --use-card` in the **`request-session`** skill, which also pre-flights card KYC and backend cards support; only hand-embed `card.enabled` in a raw delegation if you deliberately need to bypass those pre-flight checks.
+Optional `execution_constraints` can narrow what the session can do (e.g. `x402.allowed_endpoints` restricts the session to specific paid-API endpoints). `execution_constraints.card.enabled = true` requests a **session-bound scoped virtual card** (issued at approval, spending limit = `max_total_amount`, multi-use until the limit is reached or it expires) — for merchants that take a card rather than x402/wallet transfer. Prefer creating this via `session create --use-card` in the **`request-session`** skill, which also pre-flights card KYC and backend cards support; only hand-embed `card.enabled` in a raw delegation if you deliberately need to bypass those pre-flight checks.
 
 Optional and advanced: the top-level `routing_enabled` / `routing_cost_cap_usd_micros` fields control **cross-chain settlement**. `routing_enabled` is an **override** — when omitted it inherits the server's routing config, which is **enabled** on the Kite multichain (mainnet) deployment, so the backend auto-bridges/swaps when the merchant's chain differs from where the funds sit (the agent need not set anything). The **dev environment is single-chain (Arc testnet) with no routing provider** — do not set `routing_enabled` there or expect auto-bridging. Set `routing_enabled: false` to force a session to same-chain-only, and use `routing_cost_cap_usd_micros` to bound the bridge/swap cost. See Construction Rule 7 in `@references/delegation-schema.md`.
 
@@ -163,7 +163,7 @@ If a field is not available from the 402 response, omit that line from the card 
 
 ## Step 2: Confirm Session Parameters with User
 
-After discovering payment requirements, present the proposed session parameters and wait for explicit confirmation before creating the session. The next step (`agent:session create`) triggers a passkey approval flow the user has to interact with — burning that interaction on parameters they would have adjusted (smaller budget, longer TTL, different scope) is wasted friction, and the confirmation card is also their only chance to catch a misread 402 before the session is on-chain.
+After discovering payment requirements, present the proposed session parameters and wait for explicit confirmation before creating the session. The next step (`session create`) triggers a passkey approval flow the user has to interact with — burning that interaction on parameters they would have adjusted (smaller budget, longer TTL, different scope) is wasted friction, and the confirmation card is also their only chance to catch a misread 402 before the session is on-chain.
 
 Display this card and wait for the user's response before proceeding:
 
@@ -197,7 +197,7 @@ The user may:
 - **Adjust** ("make the budget 50", "change TTL to 2 hours") → update parameters and show the card again
 - **Cancel** ("no", "cancel") → stop and inform the user
 
-Only after the user explicitly confirms should you proceed to construct the delegation and call `agent:session create`.
+Only after the user explicitly confirms should you proceed to construct the delegation and call `session create`.
 
 ---
 
