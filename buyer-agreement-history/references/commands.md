@@ -126,20 +126,24 @@ transition:
   "previousProofHash": "sha256:...",
   "metadata": {
     "seller_bps": 6200,
-    "buyer_sig": "0x...",
-    "seller_sig": "0x..."
+    "mutual_settlement_buyer_sig": "0x...",
+    "mutual_settlement_seller_sig": "0x..."
   }
 }
 ```
+
+These member names are the **engine's**, not this CLI's: `proofs` passes each
+served link through verbatim, so match on them rather than on the spellings a
+command envelope uses for the same values.
 
 - `seller_bps` is the committed split in basis points: `6200` sends 62 percent
   of the escrow to the seller and the remainder back to the buyer. `0` is legal
   and means both parties agreed nothing was payable; `10000` cannot appear,
   because a full release is an acceptance and the verb refuses it.
-- `buyer_sig` and `seller_sig` are both vault-domain EIP-712 signatures over
-  **one** `MutualSettlement` struct. Two signatures on one link is the whole
-  point: neither party could move the deal alone, and the vault — not the
-  engine — verified them.
+- `mutual_settlement_buyer_sig` and `mutual_settlement_seller_sig` are both
+  vault-domain EIP-712 signatures over **one** `MutualSettlement` struct. Two
+  signatures on one link is the whole point: neither party could move the deal
+  alone, and the vault — not the engine — verified them.
 - `MUTUALLY_SETTLED` follows once the vault call is observed, landing the deal
   on `SETTLED_MUTUAL`. A `RELAY_FAILED` instead returns it to the origin the
   `SETTLING_MUTUAL*` state is named for (`DELIVERED`, `REJECTED`, or
@@ -157,13 +161,25 @@ attests them is the vault's own execution.
 
 For the amounts that actually moved, read the `settlement` legs on
 `kpass agent agreement status` rather than deriving them from `seller_bps`: a deal
-where a fee also moved value does not sum from the basis points alone. That
-read also carries `seller_bps` directly, so quantifying the split needs no
-chain query.
+where a fee also moved value does not sum from the basis points alone. The legs
+are `seller_amount`, `buyer_amount`, `fee_amount`, and `tx_hash`, and they are
+the money as the settlement layer **observed** it. That read also carries
+`seller_bps` directly, so quantifying the split needs no chain query.
+
+`seller_bps` is read as a present-or-absent member rather than by testing for
+zero: `0` is a legal split, recording that both parties agreed nothing was
+payable, and treating it as "no split reported" would erase the one fact the
+settlement recorded.
 
 Event and state spellings are passed through **verbatim** from the engine, so
 match on them rather than reformatting, and an unfamiliar spelling is not a
-reason to treat a link as malformed.
+reason to treat a link as malformed. Events are UPPERCASE and split into two
+kinds that must not be conflated: a **commitment** names what a party submitted
+and carries `actorId` with a command id, and an **observation** names what the
+settlement layer or a deadline did and carries no party.
+`MUTUAL_SETTLEMENT_SUBMITTED` is the commitment; `MUTUALLY_SETTLED` and
+`RELAY_FAILED` are observations. An audit asking who consented reads the
+commitment, never the observation.
 
 ### Error Output — Verification Failed (exit 8, `PROTOCOL`)
 

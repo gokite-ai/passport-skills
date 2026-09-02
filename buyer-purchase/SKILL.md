@@ -384,7 +384,15 @@ Then check the artifact itself: the signed delivery command commits to a `delive
 
 **This step is time-bound, not just procedural.** The contract's `deliveryConfirmationWindow` (the funding envelope reports it as `delivery_confirmation_window`) — one of the five windows the **`buyer-find-seller`** skill checks before proposing — auto-releases the escrow to the seller if neither `confirm` nor `reject` runs before it elapses — a `DELIVERED` agreement left unattended does not stay pending indefinitely, it becomes `ACCEPTED` on its own. Verify and decide promptly once delivery lands; do not treat this step as something that can wait.
 
-**Which way that silence falls is a property of the chart, and the two directions are opposite.** On `standard/v1` and the other confirm-or-lose-it templates the sentence above holds: the window lapsing releases to the seller. A **silence-is-refund** chart — `enrichment-batch/v1` is the first one — inverts it: the same window lapsing with no command refunds this agent **in full**, and the seller is paid nothing for a batch it did deliver. Read the lifecycle hint on `agreement status` rather than assuming which chart this deal runs under: on a silence-is-refund chart the hint says so and names the deadline, and the chart itself is readable with `ksearch workflow-template get <family/version>`. The deadline is the whole time available to count a batch and settle it, so treat the window as a working budget, not a grace period.
+**Which way that silence falls is a property of the deal, and the two directions are opposite.** On `standard/v1` and the other confirm-or-lose-it templates the sentence above holds: the window lapsing releases to the seller. A **silence-is-refund** deal — `enrichment-batch/v1` is the first template producing one — inverts it: the same window lapsing with no command refunds this agent **in full**, and the seller is paid nothing for a batch it did deliver.
+
+**Read the direction, do not infer it.** It is the sixteenth Activation member, welded into the deal id at `fund()`, and `agreement funding get` is where it is authoritative:
+
+```bash
+kpass agent agreement funding get --agreement-id <id> --output json
+```
+
+`activation.silence_is_refund` is the answer. `true` means the confirmation window lapsing refunds this agent in full and pays the seller nothing; `false` means it releases the escrow to the seller. In text mode the same read spells it out on an `On silence:` line rather than printing a bare boolean. **`agreement status` does not carry the member** — its `DELIVERED` hint names `funding get` for exactly this reason, so a hint that mentions silence-is-refund is a pointer, not a reading. The deadline itself is on `agreement status` and `agreement actions` as `deadline`, and it is the whole time available to count a batch and settle it: treat the window as a working budget, not a grace period.
 
 ### Step 8: Confirm, Reject, or Settle for Part
 
@@ -412,7 +420,7 @@ Know who the arbiter is before signing (Step 1) because an appeal genuinely rout
 
 On a per-unit template a batch delivery is routinely *partly* right, and neither `confirm` nor `reject` is an honest answer to it: confirming pays for records that never arrived, rejecting refuses the ones that did. The third choice is the co-signed split, `kite.contract.settle_mutual` — `sellerBps` of the escrow to the seller, the remainder back to this agent, in one vault call, with no arbiter. It is the negotiated middle between `confirm` (release everything) and the refund a rejection ends in.
 
-> **Availability.** `agreement settle sign` and `agreement settle submit` require `passport-cli` ≥ the release that ships `agreement settle`; no released CLI carries them yet. Rather than reasoning about the installed version, read `kpass agent agreement actions --agreement-id <id> --output json`: it lists `kite.contract.settle_mutual` only when this agreement's chart offers it from the current state, with `cli_supported` reporting whether *this* binary can produce it. A chart that does not offer it never shows the row, and `standard/v1` never does.
+> **Availability.** `agreement settle sign` and `agreement settle submit` require `passport-cli` ≥ the release that ships `agreement settle`. Rather than reasoning about the installed version, read `kpass agent agreement actions --agreement-id <id> --output json`: it lists `kite.contract.settle_mutual` only when this agreement's chart offers it from the current state, with `cli_supported` reporting whether *this* binary can produce it. A chart that does not offer it never shows the row, and `standard/v1` never does. Read `actions_available` before reading `actions`: `false` means the chart could not be consulted, which is unknown rather than empty.
 
 **Both parties sign the same digest, so the exchange is two commands and a file.** Neither party can move the deal alone:
 
@@ -439,11 +447,13 @@ The offer is **data, not a command**: it carries one signature and cannot move t
 3. `sellerBps = acceptedUnits × 10000 / maxUnits`, where `maxUnits` is the batch size the seller published in its terms. 62 valid records out of a 100-record batch is `6200` and nothing else.
 4. Write the count and the rule that produced it into a JSON file and pass it as `--basis-file`.
 
-`--basis-file` is carried into the offer verbatim as its `basis` member and never interpreted. It exists so the seller can read how the number was derived **before** deciding whether its own count agrees, and so the derivation is auditable afterwards — nothing on the platform enforces it. Include at least `deliveryHash`, `acceptedUnits`, `maxUnits`, and the content hash of the counting rule; the offer's shape is in `@references/commands.md`.
+`--basis-file` is validated as JSON and nothing more, then carried into the offer verbatim as its `basis` member and never interpreted. Its shape is the parties' own; include at least `deliveryHash`, `acceptedUnits`, `maxUnits`, and the content hash of the counting rule. It exists so the seller can read how the number was derived **before** deciding whether its own count agrees, and so the derivation is auditable afterwards — nothing on the platform enforces it. **Omitting the flag omits the member**: the offer then records the number with no reasoning behind it, `basis_included: false` says so, and the hint warns that the counterparty has nothing to check its own count against. The offer's full shape is in `@references/commands.md`.
+
+`--output-file` is optional and defaults to `settlement-offer-<agreement-id>.json` in the working directory, written mode `0600`. `--seller-bps` has no default at all: its sentinel is negative, so omitting it is a usage error rather than a silent `0`.
 
 Two bounds worth knowing before signing:
 
-- **`--seller-bps 10000` is refused** with a hint naming `agreement confirm`. A clean acceptance settles as `ACCEPTED`, not as a negotiated split every downstream reader then has to reclassify.
+- **`--seller-bps 10000` is refused** with a hint naming `agreement confirm`, and a `next_command` that is exactly that command for this agreement. A clean acceptance settles as `ACCEPTED`, not as a negotiated split every downstream reader then has to reclassify.
 - **`--seller-bps 0` is legal, and is not the same as silence.** It records that both parties agreed nothing was payable. Letting the confirmation window lapse on a silence-is-refund chart produces the same money and no such record.
 
 **On this chart, doing nothing is not a neutral non-decision.** A silence-is-refund chart pays this agent back in full at the deadline (Step 7), so a batch that was 62% good and left unattended costs the seller everything. Counting and settling is the choice that keeps the counterparty willing to sell again; the deadline `agreement status` names is how long there is to make it.
@@ -526,7 +536,11 @@ Most errors carry a `next_command` that is the correct recovery. Prefer it over 
 
 **`settle sign` refuses because the command is not offered (exit 8):** the chart does not carry the split from this state, or does not carry it at all. Read `agreement actions` — a `standard/v1` deal never offers it, and no state other than `DELIVERED`, `REJECTED`, or `DISPUTED` offers it on any chart. Nothing was signed.
 
-**`settle submit` refuses the offer as stale (exit 8):** the agreement moved between the initiator's signature and this submission — a new revision, a new proof head, or a bumped vault nonce. The offer's signature commits to those anchors, so **it cannot be repaired or re-signed by hand**; the initiator regenerates it from a fresh read with `settle sign` and hands over the new file. The same applies to a `revision_conflict` (exit 7) on `settle submit`.
+**`settle submit` refuses the offer as stale (exit 8):** the agreement moved between the initiator's signature and this submission — a new revision, a new proof head, or a bumped vault nonce. The offer's signature commits to those anchors, so **it cannot be repaired or re-signed by hand**; the initiator regenerates it from a fresh read with `settle sign` and hands over the new file. A `revision_conflict` (exit 7) is the same situation ruled by the server, and its hint names the revision the offer was built for.
+
+**`settle submit` refuses because the offer expires too soon (exit 8):** at least 60 seconds of headroom is required. The vault checks `expiry` against `block.timestamp` at **inclusion**, not at submission, so an offer that merely has not lapsed can still revert between the submit and the block. The expiry is inside the signed digest and cannot be extended — ask the initiator to regenerate.
+
+**`command_not_offered` (exit 8):** the agreement's own chart has no edge for the command from any state, so no re-read and no retry makes it legal. This is deliberately **not** exit 7: `illegal_transition` is the temporary refusal that a re-read and a rebuild can clear, and this one is permanent for this deal. The hint names `agreement actions`.
 
 **`settle sign --seller-bps 10000` (exit 2):** use `agreement confirm`. A full release is an acceptance, not a split.
 
