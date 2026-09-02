@@ -42,7 +42,7 @@ kagent agreement status --agreement-id agr_7f2a --output json
   "buyer_agent_id": "did:kite:example-buyer",
   "terms_hash": "0xab...",
   "amount": "25",
-  "arbiter_agent_id": "did:kite:arbiter",
+  "arbiter_agent_id": "did:kite:corp-kite:demo-arbiter",
   "contract": {
     "workflow": { "templateId": "standard/v1", "workflowHash": "sha256:…", "chartHash": "sha256:…", "config": {}, "configHash": "sha256:…" },
     "registrationBasis": {
