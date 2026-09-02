@@ -9,8 +9,8 @@ description: >-
   attach-session.
 user-invocable: true
 allowed-tools:
-  - "Bash(kpass agent:session list *)"
-  - "Bash(kpass agent:session execute *)"
+  - "Bash(kpass session list *)"
+  - "Bash(kpass session execute *)"
 ---
 
 # x402 Execute
@@ -18,7 +18,7 @@ allowed-tools:
 Execute HTTP requests through an approved Kite Passport spending session. The Passport backend handles x402 payment negotiation transparently -- you specify the target URL and the backend negotiates payment with the remote service on your behalf. Execution has a **5-minute timeout**: payment settles on the merchant's advertised network -- on mainnet **base, Polygon, Avalanche, tempo, solana, or Robinhood Chain** -- and a cross-chain routed (or Solana) settlement can take up to ~2 minutes -- a slow response is not a failure until the full timeout is reached. On the **dev environment** the only settlement chain is **Arc testnet** (`eip155:5042002`, Circle USDC) and there is **no cross-chain routing** -- routed-settlement latency and the routing error codes below do not apply there.
 
 > **Reference files** (read when you need exact detail):
-> - `@references/commands.md` — full command reference: every flag, the full JSON output shape, and every error code/message for `agent:session execute`.
+> - `@references/commands.md` — full command reference: every flag, the full JSON output shape, and every error code/message for `session execute`.
 > - `@references/examples.md` — complete worked examples (POST request, GET with custom headers, using a specific session).
 
 ## When to Use This Skill
@@ -48,7 +48,7 @@ If any of these are missing, the command will fail with exit code 3 (auth error)
 | Body | Omit | Only pass `--body` if the request needs a payload. **If the endpoint carries an `example_request` in the catalog, start from its body and change only what the task requires** — see **Constructing the Request Body** below. |
 | Base URL | Omit (uses built-in default) | Only pass `--base-url` if the user explicitly provides a custom backend URL. |
 
-**Shell-safe substitution — MANDATORY:** `--url`, `--headers`, and `--body` commonly carry dynamic values (a user-provided or catalog target URL, a constructed JSON body). Never splice these into the command as bare text or inside double quotes — double quotes still expand `$(...)`, backticks, and `$VAR`. Assign each to a shell variable as a **single-quoted literal** (inert — no expansion, even on later reference; escape any embedded `'` as `'\''`), then reference the variables in double quotes, e.g. `kpass agent:session execute --url "$TARGET_URL" --body "$BODY_JSON" --output json`. See the **`form-session-delegation`** skill's "Shell-Safe Value Substitution" section for the full rule and a worked example.
+**Shell-safe substitution — MANDATORY:** `--url`, `--headers`, and `--body` commonly carry dynamic values (a user-provided or catalog target URL, a constructed JSON body). Never splice these into the command as bare text or inside double quotes — double quotes still expand `$(...)`, backticks, and `$VAR`. Assign each to a shell variable as a **single-quoted literal** (inert — no expansion, even on later reference; escape any embedded `'` as `'\''`), then reference the variables in double quotes, e.g. `kpass session execute --url "$TARGET_URL" --body "$BODY_JSON" --output json`. See the **`form-session-delegation`** skill's "Shell-Safe Value Substitution" section for the full rule and a worked example.
 
 ## Constructing the Request Body -- Start from the Catalog's `example_request`
 
@@ -113,12 +113,12 @@ The execute **response is the source of truth** for settlement — you do NOT ne
 
 ---
 
-## `agent:session list` -- Check Session Before Executing
+## `session list` -- Check Session Before Executing
 
 Before executing, you may want to verify you have an active session with sufficient budget remaining.
 
 ```
-kpass agent:session list --status active --output json
+kpass session list --status active --output json
 ```
 
 See the **`request-session`** skill for full documentation on this command. Sessions now include `delegation` and `usage` fields showing the task, payment policy, and how much of the budget has been spent.
@@ -140,7 +140,7 @@ Generation services (video, image, audio, batch jobs) usually do NOT return the 
    ```bash
    POLL_URL='<the exact pollUrl/status URL from the paid response, single-quoted, unmodified>'
    SESSION_ID='<session_id from the paid response, single-quoted, unmodified>'
-   kpass agent:session execute --url "$POLL_URL" --method GET --session-id "$SESSION_ID" --output json
+   kpass session execute --url "$POLL_URL" --method GET --session-id "$SESSION_ID" --output json
    ```
 3. Wait a few seconds between polls (respect a `Retry-After` header if the merchant sends one, capped at 60s; otherwise 5-30s is polite). Decide **terminal state** by the strongest signal available — status strings are merchant-specific (`complete`, `completed`, `succeeded`, `done` all exist in the wild), so NEVER exact-match a hardcoded status word:
    - **Artifact first (most reliable):** an output reference — an `http(s)` URL under an artifact-named key (`videoUrl`, `outputUrl`, `downloadUrl`, `imageUrl`, `result.url`, `files[]`) → SUCCESS. Stop and present it, whatever the status string says. Two traps: a populated but artifact-less `result` (e.g. `result: {status: "processing"}`) is NOT success, and URLs under `input`/`request` keys are your own echoed parameters, not output.
@@ -185,16 +185,16 @@ See `@references/commands.md` for the exact message/scenario write-up of every e
 
 Do NOT attempt any of the following. They will fail:
 
-- `kpass agent:session execute` without `--url` -- the URL is required
-- `kpass agent:execute` -- the command is `agent:session execute`, not `agent:execute`
+- `kpass session execute` without `--url` -- the URL is required
+- `kpass agent:execute` -- the command is `session execute`, not `agent:execute`
 - `kpass execute` -- does not exist
 - `kpass x402` -- does not exist
-- `kpass pay` -- does not exist; use `agent:session execute` for paid requests, or `wallet send` for direct transfers
-- `kpass agent:session execute --type transfer` -- the `--type` flag does not exist on execute; execution type is determined by the target URL
-- `kpass agent:session execute --amount` -- does not exist; payment amount is determined by the target service's x402 requirements
-- `kpass agent:session execute --currency` -- does not exist
-- `kpass agent:session execute --to` -- does not exist; use `wallet send` for direct transfers
-- `kpass agent:session execute --idempotency-key` -- does not exist in the current CLI
+- `kpass pay` -- does not exist; use `session execute` for paid requests, or `wallet send` for direct transfers
+- `kpass session execute --type transfer` -- the `--type` flag does not exist on execute; execution type is determined by the target URL
+- `kpass session execute --amount` -- does not exist; payment amount is determined by the target service's x402 requirements
+- `kpass session execute --currency` -- does not exist
+- `kpass session execute --to` -- does not exist; use `wallet send` for direct transfers
+- `kpass session execute --idempotency-key` -- does not exist in the current CLI
 - Any command with `--json` -- the correct flag is `--output json` (two separate tokens)
 
 ---

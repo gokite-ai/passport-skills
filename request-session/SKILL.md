@@ -14,7 +14,7 @@ user-invocable: true
 allowed-tools:
   - "Bash(bash */setup.sh*)"
   - "Bash(kpass agent:register*)"
-  - "Bash(kpass agent:session *)"
+  - "Bash(kpass session *)"
   - "Bash(curl *)"
   - "Bash(open *)"
   - "Bash(xdg-open *)"
@@ -53,23 +53,25 @@ approval on a policy the owner already defined.
 
 ### `session create` vs `session request` -- route on what the money pays for
 
-Two commands sit under `kpass agent session` and read almost identically. They
-are not interchangeable, and the wrong one costs an owner approval on a session
-that can never be used.
+Two session verbs read almost identically. They are not interchangeable, and
+the wrong one costs an owner approval on a session that can never be used.
 
 | The money will pay for | Command | This skill? |
 |---|---|---|
-| A paid HTTP endpoint (x402), a shopping checkout, any priced API call | **`kpass agent session create`** | **yes -- this skill** |
+| A paid HTTP endpoint (x402), a shopping checkout, any priced API call | **`kpass session create`** | **yes -- this skill** |
 | An escrowed agreement (`kpass agent agreement propose/fund ...`) | **`kpass agent session request --agreement-id ...`** | no -- **`buyer-purchase`** |
 
 The difference is not "which lane you are on", which nothing observable tells
 you. It is **what the session will be spent on**, which the task always says.
 
-Note that `agent` in `kpass agent session create` means *about* an agent, not
-*as* one: the command authenticates with the **human's** JWT (so `kpass login`
-first) and authorizes an agent to spend. `session request` is the agent signing
-with **its own runtime key**, and it carries a v2 **scope** -- an agreement id,
-a seller allowlist, or a template -- which `create` has no way to express.
+The prefix is what tells them apart. `kpass session create` is **your** lane:
+it authenticates with the **human's** JWT (so `kpass login` first) and
+authorizes an agent to spend. `kpass agent session request` is the **agent's**
+lane: the agent signs with **its own runtime key**, and the request carries a
+v2 **scope** -- an agreement id, a seller allowlist, or a template -- which
+`create` has no way to express. (The human verb used to live at
+`kpass agent session create`, where the two lanes shared a prefix; that
+spelling is now a tombstone that names the move.)
 
 **A `create` session cannot fund an agreement.** Funding is fail-closed on the
 scope, so it refuses with `error_code: session_scope_forbidden` and
@@ -124,11 +126,11 @@ Render the formatted status cards (templated in `@references/commands.md`) verba
 
 ## Command Reference
 
-Full per-command detail — argument tables, JSON outputs, error envelopes, display cards, and the **6-check Session Reuse Evaluation** (under `agent:session list`) — lives in:
+Full per-command detail — argument tables, JSON outputs, error envelopes, display cards, and the **6-check Session Reuse Evaluation** (under `session list`) — lives in:
 
 → **`@references/commands.md`**
 
-Read that file before running any `agent:register` or `agent:session` command.
+Read that file before running any `agent:register` or `session` command.
 
 ---
 
@@ -147,9 +149,9 @@ Idempotent, safe to call every time. Display the registration card (see `@refere
 
 ### Step 2: Reuse Is Detected Automatically at Create Time
 
-You no longer need to run `agent:session list` and eyeball matches before creating. `agent:session create` (Step 7) automatically scans existing active sessions and applies the mechanical reuse checks (asset, per-tx, budget, remaining TTL, scope). If one covers the request it returns a `reuse_available` result with candidates instead of creating a new session — at which point your only remaining job is to confirm the **goal/merchant genuinely matches** before reusing. See `@references/commands.md` (`agent:session create` → "Automatic Reuse Detection").
+You no longer need to run `session list` and eyeball matches before creating. `session create` (Step 7) automatically scans existing active sessions and applies the mechanical reuse checks (asset, per-tx, budget, remaining TTL, scope). If one covers the request it returns a `reuse_available` result with candidates instead of creating a new session — at which point your only remaining job is to confirm the **goal/merchant genuinely matches** before reusing. See `@references/commands.md` (`session create` → "Automatic Reuse Detection").
 
-Running `kpass agent:session list --status active --output json` is now optional — use it only for diagnostics or to inspect sessions directly.
+Running `kpass session list --status active --output json` is now optional — use it only for diagnostics or to inspect sessions directly.
 
 ### Shopping Checkout — Skip Steps 3–4
 
@@ -250,26 +252,26 @@ See the **`form-session-delegation`** skill for the complete schema, constructio
 ```bash
 # Example: encoder produced {"task":{"summary":"Buy John's book"},...}
 DELEGATION_JSON='{"task":{"summary":"Buy John'\''s book"},...}'
-kpass agent:session create --delegation "$DELEGATION_JSON" --output json
+kpass session create --delegation "$DELEGATION_JSON" --output json
 ```
 
-Two possible outcomes (see `@references/commands.md` `agent:session create`):
+Two possible outcomes (see `@references/commands.md` `session create`):
 - **`status: "human_action_required"`** (a new request was created) → display the mandatory approval card and proceed to Step 8.
-- **`reuse_available: true`** (an existing active session already covers this request) → confirm the candidate's `task_summary` matches the current goal/merchant, then run the returned `next_command` (`agent:session use …`) to reuse it — no new approval needed. If the goal does not match, re-run `create … --no-reuse` to force a new session.
+- **`reuse_available: true`** (an existing active session already covers this request) → confirm the candidate's `task_summary` matches the current goal/merchant, then run the returned `next_command` (`session use …`) to reuse it — no new approval needed. If the goal does not match, re-run `create … --no-reuse` to force a new session.
 
 ### Step 8: Poll for Approval
 
 ```bash
-kpass agent:session status --request-id <request_id> --wait --output json
+kpass session status --request-id <request_id> --wait --output json
 ```
 
-Follow the Polling Strategy described in `@references/commands.md` (`agent:session status` → "Polling Strategy"). Display the mandatory approved card when the session is approved.
+Follow the Polling Strategy described in `@references/commands.md` (`session status` → "Polling Strategy"). Display the mandatory approved card when the session is approved.
 
 ---
 
 ## Scoped-Card Sessions (`--use-card`)
 
-Some merchants only take a card — no x402 header, no wallet transfer. For those, create the session with a **session-bound virtual card (scoped card)**: `agent:session create --use-card`. The card is issued when the user approves, its spending limit is the session's `--max-total-amount`, and it can be used for **multiple purchases until that limit is used up or the card expires** (lifetime-limit, not single-use).
+Some merchants only take a card — no x402 header, no wallet transfer. For those, create the session with a **session-bound virtual card (scoped card)**: `session create --use-card`. The card is issued when the user approves, its spending limit is the session's `--max-total-amount`, and it can be used for **multiple purchases until that limit is used up or the card expires** (lifetime-limit, not single-use).
 
 ### When to use `--use-card`
 
@@ -280,16 +282,16 @@ Some merchants only take a card — no x402 header, no wallet transfer. For thos
 ### Two prerequisites — the CLI enforces both; your job is to handle the failures
 
 1. **Cards must be enabled on the backend for this environment.** If they are not, create fails with a cards-not-enabled error. Cards are **never available in sandbox mode**.
-2. **The user must have completed card verification (KYC).** `agent:session create --use-card` pre-flights the account's `can_create_agent_card` capability (which encodes KYC eligibility) and refuses early, with an actionable message pointing to the Passport dashboard (Cards), if the account is not yet card-eligible.
+2. **The user must have completed card verification (KYC).** `session create --use-card` pre-flights the account's `can_create_agent_card` capability (which encodes KYC eligibility) and refuses early, with an actionable message pointing to the Passport dashboard (Cards), if the account is not yet card-eligible.
 
-There is no separate command to check these — both are checked inside `agent:session create --use-card`. Drive the command and map the specific errors (see Error Handling → "Scoped-card (`--use-card`) errors").
+There is no separate command to check these — both are checked inside `session create --use-card`. Drive the command and map the specific errors (see Error Handling → "Scoped-card (`--use-card`) errors").
 
 ### Command — use the individual flags, not `--delegation`
 
 `--use-card` **cannot** be combined with `--delegation` (the CLI builds the delegation and adds the card constraint for you). `--max-total-amount` is **required** — it becomes the card's spending limit.
 
 ```bash
-kpass agent:session create --use-card \
+kpass session create --use-card \
   --task-summary "<what the agent will buy, incl. merchant>" \
   --max-amount-per-tx <PER_TX> \
   --max-total-amount <CARD_LIMIT> \
@@ -389,21 +391,21 @@ Do NOT attempt any of the following. They will fail:
 
 > **Exception for `--use-card`:** the individual flags below (`--max-amount-per-tx`, `--max-total-amount`, `--ttl` / `--ttl-seconds`) ARE the correct interface **when creating a scoped-card session** — `--use-card` requires them and cannot be combined with `--delegation`. The "REMOVED / use `--delegation`" guidance applies only to normal (cardless) sessions.
 
-- `kpass agent:session` (without a sub-command) — must use `list`, `create`, `status`, `use`, or `execute`
+- `kpass session` (without a sub-command) — must use `list`, `create`, `status`, `use`, or `execute`
 - `kpass agent:register --agent-app` — the flag is `--type`, not `--agent-app`
 - `kpass agent:register --name` — does not exist; use `--type`
 - `kpass agent:register --type <AGENT_TYPE>` with a user-provided value — the `--type` value is NEVER user-provided. The agent always passes its own identity (e.g., `claude`, `cursor`, `codex`, `cline`). Do not ask the user what agent type to use.
 - `kpass agent:balance` — does not exist; use `wallet balance` for balance checks
-- `kpass agent:session create --max-amount-per-tx` — **REMOVED.** Use `--delegation` with the full delegation JSON instead.
-- `kpass agent:session create --ttl` — **REMOVED.** TTL is now inside the delegation JSON as `payment_policy.ttl_seconds`.
-- `kpass agent:session create --ttl-seconds` — **REMOVED.** Use `--delegation` with `payment_policy.ttl_seconds`.
-- `kpass agent:session create --budget` — does not exist
-- `kpass agent:session create --currency` — does not exist
-- `kpass agent:session create --expires-in` — does not exist
-- `kpass agent:session create --allowed-domains` — does not exist
-- `kpass agent:session create --spending-rules` — does not exist. The old `spending_rules` model is replaced by `delegation`.
-- `kpass agent:session status --session-id` — the flag is `--request-id`, not `--session-id`
-- `kpass agent:session status` without `--wait` as the primary polling method — Always use `--wait` for the initial polling phase. Only omit `--wait` for single follow-up checks after the user signals they have approved.
+- `kpass session create --max-amount-per-tx` — **REMOVED.** Use `--delegation` with the full delegation JSON instead.
+- `kpass session create --ttl` — **REMOVED.** TTL is now inside the delegation JSON as `payment_policy.ttl_seconds`.
+- `kpass session create --ttl-seconds` — **REMOVED.** Use `--delegation` with `payment_policy.ttl_seconds`.
+- `kpass session create --budget` — does not exist
+- `kpass session create --currency` — does not exist
+- `kpass session create --expires-in` — does not exist
+- `kpass session create --allowed-domains` — does not exist
+- `kpass session create --spending-rules` — does not exist. The old `spending_rules` model is replaced by `delegation`.
+- `kpass session status --session-id` — the flag is `--request-id`, not `--session-id`
+- `kpass session status` without `--wait` as the primary polling method — Always use `--wait` for the initial polling phase. Only omit `--wait` for single follow-up checks after the user signals they have approved.
 - Any command with `--json` — the correct flag is `--output json` (two separate tokens)
 
 ---
@@ -429,11 +431,11 @@ The standard sequence for setting up agent spending capability:
 3. Get merchant URL from user    -->  Know what service to access
 4. curl preflight                -->  Discover payment requirements (402)
 5. Construct delegation          -->  Build policy from 402 + user context
-6. agent:session create          -->  Create session with --delegation
+6. session create          -->  Create session with --delegation
                                        (auto-detects a reusable active session:
                                         on reuse_available, goal-match then
-                                        agent:session use; else continue)
-7. agent:session status --wait   -->  Wait for user approval (new session only)
+                                        session use; else continue)
+7. session status --wait   -->  Wait for user approval (new session only)
 8. x402-execute or               -->  Execute transactions
    wallet-send skill
 ```

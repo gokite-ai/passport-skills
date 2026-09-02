@@ -4,20 +4,20 @@ Full command reference for the `x402-execute` skill. SKILL.md carries the trigge
 
 ---
 
-## `agent:session execute` -- Execute x402 Request
+## `session execute` -- Execute x402 Request
 
 Sends an HTTP request through the Passport backend, which handles payment negotiation with the target service.
 
 **Timeout:** This command has a **5-minute timeout**. Payment operations involve on-chain transaction broadcasting and receipt polling, which can take 1-3 minutes. Payment now settles on the merchant's advertised network — on mainnet **base, Polygon, Avalanche, tempo, solana, or Robinhood Chain**; on the dev environment **Arc testnet only** (`eip155:5042002`, no cross-chain routing); a **cross-chain routed settlement (or a Solana settlement) can take ~90 seconds, and the whole flow up to ~2 minutes**. The CLI shows a progress spinner with elapsed time in non-JSON mode. Do NOT treat a slow response as a failure — wait for the full timeout before giving up.
 
 ```
-kpass agent:session execute --url <URL> --output json
+kpass session execute --url <URL> --output json
 ```
 
 Full form with all optional flags:
 
 ```
-kpass agent:session execute \
+kpass session execute \
   --url <URL> \
   --method <METHOD> \
   --headers '<JSON_OBJECT>' \
@@ -223,5 +223,5 @@ Before running the command, verify:
 2. **Method:** Always set explicitly — from discovery metadata, or inferred per the **Defaults** rule (do not rely on the CLI's implicit `POST` fallback; it is wrong for GET-only endpoints).
 3. **Headers JSON:** If specified, must be a valid JSON object. Wrap with single quotes for shell safety.
 4. **Body JSON:** If specified, must be valid JSON. Wrap with single quotes for shell safety. Built from the endpoint's `example_request` when the catalog carries one (see **Constructing the Request Body**).
-5. **Session exists:** Ensure an active session is set (via `agent:session status --wait` or `agent:session use`).
+5. **Session exists:** Ensure an active session is set (via `session status --wait` or `session use`).
 6. **Budget remaining:** Before executing, consider checking `usage.spent_total` against `delegation.payment_policy.max_total_amount` to ensure there is sufficient budget remaining for the request.

@@ -216,8 +216,9 @@ The seller's serve echoes the frame back signed — that reply is your receipt t
 
 ### Step 3: Get a Spending Session the Owner Approves
 
-**This CLI verb is the ONLY session entry for this buyer agent.** Its sibling
-`kpass agent session create` is the other lane and cannot serve this one: it
+**This CLI verb is the ONLY session entry for this buyer agent.** The human
+lane's `kpass session create` (formerly `kpass agent session create`, now a
+tombstone) is the other lane and cannot serve this one: it
 authenticates with the human's JWT rather than this agent's runtime key, and it
 has no way to express the v2 **scope** an agreement needs. Funding is
 fail-closed on that scope, so a session minted with `create` is refused at the
@@ -488,10 +489,10 @@ Do not attempt any of the following. They will fail:
 
 - `kpass agent agreement accept` / `agreement deliver` / `agreement evidence add` — **seller-only** verbs, on the `kagent` binary. A buyer confirms; it does not accept.
 - `kpass agent agreement cancel` / `agreement arbitrate` — none exist. `kpass agent agreement appeal` also does not exist — `agreement appeal` is real, but it's a **seller-only** verb on `kagent`; see Step 8 for how a rejection resolves from this agent's side (seller `refund-consent`, seller `appeal`, or the `appealResponseWindow` timeout).
-- `kpass agent session status --request-id ...` — resolves to a **different, legacy command**. The buyer-lane verb is `session request-status`.
+- `kpass agent session status --request-id ...` — a **tombstone** for the human-lane verb that moved to `kpass session status`. The buyer-lane verb is `session request-status`.
 - `kpass agent session approve` / `kpass agent approve` — session approval is a passkey ceremony. No CLI verb can approve one.
 - `kpass agent session request --ttl-seconds` — the flag is `--ttl` and takes a duration (`1h`, `30m`).
-- `kpass agent session request --delegation` — that is the human-facing `kpass agent:session create` interface in the `user` group. The agent lane takes scope flags plus the two amount caps.
+- `kpass agent session request --delegation` — that is the human-facing `kpass session create` interface in the `user` group. The agent lane takes scope flags plus the two amount caps.
 - `kpass agent session request --agreement-id <id> --all-agreements` — `--all-agreements` cannot be combined with any narrowing scope. Exit 2.
 - `kpass agent fund --amount ...` — the amount comes from the signed contract. `fund` takes `--agreement-id` and optionally `--session-id`.
 - `kpass agent escalate --kind funding-override ...` — platform-created only. Passport creates it from an exact funding cap breach; manual creation is exit 2.

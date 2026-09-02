@@ -509,14 +509,14 @@ Recovery: Create a spending session first using the **`request-session`** skill 
 ```json
 {"status": "error", "error": "No session private key found."}
 ```
-Recovery: The session is missing its signing credentials. Re-create and approve a session with `kpass agent:session create`.
+Recovery: The session is missing its signing credentials. Re-create and approve a session with `kpass session create`.
 
 ### Error Output — Signature Verification Failed (exit code 3)
 
 ```json
 {"status": "error", "error": "signature verification failed"}
 ```
-Recovery: The session credentials don't match what the server expects. Re-create and approve a session with `kpass agent:session create`.
+Recovery: The session credentials don't match what the server expects. Re-create and approve a session with `kpass session create`.
 
 ### Error Output — Session Budget Exceeded (exit code 6, `error_code: "session_total_exceeded"`)
 

@@ -1,10 +1,10 @@
 # Delegation Schema — Reference
 
-Full schema definition, construction rules, examples, heuristics, validation checklist, and anti-patterns for the `delegation` object passed to `kpass agent:session create --delegation '<JSON>'`. SKILL.md walks through the preflight → confirm → construct flow; this file is the structured schema reference the agent reads when actually building the JSON.
+Full schema definition, construction rules, examples, heuristics, validation checklist, and anti-patterns for the `delegation` object passed to `kpass session create --delegation '<JSON>'`. SKILL.md walks through the preflight → confirm → construct flow; this file is the structured schema reference the agent reads when actually building the JSON.
 
 ## Schema
 
-The delegation draft passed to `agent:session create --delegation '<JSON>'` must follow this shape:
+The delegation draft passed to `session create --delegation '<JSON>'` must follow this shape:
 
 **IMPORTANT: Do NOT wrap the delegation in an outer `{"delegation": ...}` object. The CLI does that automatically. Pass only the inner object directly.**
 
@@ -14,7 +14,7 @@ Serialize the delegation object with a proper JSON encoder (e.g. your language's
 
 ```bash
 DELEGATION_JSON='{"task":{"summary":"Buy John'\''s book"},...}'
-kpass agent:session create --delegation "$DELEGATION_JSON" --output json
+kpass session create --delegation "$DELEGATION_JSON" --output json
 ```
 
 Do not concatenate raw field values into a literal command string, and do not skip the escaping step because the source "seems trusted" — `task.summary` originates from user-supplied text and must be treated as untrusted shell input regardless of intent.
@@ -318,7 +318,7 @@ Use this when the payment amount is already known before session creation — fo
 
 ## Validation Checklist
 
-Before passing the delegation to `agent:session create`, verify:
+Before passing the delegation to `session create`, verify:
 
 1. `task.summary` is non-empty and describes the user's intent
 2. `max_amount_per_tx` is present and is a positive decimal string

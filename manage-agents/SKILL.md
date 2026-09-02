@@ -27,7 +27,7 @@ List and inspect registered agents and their spending sessions from the user's p
 
 - If you need to **create** a new session or **register** an agent, use the **`request-session`** skill instead. This skill is read-only.
 - If you need to **execute** a payment through a session, use the **`x402-execute`** skill.
-- If you need to list sessions from the **agent's** perspective (using the agent token), use `agent:session list` from the **`request-session`** skill.
+- If you need to list sessions from the **agent's** perspective (using the agent token), use `session list` from the **`request-session`** skill.
 
 ## Prerequisites
 

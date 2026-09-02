@@ -146,7 +146,7 @@ kpass user sessions \
 | Status filter | `--status` | No | Use `active` to find usable sessions, `expired` for past ones | String: `active` or `expired` |
 | Agent ID filter | `--agent-id` | No | From `user agents` output | String agent ID (e.g., `agent_abc123`) |
 | Agent type filter | `--agent-type` | No | Known agent type (e.g., `claude`, `cursor`) | String agent type identifier |
-| Session ID filter | `--session-id` | No | From `user sessions` or `agent:session list` output | String session ID (e.g., `session_xyz789`) |
+| Session ID filter | `--session-id` | No | From `user sessions` or `session list` output | String session ID (e.g., `session_xyz789`) |
 | Limit | `--limit` | No | Default: server-determined. Pass to control page size. | Integer between 1 and 100 |
 | Offset | `--offset` | No | Default: 0. Pass for pagination. | Non-negative integer (0 or greater) |
 | Output format | `--output json` | Yes | Always pass | Literal value `json` |
@@ -376,7 +376,7 @@ Continue until `offset + sessions.length >= total`.
 
 ## Complete Worked Example: Diagnose "Agent Not Registered" Error
 
-**Context:** Running `agent:session list` fails with "Agent not registered." You want to check what agents the user actually has.
+**Context:** Running `session list` fails with "Agent not registered." You want to check what agents the user actually has.
 
 **Step 1:** Check from the user's perspective.
 ```bash
