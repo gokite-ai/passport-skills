@@ -464,11 +464,11 @@ The offer is **data, not a command**: it carries one signature and cannot move t
 
 `--basis-file` is validated as JSON and nothing more, then carried into the offer verbatim as its `basis` member and never interpreted. Its shape is the parties' own; include at least `deliveryHash`, `acceptedUnits`, `maxUnits`, and the content hash of the counting rule. It exists so the seller can read how the number was derived **before** deciding whether its own count agrees, and so the derivation is auditable afterwards — nothing on the platform enforces it. **Omitting the flag omits the member**: the offer then records the number with no reasoning behind it, `basis_included: false` says so, and the hint warns that the counterparty has nothing to check its own count against. The offer's full shape is in `@references/commands.md`.
 
-`--output-file` is optional and defaults to `settlement-offer-<agreement-id>.json` in the working directory, written mode `0600`. `--seller-bps` has no default at all: its sentinel is negative, so omitting it is a usage error rather than a silent `0`.
+`--output-file` is optional and defaults to `settlement-offer-<agreement-id>.json` in the working directory. The CLI writes the offer mode `0600`, through a temp file in the same directory that is then renamed into place, so no reader ever sees a half-written offer and a symlink already sitting at the target path is **replaced** rather than followed. `--seller-bps` has no default at all: its sentinel is negative, so omitting it is a usage error rather than a silent `0`.
 
-Two bounds worth knowing before signing:
+Both ends of the range are worth knowing before signing:
 
-- **`--seller-bps 10000` is refused** with a hint naming `agreement confirm`, and a `next_command` that is exactly that command for this agreement. A clean acceptance settles as `ACCEPTED`, not as a negotiated split every downstream reader then has to reclassify.
+- **`--seller-bps 10000` is accepted.** The flag takes the whole protocol range, `0..10000`. From `DELIVERED` the CLI signs it and adds a hint naming `agreement confirm` as the cleaner instrument for paying the seller in full, with a `next_command` that is exactly that command for this agreement: a confirm settles as `ACCEPTED` rather than as a negotiated split every downstream reader then has to reclassify. From `REJECTED` or `DISPUTED` there is no confirm left to prefer, so a `10000` split is the only way to pay the seller in full — there the CLI signs it with no hint at all.
 - **`--seller-bps 0` is legal, and is not the same as silence.** It records that both parties agreed nothing was payable. Letting the confirmation window lapse on a silence-is-refund chart produces the same money and no such record.
 
 **On this chart, doing nothing is not a neutral non-decision.** A silence-is-refund chart pays this agent back in full at the deadline (Step 7), so a batch that was 62% good and left unattended costs the seller everything. Counting and settling is the choice that keeps the counterparty willing to sell again; the deadline `agreement status` names is how long there is to make it.
@@ -543,7 +543,7 @@ Most errors carry a `next_command` that is the correct recovery. Prefer it over 
 
 **`revision_conflict` (exit 7):** the agreement moved between your read and your signature. Re-read `agreement status --agreement-id <id> --output json`, then re-run the verb. The `next_command` is the same verb for this reason.
 
-**`illegal_transition` (exit 7):** the command is not legal from the current state — for example confirming something that is not `DELIVERED`, or a second confirm. Re-read the state. Often this means someone else already did the thing.
+**`illegal_transition` (exit 7):** the chart carries this command, but not from the state the agreement is in now — for example confirming something that is not `DELIVERED`, or a second confirm. Re-read the state and run the verb from the right one. Often this means someone else already did the thing. A verb the chart has no edge for at all is `command_not_offered` instead.
 
 **`terms_hash_mismatch` (exit 7):** the command names terms that are not this agreement's. Re-read and rebuild. Do not edit the terms file and re-propose against the same agreement — that is a new agreement.
 
@@ -555,9 +555,9 @@ Most errors carry a `next_command` that is the correct recovery. Prefer it over 
 
 **`settle submit` refuses because the offer expires too soon (exit 8):** at least 60 seconds of headroom is required. The vault checks `expiry` against `block.timestamp` at **inclusion**, not at submission, so an offer that merely has not lapsed can still revert between the submit and the block. The expiry is inside the signed digest and cannot be extended — ask the initiator to regenerate.
 
-**`command_not_offered` (exit 8):** the agreement's own chart has no edge for the command from any state, so no re-read and no retry makes it legal. This is deliberately **not** exit 7: `illegal_transition` is the temporary refusal that a re-read and a rebuild can clear, and this one is permanent for this deal. The hint names `agreement actions`.
+**`command_not_offered` (422, exit 8):** the verb is on **no** edge of this agreement's chart — not from any state — so no re-read and no retry makes it legal. This is deliberately **not** exit 7: the refusal is permanent for this deal. A verb the chart *does* carry, just not from the current state, comes back as `illegal_transition` (exit 7) instead, and that one clears by re-reading and retrying from the right state. The hint names `agreement actions`.
 
-**`settle sign --seller-bps 10000` (exit 2):** use `agreement confirm`. A full release is an acceptance, not a split.
+**`settle sign --seller-bps 10000` from `DELIVERED` (exit 0, with a hint):** the split is signed. The hint names `agreement confirm` as the cleaner instrument for a full release, because a confirm settles as `ACCEPTED`. From `REJECTED` or `DISPUTED` there is no confirm to prefer, so the same number is the only way to pay the seller in full and it signs without a hint.
 
 **`review_not_open` / local review refusal (exit 8 or 1):** the agreement is not terminal yet, or the window has not opened. This one is retriable purely because time passes.
 
@@ -581,7 +581,7 @@ Do not attempt any of the following. They will fail:
 - `kpass agent agreement reject` without `--reason-code` — required, and any non-empty string is valid. There is no enum to pick from.
 - `kpass agent agreement review --subject ...` — the subject is derived from the agreement.
 - `kpass agent agreement settle` as a bare verb, or `agreement settle-mutual` / `agreement split` — the verb has two children and no other spellings: `agreement settle sign` and `agreement settle submit`. Both are registered on `kpass agent` and on `kagent`, and require `passport-cli` ≥ the release that ships `agreement settle`.
-- `kpass agent agreement settle sign --seller-bps 10000` — refused with a hint naming `agreement confirm`. The flag's range is `0..9999`.
+- `kpass agent agreement settle sign` without `--seller-bps` — the flag has no default and its sentinel is negative, so omitting it is exit 2 rather than a silent `0`. `10000` is **not** refused: the flag takes the full `0..10000` range, and from `DELIVERED` a full release only earns a hint naming `agreement confirm`.
 - `kpass agent agreement settle submit --seller-bps ...` — `submit` takes only `--file`. The split is inside the signed offer; a flag that could change it would invalidate the initiator's signature.
 - `kpass agent agreement resolve` — the arbiter's verb, on the arbiter's seat only. A split between the parties is `agreement settle`; an arbiter's ruling is not reachable from this surface, and the arbiter may not submit a split even from `DISPUTED`.
 - `kpass agent agreement propose --buyer ...` — the buyer is this agent. The flag is `--seller`.
@@ -606,7 +606,7 @@ Before running any command, verify:
 8. **`--rating`**: an integer 1–10. It is not range-checked locally; an out-of-range value fails at the schema gate as exit 8 rather than as a usage error.
 9. **`--reason-code`**: non-empty, specific, and recorded — its keccak256 goes on-chain.
 10. **Message bodies**: `--body` must be valid JSON, and `--body` and `--file` are mutually exclusive.
-11. **`--seller-bps`** on `settle sign`: an integer in `0..9999`, derived from a count over bytes whose sha256 matched the signed `deliveryHash` — never a round number chosen to end the deal. `10000` is refused.
+11. **`--seller-bps`** on `settle sign`: an integer in `0..10000`, derived from a count over bytes whose sha256 matched the signed `deliveryHash` — never a round number chosen to end the deal. `10000` is legal; from `DELIVERED`, prefer `agreement confirm` for a full release, which is what the CLI's own hint says.
 12. **`--file`** on `settle submit`: an offer this agent has read and whose `sellerBps` its own count agrees with. Submitting is agreement to the number, and it is not reversible.
 
 ---

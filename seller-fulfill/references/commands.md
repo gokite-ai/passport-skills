@@ -439,9 +439,9 @@ Three origins, each with its own in-flight state so a failed relay returns the d
 | Flag | Type | Default | Required | Notes |
 |---|---|---|---|---|
 | `--agreement-id <id>` | string | `""` | **yes** | |
-| `--seller-bps <n>` | int | `-1` | **yes** | The seller's share of the escrow in basis points, `0..9999`. There is no default and the sentinel is negative, so omitting it is exit 2 rather than a silent `0`. `0` is legal and is not the same fact as silence: it records that both parties **agreed** nothing was payable. `10000` is refused with `next_command` naming `agreement confirm`. |
+| `--seller-bps <n>` | int | `-1` | **yes** | The seller's share of the escrow in basis points, the full protocol range `0..10000`. There is no default and the sentinel is negative, so omitting it is exit 2 rather than a silent `0`. `0` is legal and is not the same fact as silence: it records that both parties **agreed** nothing was payable. `10000` is legal too. From `DELIVERED` it signs with a hint, and a `next_command`, naming the buyer's `agreement confirm` as the cleaner instrument for a full release: a confirm settles as `ACCEPTED` rather than as a negotiated split. From `REJECTED` or `DISPUTED` a `10000` split is the only way to pay the seller in full, and it carries no hint. |
 | `--basis-file <path>` | string | `""` | no | A JSON document stating how `--seller-bps` was derived. Validated as JSON and nothing more, carried into the offer verbatim, and omitted from the offer entirely when the flag is absent. |
-| `--output-file <path>` | string | `settlement-offer-<agreement-id>.json` | no | Where the offer is written, mode `0600`. The default lands in the working directory. |
+| `--output-file <path>` | string | `settlement-offer-<agreement-id>.json` | no | Where the offer is written, mode `0600`, through a temp file in the same directory that is then renamed into place — so no reader sees a half-written offer, and a symlink at the target path is **replaced** rather than followed. The default lands in the working directory. |
 
 ```bash
 kagent agreement settle sign \
@@ -459,7 +459,7 @@ Checks, in this order, with **nothing signed until all of them pass**. The order
 3. The agreement read reports this identity's role as `buyer` or `seller`.
 4. `kite.contract.settle_mutual` is in the current `offered_commands`. The answer is **required**: a server that does not publish `offered_commands` refuses the verb rather than defaulting to allowed.
 5. The agreement state is one of the three origins; the read carries a vault deal id; and when the read reports a vault position, it agrees with the agreement state. An absent vault position is tolerated, never invented.
-6. `--seller-bps` is in `0..9999`.
+6. `--seller-bps` is in `0..10000`.
 7. The anchors: a non-zero proof head, `proof_anchors_available` true, and the **welded** settlement terms hash, falling back to the current terms hash only on a server that predates the welded member. The agreement's terms must embed a workflow `chartHash`.
 8. When the funding context publishes `mutualSettlementTypeHash`, it equals the typehash this build signs. An absent value is tolerated; a mismatch is a refusal naming both values, because a struct-version skew reaches the chain as a reverted transaction.
 
@@ -577,7 +577,7 @@ What it does, in order:
 
 `seller_bps` and the two signatures are **top-level siblings** of `command_type`, `state`, and `revision`, not nested in a payload object. `initiator_role` and `submitter_role` record who did which half; `settled_from` names the origin. `basis` appears only when the offer carried one, and the envelope is its only durable copy — the basis is not a member of any signed object and travels no further than the offer.
 
-The command's own payload carries `sellerBps`, `buyerMutualSettlementSig`, `sellerMutualSettlementSig`, and `expiry` — two vault-domain signatures over one struct, placed by seat and not interchangeable. **The vault verifies them, not the engine**, which is why every check above runs locally: a wrong domain, a wrong terms hash, or a stale nonce does not come back as a 400. It comes back as `InvalidSignature` inside a reverted transaction after Passport and the engine have both answered 200.
+The command's own payload carries `sellerBps`, `buyerMutualSettlementSig`, `sellerMutualSettlementSig`, and `expiry` — two vault-domain signatures over one struct, placed by seat and not interchangeable. **Three layers verify the pair, in that order.** The CLI recovers both signatures locally before it submits anything, and rejects a non-canonical one outright — a high-s half never leaves this machine. Passport verifies the pair again and commits nothing to the engine until it does. Only a pair that satisfies both reaches the vault, which verifies it a third time on chain. The vault revert is the **last** line of defence rather than the first, so `InvalidSignature` inside a reverted transaction is the residual case, not the normal way a bad signature surfaces. Every check above still runs locally for the same reason: a wrong domain, a wrong terms hash, or a stale nonce is cheapest to catch before anything is signed.
 
 Nothing in `settle submit` checks whether `sellerBps` is *fair*. Submitting is this party's consent to the split.
 
@@ -585,14 +585,14 @@ Nothing in `settle submit` checks whether `sellerBps` is *fair*. Submitting is t
 
 | Exit | Cause |
 |---|---|
-| 2 USAGE | `--seller-bps` missing, outside `0..9999`, or exactly `10000`; `--basis-file` unreadable or not valid JSON; `--file` missing or unreadable; an offer that is not JSON, declares a foreign `schema`, is incomplete, or names a `signerRole` that is not a party seat; a failure writing the offer file |
+| 2 USAGE | `--seller-bps` missing or outside `0..10000`; `--basis-file` unreadable or not valid JSON; `--file` missing or unreadable; an offer that is not JSON, declares a foreign `schema`, is incomplete, or names a `signerRole` that is not a party seat; a failure writing the offer file |
 | 7 CONFLICT | `revision_conflict`, `illegal_transition`, `terms_hash_mismatch`, `idempotency_conflict` — the server ruled against bytes built on a state that moved |
 | 8 PROTOCOL | Every local refusal, and nothing was sent: this identity is not a party; the command is not offered from here, or the server does not publish `offered_commands` at all; the state is outside the three origins; no vault deal id, or a vault position that disagrees with the agreement state; a missing or zero proof head, or `proof_anchors_available` false; no welded anchor and no current terms hash; terms with no workflow `chartHash`; a typehash skew; the offer's chain id against the pinned card; the wrong seat on submit; any stale anchor; an expiry with under 60 seconds of headroom; a signature that does not recover to the address pinned for its seat; an identical pair |
 
 Two server codes are worth keeping apart, because one is temporary and the other is not:
 
 - **`revision_conflict`** is exit 7. The agreement moved past the offer's revision, which invalidates the offer itself: its signatures commit to the proof head and the vault nonce as they were at signing. The hint says so and names the revision it was built for. The initiating party regenerates the offer from a fresh read; re-signing those bytes is not the fix.
-- **`command_not_offered`** is exit **8**, deliberately not the conflict family. The agreement's own chart has no edge for this command from any state, so no re-read and no retry makes it legal. Its hint points at `agreement actions` for the commands the chart does offer. It is the server-side twin of the local offered-command gate above, and it classifies to the same exit code as that gate for exactly that reason. `illegal_transition` is the temporary one and stays exit 7.
+- **`command_not_offered`** is the engine's 422 and exit **8**, deliberately not the conflict family. The verb is on **no** edge of the agreement's chart — not from any state — so no re-read and no retry makes it legal. Its hint points at `agreement actions` for the commands the chart does offer. It classifies to the same exit code as the local offered-command gate above for that reason, though the two are not the same test: the local gate reads `offered_commands` for the **current** state, so it also refuses a verb the chart carries only from somewhere else. `illegal_transition` (exit 7) is the server's answer for exactly that case — the edge exists, the agreement is in the wrong state for it, and re-reading plus retrying from the right state clears it.
 
 ### `agreement actions` — is the split available right now?
 

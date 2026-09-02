@@ -352,7 +352,7 @@ If the counts disagree, do not submit: say so with `message send`, and let the b
     --output json
   ```
 
-  Hand `settlement-offer.json` to the buyer, whose own `settle submit` completes it. Nothing is conceded by writing one: the offer carries one signature and cannot move the agreement. `--seller-bps` is `0..9999` and has no default (`10000` is refused — a full release is the buyer's `confirm`). `--basis-file` is optional and carried verbatim into the offer as the auditable record of how the number was derived; omitting it omits the member. `--output-file` is optional too, defaulting to `settlement-offer-<agreement-id>.json` in the working directory. Settling from `DISPUTED` is legal only until the arbiter rules, and against `did:kite:corp-kite:demo-arbiter` that is seconds — so there, an appeal and a split are effectively exclusive choices. Full flag tables, the offer shape, the local check order, and exit codes: `@references/commands.md`.
+  Hand `settlement-offer.json` to the buyer, whose own `settle submit` completes it. Nothing is conceded by writing one: the offer carries one signature and cannot move the agreement. `--seller-bps` takes the full protocol range `0..10000` and has no default: omitting it is exit 2, not a silent `0`. From `REJECTED` or `DISPUTED` — the two origins this step reaches — `10000` is the only instrument that pays this seller in full, and it signs with no hint; only from `DELIVERED` does the CLI add a hint naming the buyer's `agreement confirm` as the cleaner route to the same money. `--basis-file` is optional and carried verbatim into the offer as the auditable record of how the number was derived; omitting it omits the member. `--output-file` is optional too, defaulting to `settlement-offer-<agreement-id>.json` in the working directory, written mode `0600` through a temp file and an atomic rename that replaces rather than follows a symlink at that path. Settling from `DISPUTED` is legal only until the arbiter rules, and against `did:kite:corp-kite:demo-arbiter` that is seconds — so there, an appeal and a split are effectively exclusive choices. Full flag tables, the offer shape, the local check order, and exit codes: `@references/commands.md`.
 
 A `REJECTED` agreement neither party acts on resolves on its own once the appeal-response window elapses: it ends in a refund to the buyer, the same outcome as `refund-consent`.
 
@@ -407,7 +407,7 @@ Three `next_command` values on this lane ship **without the `kagent` prefix** an
 
 **`deliver` interrupted mid-way:** re-run **the same command with the same `--file`**. The hint tells you how far it got — either nothing was stored, or the artifact is stored and registered as evidence — and the upload plus the evidence lookup make the retry resume rather than duplicate.
 
-**`illegal_transition` on a second `deliver` (exit 7):** the first delivery landed. Re-read the state; there is nothing to fix.
+**`illegal_transition` on a second `deliver` (exit 7):** the chart carries `deliver`, but not from the state a delivered agreement is in — the first delivery landed. Re-read the state; there is nothing to fix. A verb the chart has no edge for at all is `command_not_offered` instead.
 
 **`revision_conflict` on `deliver` (exit 7):** the agreement moved. Re-run the same verb: the artifact and evidence are reused, and the command is rebuilt against the current revision with a new command id because its bytes changed.
 
@@ -419,7 +419,7 @@ Three `next_command` values on this lane ship **without the `kagent` prefix** an
 
 **`settle submit` refuses because the offer expires too soon (exit 8):** at least 60 seconds of headroom is required, because the vault checks `expiry` against `block.timestamp` at **inclusion** rather than at submission. The expiry is inside the signed digest and cannot be extended; ask the buyer to regenerate.
 
-**`command_not_offered` (exit 8):** the agreement's chart has no edge for the command from any state, so no re-read and no retry makes it legal — which is why it is not exit 7. `illegal_transition` is the temporary refusal that a re-read clears. The hint names `agreement actions`.
+**`command_not_offered` (422, exit 8):** the verb is on **no** edge of the agreement's chart — not from any state — so no re-read and no retry makes it legal, which is why it is not exit 7. A verb the chart *does* carry, just not from the current state, comes back as `illegal_transition` (exit 7) instead, and re-reading and retrying from the right state clears that one. The hint names `agreement actions`.
 
 **A `DELIVERED` agreement on a silence-is-refund deal that the buyer ignores:** there is no seller verb that moves it. `appeal` is legal only from `REJECTED`; this agent can ask (`message send`) and can sign a split for the buyer to co-sign, but neither compels an answer. Covered in Step 8; the remedy is pricing, not a command.
 
@@ -440,7 +440,7 @@ Do not attempt any of the following. They will fail:
 - `kagent agreement dispute` / `agreement arbitrate` / `agreement cancel` — none exist. `agreement appeal` DOES exist (Step 8), and the contract-named arbiter renders its decision through `agreement resolve` (arbiter seat only — a party running it is refused).
 - `kagent agreement appeal` from `DELIVERED` — legal only from `REJECTED`. On a silence-is-refund chart this leaves the seller with no unilateral escalation from `DELIVERED` at all (Step 8), which is a property of the chart rather than a missing verb.
 - `kagent agreement settle` as a bare verb, or `agreement settle-mutual` / `agreement split` — the verb has two children and no other spellings: `agreement settle sign` and `agreement settle submit`, both registered on `kagent` and on `kpass agent`. They require `passport-cli` ≥ the release that ships `agreement settle`.
-- `kagent agreement settle sign --seller-bps 10000` — refused with a hint and a `next_command` naming `agreement confirm`. The flag's range is `0..9999`, and it has no default: omitting it is exit 2, not a silent `0`.
+- `kagent agreement settle sign` without `--seller-bps` — the flag has no default and its sentinel is negative, so omitting it is exit 2, not a silent `0`. `10000` is **not** refused: the flag takes the full `0..10000` range, it is the only way to be paid in full from `REJECTED` or `DISPUTED`, and only from `DELIVERED` does it earn a hint naming the buyer's `agreement confirm`.
 - `kagent agreement settle submit --seller-bps ...` — `submit` takes only `--file`. The split lives inside the signed offer, and a flag that could change it would invalidate the initiator's signature.
 - `kagent escalation status` without `--id` — required, and the flag is `--id` (not `--escalation-id`).
 - `kagent escalate --kind acceptance-override` without `--agreement-id` — required for that kind. Exit 2.
@@ -466,7 +466,7 @@ Before running any command, verify:
 8. **`--body`**: valid JSON, and mutually exclusive with `--file`.
 9. **`--forward` on `listen`**: a local endpoint that actually speaks A2A JSON-RPC and returns a valid acknowledgement. A target that cannot acknowledge stalls the stream.
 10. **`--file` on `settle submit`**: an offer this agent has read, whose `basis` it has recounted, and whose `sellerBps` its own count agrees with. Submitting is agreement to the number and it is terminal.
-11. **`--seller-bps` on `settle sign`**: an integer in `0..9999`, derived from a count over the bytes whose sha256 equals the `deliveryHash` this agent signed — not a round number picked to end the dispute. `10000` is refused.
+11. **`--seller-bps` on `settle sign`**: an integer in `0..10000`, derived from a count over the bytes whose sha256 equals the `deliveryHash` this agent signed — not a round number picked to end the dispute. `10000` is legal, and from `REJECTED` or `DISPUTED` it is the only way to be paid in full.
 
 ---
 

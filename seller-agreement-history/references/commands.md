@@ -137,13 +137,17 @@ served link through verbatim, so match on them rather than on the spellings a
 command envelope uses for the same values.
 
 - `seller_bps` is the committed split in basis points: `6200` sends 62 percent
-  of the escrow to the seller and the remainder back to the buyer. `0` is legal
-  and means both parties agreed nothing was payable; `10000` cannot appear,
-  because a full release is an acceptance and the verb refuses it.
+  of the escrow to the seller and the remainder back to the buyer. The whole
+  protocol range `0..10000` can appear. `0` means both parties agreed nothing
+  was payable, and `10000` means they agreed the seller was owed everything —
+  the normal way to pay a seller in full from `REJECTED` or `DISPUTED`, where
+  no buyer `confirm` is available.
 - `mutual_settlement_buyer_sig` and `mutual_settlement_seller_sig` are both
   vault-domain EIP-712 signatures over **one** `MutualSettlement` struct. Two
   signatures on one link is the whole point: neither party could move the deal
-  alone, and the vault — not the engine — verified them.
+  alone. Three layers verified the pair before the money moved: the signing
+  CLI locally, Passport again before anything reached the engine, and the
+  vault last, on chain — so a pair recorded here satisfied all three.
 - `MUTUALLY_SETTLED` follows once the vault call is observed, landing the deal
   on `SETTLED_MUTUAL`. A `RELAY_FAILED` instead returns it to the origin the
   `SETTLING_MUTUAL*` state is named for (`DELIVERED`, `REJECTED`, or
@@ -166,10 +170,12 @@ are `seller_amount`, `buyer_amount`, `fee_amount`, and `tx_hash`, and they are
 the money as the settlement layer **observed** it. That read also carries
 `seller_bps` directly, so quantifying the split needs no chain query.
 
-`seller_bps` is read as a present-or-absent member rather than by testing for
-zero: `0` is a legal split, recording that both parties agreed nothing was
-payable, and treating it as "no split reported" would erase the one fact the
-settlement recorded.
+Read `seller_bps` as a present-or-absent member, never by comparing it to
+zero. It is **present whenever a split was committed, a legal `0` included** —
+the buyer was refunded in full by agreement, which is a different fact from
+silence or a `DEFAULTED` deadline nobody answered. **Absent** means no split
+was committed at all. Testing `seller_bps == 0` for "no split reported" erases
+the one fact the settlement recorded.
 
 Event and state spellings are passed through **verbatim** from the engine, so
 match on them rather than reformatting, and an unfamiliar spelling is not a
