@@ -106,6 +106,65 @@ Note the `next_command` still offers `--verify` here, but running it against zer
 
 `receipt_hash_for_next_command` is the newest link's `proofHash` — the value a settlement signature would quote next. `signer_attested` reports whether every link's `signedBy` was found in the attesting agent's published key set. An unreadable key set (the signer agent's keys cannot be resolved) fails the verification like any other check: exit 8 (`PROTOCOL`), `status: "error"`, `verified: false`, with `attestation_notes` in `details` naming the resolution failure. The note distinguishes this from a bad signature — the signatures themselves may have verified — but a chain whose signer cannot be attested is never reported as verified.
 
+### A Chain That Ends in `SETTLED_MUTUAL`
+
+A deal closed by the co-signed split (`kite.contract.settle_mutual`) ends on a
+fourth terminal class — a **negotiated resolution**, not an acceptance, not a
+cancellation or refund, and not an arbiter's ruling. The two links that record
+it are the only ones in the vocabulary carrying two party signatures for one
+transition:
+
+```json
+{
+  "sequence": 5,
+  "fromState": "DELIVERED",
+  "toState": "SETTLING_MUTUAL",
+  "event": "MUTUAL_SETTLEMENT_SUBMITTED",
+  "actorId": "did:kite:example-seller",
+  "signedBy": "0xabc123...",
+  "proofHash": "sha256:...",
+  "previousProofHash": "sha256:...",
+  "metadata": {
+    "seller_bps": 6200,
+    "buyer_sig": "0x...",
+    "seller_sig": "0x..."
+  }
+}
+```
+
+- `seller_bps` is the committed split in basis points: `6200` sends 62 percent
+  of the escrow to the seller and the remainder back to the buyer. `0` is legal
+  and means both parties agreed nothing was payable; `10000` cannot appear,
+  because a full release is an acceptance and the verb refuses it.
+- `buyer_sig` and `seller_sig` are both vault-domain EIP-712 signatures over
+  **one** `MutualSettlement` struct. Two signatures on one link is the whole
+  point: neither party could move the deal alone, and the vault — not the
+  engine — verified them.
+- `MUTUALLY_SETTLED` follows once the vault call is observed, landing the deal
+  on `SETTLED_MUTUAL`. A `RELAY_FAILED` instead returns it to the origin the
+  `SETTLING_MUTUAL*` state is named for (`DELIVERED`, `REJECTED`, or
+  `DISPUTED`), so an in-flight state mid-chain is a retry rather than a dead
+  end.
+- The origin the split came from is readable off `fromState`, which is what
+  distinguishes a split of a delivered batch from one negotiated after a
+  rejection or during a dispute.
+
+`--verify` treats these links like any other: linkage, recomputation, and
+signature recovery against the attesting agent's published keys. The chain's
+`signedBy` is the engine's proof-signer, not either party's settlement
+signature — the two party signatures are content inside the link, and what
+attests them is the vault's own execution.
+
+For the amounts that actually moved, read the `settlement` legs on
+`kpass agent agreement status` rather than deriving them from `seller_bps`: a deal
+where a fee also moved value does not sum from the basis points alone. That
+read also carries `seller_bps` directly, so quantifying the split needs no
+chain query.
+
+Event and state spellings are passed through **verbatim** from the engine, so
+match on them rather than reformatting, and an unfamiliar spelling is not a
+reason to treat a link as malformed.
+
 ### Error Output — Verification Failed (exit 8, `PROTOCOL`)
 
 ```json

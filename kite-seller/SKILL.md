@@ -235,6 +235,16 @@ Choose exactly ONE of three answers:
 
 Emit exactly one of these objects. Two arms, or none, is discarded fail-closed.
 
+**There is no `settle` arm, and this fork is still three arms wide.** A
+co-signed split of the escrow (`kite.contract.settle_mutual`) is a fourth
+answer to a rejection on the charts that offer it, but carrying the offer to a
+handler is phase 2 and is not available — a `settle` object emitted here is
+discarded like any other unrecognized answer. This seller's human operator runs
+`kagent agreement settle sign` / `settle submit` by hand in the meantime
+(**`seller-fulfill`** Step 8), so answer with one of the three arms above and
+note in that answer's own prose that a split is what the delivery warrants —
+that line is what the operator reads.
+
 ### closed — a buyer closed a negotiation thread (bookkeeping only)
 
 `payload.message` is a `closed/v1` frame: `{frame, threadId, agreementId,

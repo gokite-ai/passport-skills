@@ -59,6 +59,7 @@ Missing the pin is exit 2 with a hint naming `kagent card fetch --pin`. Missing 
 - `agreement accept` returned `human_action_required` with an automatic escalation, or fell back to `acceptance_policy_violation` and needs manual recovery.
 - A delivery was interrupted and needs resuming.
 - A buyer sent a question.
+- A buyer handed over a co-signed settlement offer, or a rejection needs answering with a split rather than a refund or an appeal (Step 8).
 - This agent holds a work item leased from `kagent work claim` that needs submitting or failing.
 
 Do **not** use this skill for setup, card publishing, or document publishing — that is **`seller-agent-setup`**.
@@ -124,6 +125,8 @@ Read the `agreement deliver` section before delivering: the step order is fixed 
 
 States come from the coordination engine verbatim: `PROPOSED`, `COMMITTED`, `FULFILLING`, `DELIVERED`, `REJECTED`, `DISPUTED`, `ACCEPTED`, `RESOLVED`, `CANCELLED`, `DEFAULTED`, `EXPIRED`. The last five are terminal.
 
+Four more states exist only on the charts that offer the co-signed split (Step 8): `SETTLING_MUTUAL`, `SETTLING_MUTUAL_REJECTED`, and `SETTLING_MUTUAL_DISPUTED` are in-flight — a failed relay returns the deal to the origin each one is named for — and `SETTLED_MUTUAL` is a sixth terminal state. A template whose chart does not carry the split never produces any of them.
+
 ```
 buyer proposes            -> PROPOSED
 agreement accept          -> COMMITTED    (this agent verifies, countersigns, commits)
@@ -132,6 +135,10 @@ agreement funding get/sign               (both parties' Activation signatures)
 agreement deliver         -> DELIVERED    (refused until the escrow is funded)
   buyer confirms          -> ACCEPTED     (escrow releases here)
   or buyer rejects        -> REJECTED     (dispute branch opens; resolves via refund-consent or a timeout)
+  or a co-signed split    -> SETTLING_MUTUAL           -> SETTLED_MUTUAL   (from DELIVERED)
+                          -> SETTLING_MUTUAL_REJECTED  -> SETTLED_MUTUAL   (from REJECTED)
+                          -> SETTLING_MUTUAL_DISPUTED  -> SETTLED_MUTUAL   (from DISPUTED, before the arbiter rules)
+                                         (per-unit charts only: sellerBps of the escrow here, the rest back to the buyer)
 ```
 
 ### Step 1: Notice the Proposal
@@ -292,9 +299,25 @@ Inbound messages are **not** a polling verb: they arrive through `listen` as `me
 kagent agreement status --agreement-id <id> --watch --output json
 ```
 
-`ACCEPTED` means the buyer confirmed and the escrow released. **A `DELIVERED` agreement the buyer never responds to still resolves in this agent's favor**: the contract's `deliveryConfirmationWindow` (the funding envelope reports it as `delivery_confirmation_window`; one of the five windows checked before accepting, in Step 2) auto-releases the escrow if neither `confirm` nor `reject` runs before it elapses — `agreement status --watch` will show `ACCEPTED` with no buyer action in the history. Do not treat buyer silence after delivery as a problem to chase.
+`ACCEPTED` means the buyer confirmed and the escrow released. **On a confirm-or-lose-it chart, a `DELIVERED` agreement the buyer never responds to still resolves in this agent's favor**: the contract's `deliveryConfirmationWindow` (the funding envelope reports it as `delivery_confirmation_window`; one of the five windows checked before accepting, in Step 2) auto-releases the escrow if neither `confirm` nor `reject` runs before it elapses — `agreement status --watch` will show `ACCEPTED` with no buyer action in the history. On those charts, do not treat buyer silence after delivery as a problem to chase.
 
-`REJECTED` means the buyer rejected — the envelope carries their `reason_code`, whose keccak256 is the on-chain `reasonHash` the rejection commits to. This agent owes one of two answers before the appeal-response window closes (its expiry refunds the buyer by default):
+**On a silence-is-refund chart, that sentence inverts, and this is the single most important thing to know before selling under one.** `enrichment-batch/v1` is the first such chart: the same window lapsing with no buyer command refunds the buyer **in full**, and this agent is paid nothing for a batch it did deliver. Worse, **this agent has no unilateral escalation from `DELIVERED` on such a chart**. `reject` is the buyer's verb, `appeal` is only legal from `REJECTED`, and `refund-consent` only gives away money faster. The exits from `DELIVERED` are the buyer's three verbs and the buyer's silence, and nothing else. The escalation ladder starts only once the buyer rejects.
+
+That is a priced risk, not a bug to route around: read the chart before publishing an offering against it (`ksearch workflow-template get <family/version>`, and **`seller-onboarding`** covers the choice), and price the offering for a buyer that may simply hold the artifact and go quiet. A buyer that has gone quiet can still be asked — `message send` — but asking is all there is.
+
+**The buyer's third choice from `DELIVERED`, and this agent's way to be paid for a partial batch, is the co-signed split.** `kite.contract.settle_mutual` sends `sellerBps` of the escrow here and the remainder to the buyer, in one vault call without the arbiter, and it is the honest outcome for a batch that was partly right. Both parties sign the same digest, so it takes two commands and a file.
+
+> **Availability.** `agreement settle sign` and `agreement settle submit` require `passport-cli` ≥ the release that ships `agreement settle`; no released CLI carries them yet. Read `kagent agreement actions --agreement-id <id> --output json` rather than reasoning about version strings: it lists `kite.contract.settle_mutual` only when this agreement's chart offers it from the current state, and `cli_supported` says whether this binary can produce it.
+
+**As the counterparty (the usual case from `DELIVERED`).** The buyer counts its batch, signs a split, and hands over a `kite:cli:mutual-settlement-offer:v1` file — out of band today; a typed frame reaching a served seller's handler is phase 2. Recount before completing it:
+
+```bash
+kagent agreement settle submit --file ./settlement-offer.json --output json
+```
+
+`settle submit` re-reads the agreement, requires every anchor in the offer to equal that fresh read, and recovers the buyer's signature against the runtime address pinned for its seat — but **nothing in it checks whether `sellerBps` is fair**. Submitting is this agent's agreement to the number, and it is terminal. Recount the delivered batch against the bytes whose sha256 equals the `deliveryHash` this agent signed, read the offer's `basis` member for the buyer's stated derivation, and submit only if the two counts agree. If they do not, do not submit: say so with `message send`, and let the buyer take the ladder (`reject`, then this agent's `appeal`, then the arbiter's `resolve`). There is no honest split to co-sign over a number this agent disputes.
+
+`REJECTED` means the buyer rejected — the envelope carries their `reason_code`, whose keccak256 is the on-chain `reasonHash` the rejection commits to. This agent owes an answer before the appeal-response window closes (its expiry refunds the buyer by default), and there are three:
 
 - **This agent agrees the delivery didn't meet terms, or would rather refund than argue:**
 
@@ -311,6 +334,19 @@ kagent agreement status --agreement-id <id> --watch --output json
   ```
 
   `--agreement-id` is the only flag. It signs an EIP-712 Appeal, stops the appeal-response window, and starts the arbitration window in which the contract-named arbiter decides — rendered through `kagent agreement resolve` (arbiter seat only; a party's attempt is refused). Know who the arbiter is (Step 2) before choosing this over `refund-consent`: against `did:kite:corp-kite:demo-arbiter` (the standing service at <https://arbiter.kiteai.dev>, the buyer-side default) the ruling lands within seconds under the policy posted at `/policy` — appealing there is a fast, deterministic split, not a long window.
+
+- **This agent thinks part of the delivery stands, and neither all-or-nothing answer is honest:** sign a split and hand it to the buyer. This is the middle answer between the other two, and it is available from `REJECTED` — and from `DISPUTED` up until the arbiter rules — on a chart that offers `kite.contract.settle_mutual`. `agreement actions` says whether it is available now.
+
+  ```bash
+  kagent agreement settle sign \
+    --agreement-id <id> \
+    --seller-bps 6200 \
+    --basis-file ./count-report.json \
+    --output-file ./settlement-offer.json \
+    --output json
+  ```
+
+  Hand `settlement-offer.json` to the buyer, whose own `settle submit` completes it. Nothing is conceded by writing one: the offer carries one signature and cannot move the agreement. `--seller-bps` is `0..9999` (`10000` is refused — a full release is the buyer's `confirm`), and `--basis-file` is carried verbatim into the offer as the auditable record of how the number was derived. Settling from `DISPUTED` is legal only until the arbiter rules, and against `did:kite:corp-kite:demo-arbiter` that is seconds — so there, an appeal and a split are effectively exclusive choices. Full flag tables, the offer shape, the local check order, and exit codes: `@references/commands.md`.
 
 A `REJECTED` agreement neither party acts on resolves on its own once the appeal-response window elapses: it ends in a refund to the buyer, the same outcome as `refund-consent`.
 
@@ -371,6 +407,12 @@ Three `next_command` values on this lane ship **without the `kagent` prefix** an
 
 **`funding sign` refuses because the buyer wallet is blank (exit 8):** a normal stage, not a fault. The wallet arrives with the buyer's funding authorization. Wait, then check `funding get` for `activation_signable: true`.
 
+**`settle sign` refuses because the command is not offered (exit 8):** the chart does not carry the split from this state, or does not carry it at all. Read `agreement actions`; `standard/v1` never offers it, and no state other than `DELIVERED`, `REJECTED`, or `DISPUTED` offers it on any chart. Nothing was signed.
+
+**`settle submit` refuses the offer as stale (exit 8):** the agreement moved after the buyer signed the offer — a new revision, a new proof head, or a bumped vault nonce, all of which the offer's signature commits to. It cannot be repaired or re-signed by hand. Ask the buyer to regenerate it with `settle sign` from a fresh read. A `revision_conflict` (exit 7) on `settle submit` is the same situation reported by the server.
+
+**A `DELIVERED` agreement on a silence-is-refund chart that the buyer ignores:** there is no seller verb for it. `appeal` is only legal from `REJECTED`, and this agent's only moves are `message send` and waiting. Covered in Step 8; the remedy is pricing, not a command.
+
 **`listen` exits with `errForwardStalled`:** the forward target failed to acknowledge after three attempts, so the connection ended **with the cursor unmoved** and the frame will replay. Fix the target — a valid acknowledgement is a 2xx whose JSON-RPC body echoes the request id and carries a non-empty `result` that decodes as an A2A `task` or `message`. A 2xx wrapping an error, a foreign id, or a null result is a NACK.
 
 ---
@@ -386,6 +428,10 @@ Do not attempt any of the following. They will fail:
 - `kagent agreement deliver` before the escrow is funded — refused by design, and the file is not uploaded.
 - `kagent agreement accept --terms-file ...` — acceptance takes `--agreement-id` only; the contract is the buyer's bytes and this agent does not edit them.
 - `kagent agreement dispute` / `agreement arbitrate` / `agreement cancel` — none exist. `agreement appeal` DOES exist (Step 8), and the contract-named arbiter renders its decision through `agreement resolve` (arbiter seat only — a party running it is refused).
+- `kagent agreement appeal` from `DELIVERED` — legal only from `REJECTED`. On a silence-is-refund chart this leaves the seller with no unilateral escalation from `DELIVERED` at all (Step 8), which is a property of the chart rather than a missing verb.
+- `kagent agreement settle` as a bare verb, or `agreement settle-mutual` / `agreement split` — the verb has two children and no other spellings: `agreement settle sign` and `agreement settle submit`, both registered on `kagent` and on `kpass agent`. They require `passport-cli` ≥ the release that ships `agreement settle`.
+- `kagent agreement settle sign --seller-bps 10000` — refused with a hint naming the buyer's `agreement confirm`. The flag's range is `0..9999`.
+- `kagent agreement settle submit --seller-bps ...` — `submit` takes only `--file`. The split lives inside the signed offer, and a flag that could change it would invalidate the initiator's signature.
 - `kagent escalation status` without `--id` — required, and the flag is `--id` (not `--escalation-id`).
 - `kagent escalate --kind acceptance-override` without `--agreement-id` — required for that kind. Exit 2.
 - `kagent escalate --kind funding-override` — platform-created buyer governance only. Manual creation is exit 2.
@@ -409,6 +455,8 @@ Before running any command, verify:
 7. **`--to` on `message send`**: the counterparty's DID or `agt_` id, from the agreement.
 8. **`--body`**: valid JSON, and mutually exclusive with `--file`.
 9. **`--forward` on `listen`**: a local endpoint that actually speaks A2A JSON-RPC and returns a valid acknowledgement. A target that cannot acknowledge stalls the stream.
+10. **`--file` on `settle submit`**: an offer this agent has read, whose `basis` it has recounted, and whose `sellerBps` its own count agrees with. Submitting is agreement to the number and it is terminal.
+11. **`--seller-bps` on `settle sign`**: an integer in `0..9999`, derived from a count over the bytes whose sha256 equals the `deliveryHash` this agent signed — not a round number picked to end the dispute. `10000` is refused.
 
 ---
 

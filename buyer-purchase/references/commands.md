@@ -133,11 +133,14 @@ Exit 4 on `--resume` means no journaled proposal by that id.
 | `FULFILLING` | Escrow funded; the seller's delivery is next | `""` |
 | `DELIVERED` | Verify the artifact against the `deliveryHash` in the signed command, then confirm or reject | `kpass agent agreement proofs --agreement-id <id> --verify --output json` |
 | `REJECTED` | Rejected by the buyer; the dispute branch is open | `""` |
-| `DISPUTED` | The seller appealed (`kagent agreement appeal`, seller-only — not reachable from this buyer surface). The arbitration window is running; there is still no CLI verb for the arbiter to render its decision through (see Step 8) | `""` |
-| `ACCEPTED`, `RESOLVED` | Terminal. The proof chain records the outcome; a review is open for a bounded window | `kpass agent agreement proofs --agreement-id <id> --verify --output json` |
+| `DISPUTED` | The seller appealed (`kagent agreement appeal`, seller-only — not reachable from this buyer surface). The arbitration window is running; the contract-named arbiter renders its decision through `kagent agreement resolve` (arbiter seat only). On a chart that offers the split, either party may still settle here until the arbiter rules | `""` |
+| `SETTLING_MUTUAL`, `SETTLING_MUTUAL_REJECTED`, `SETTLING_MUTUAL_DISPUTED` | In-flight: a co-signed split was submitted from `DELIVERED`, `REJECTED`, or `DISPUTED` respectively and the vault call has not been observed yet. A `RELAY_FAILED` returns the deal to the origin the state is named for | `kpass agent agreement status --agreement-id <id> --watch --output json` |
+| `ACCEPTED`, `RESOLVED`, `SETTLED_MUTUAL` | Terminal. The proof chain records the outcome; a review is open for a bounded window. `SETTLED_MUTUAL` carries `seller_bps` when the read has it | `kpass agent agreement proofs --agreement-id <id> --verify --output json` |
 | `CANCELLED`, `DEFAULTED`, `EXPIRED` | Terminal. No further command is legal | `""` |
 
-Terminal states: `ACCEPTED`, `RESOLVED`, `CANCELLED`, `DEFAULTED`, `EXPIRED`. An unrecognized state reports `State: <X>.` — the engine's spelling is passed through untranslated, so a future state does not break the reader.
+Terminal states: `ACCEPTED`, `RESOLVED`, `SETTLED_MUTUAL`, `CANCELLED`, `DEFAULTED`, `EXPIRED`. An unrecognized state reports `State: <X>.` — the engine's spelling is passed through untranslated, so a future state does not break the reader.
+
+`SETTLED_MUTUAL` and the three `SETTLING_MUTUAL*` states only ever appear on a chart that offers `kite.contract.settle_mutual`; `standard/v1` and the other templates in the catalog today do not. `--watch` terminates on `SETTLED_MUTUAL` as it does on every other terminal state.
 
 ---
 
@@ -434,6 +437,152 @@ A `revision_conflict` from the server (exit 7) carries a bespoke hint and a `nex
 
 ---
 
+## `kpass agent agreement settle sign` / `kpass agent agreement settle submit`
+
+The co-signed split, `kite.contract.settle_mutual`: `sellerBps` of the escrow to the seller, the remainder to the buyer, in one vault call without the arbiter. Both verbs are registered on **both** surfaces (`kpass agent agreement settle …` and `kagent agreement settle …`) — either party may initiate, and the counterparty completes. The binary does not establish authority; the agreement read does.
+
+**Availability: requires `passport-cli` ≥ the release that ships `agreement settle`.** No released CLI carries the verbs yet. `agreement actions` is the check that does not depend on knowing the installed version — see the last subsection here.
+
+### `settle sign`
+
+| Flag | Type | Default | Required | Notes |
+|---|---|---|---|---|
+| `--agreement-id <id>` | string | `""` | **yes** | |
+| `--seller-bps <n>` | int | `0` | **yes** | Basis points of the escrow to the seller, `0..9999`. `10000` is refused with a hint naming `agreement confirm`; `0` is legal and records that both parties agreed nothing was payable. |
+| `--basis-file <path>` | string | `""` | no | A JSON file stating how `sellerBps` was derived. Carried into the offer verbatim as `basis` and never interpreted. |
+| `--output-file <path>` | string | `""` | **yes** | Where the portable settlement offer is written. |
+
+```bash
+kpass agent agreement settle sign \
+  --agreement-id agr_123 \
+  --seller-bps 6200 \
+  --basis-file ./count-report.json \
+  --output-file ./settlement-offer.json \
+  --output json
+```
+
+Checks, in order, with **nothing signed until all of them pass**:
+
+1. The local runtime identity resolves and the pinned chain context is present.
+2. The agreement read reports this agent's role as `buyer` or `seller`. Any other seat — the contract-named arbiter included — is refused.
+3. `kite.contract.settle_mutual` is in the current `offered_commands`. This is a **required** answer: a server that cannot say refuses the verb rather than defaulting to allowed.
+4. The vault state on that same read is one of `Delivered`, `Rejected`, `Appealed`, and the agreement state is the matching origin. A nonce read before the delivery landed is one settlement stale.
+5. `--seller-bps` is in range.
+6. All four vault anchors are present on that one read: `vault.dealId`, `settlement_terms_hash`, `latest_proof_hash`, and `vault.nonce`. A missing anchor is a refusal, never a default, and `latest_proof_hash` must be non-zero — the vault rejects a settlement with no receipt.
+
+It then sets `expiry` from the local clock with the standard one-hour window, signs the `MutualSettlement` digest under the **vault** domain, and writes the offer. The **welded** settlement terms hash and the vault's **current** nonce are what the signature commits to; the command envelope that `settle submit` later builds anchors to the **current** terms hash instead. These are the same two anchors `resolve` keeps apart.
+
+A badly skewed local clock produces an `expiry` the vault will not honor, exactly as on `confirm` / `reject`.
+
+### The settlement offer
+
+```json
+{
+  "schema": "kite:cli:mutual-settlement-offer:v1",
+  "agreementId": "agr_123",
+  "chainId": 5887,
+  "vaultAddress": "0x…",
+  "vaultDealId": "0x…",
+  "chartHash": "sha256:0e8057b7…",
+  "state": "DELIVERED",
+  "expectedRevision": 4,
+  "settlementTermsHash": "sha256:…",
+  "receiptHash": "sha256:…",
+  "nonce": 3,
+  "sellerBps": 6200,
+  "expiry": 1788000000,
+  "signerRole": "buyer",
+  "signerAgentId": "did:kite:…",
+  "signerKeyId": "…",
+  "mutualSettlementSig": "0x…",
+  "basis": {
+    "deliveryHash": "sha256:…",
+    "acceptedUnits": 62,
+    "maxUnits": 100,
+    "countingRule": "sha256:…"
+  }
+}
+```
+
+Everything above `basis` is either inside the signed digest or an anchor the counterparty must match. `basis` is the caller's stated derivation, carried verbatim from `--basis-file`: the platform never reads the delivered bytes and cannot check a count, so this is the only record of how `sellerBps` was reached, and it is what the counterparty reads before deciding whether its own count agrees.
+
+The offer is **data, not a command**. It carries one signature and cannot move the agreement.
+
+### `settle submit`
+
+| Flag | Type | Default | Required | Notes |
+|---|---|---|---|---|
+| `--file <path>` | string | `""` | **yes** | A `kite:cli:mutual-settlement-offer:v1` file written by the counterparty's `settle sign`. |
+
+```bash
+kpass agent agreement settle submit --file ./settlement-offer.json --output json
+```
+
+What it does, in order:
+
+1. Resolves the local identity and requires the **counterparty** seat — the seat the offer's `signerRole` is not.
+2. Re-reads the agreement authoritatively.
+3. Requires the offer's agreement id, chain id, vault address, vault deal id, state, revision, settlement terms hash, receipt hash, chart hash, and vault nonce to **equal** that fresh read. Any difference is a stale offer: refused, never repaired.
+4. Requires the offer's `expiry` to be in the future with enough room for relay and inclusion. The expiry is inside the digest the initiator signed, so the completed pair keeps it.
+5. Recovers the initiator's signature against the runtime address pinned for its seat in the funding context's Activation — the vault's own check, reproduced locally so a mistake surfaces here rather than as a reverted transaction.
+6. Signs the same digest with this party's key, and recovers its own signature against its own pinned address.
+7. Builds and signs the v1 `kite.contract.settle_mutual` AgreementCommand over the **current** terms hash and the fresh revision, then submits it.
+
+```json
+{
+  "agreement_id": "agr_123",
+  "command_id": "cmd_…",
+  "command_type": "kite.contract.settle_mutual",
+  "state": "SETTLING_MUTUAL",
+  "revision": 5,
+  "seller_bps": 6200,
+  "expected_revision": 4,
+  "vault_deal_id": "…",
+  "vault_nonce": "…",
+  "receipt_hash": "…",
+  "expiry": "…",
+  "receipt": { … },
+  "hint": "…",
+  "next_command": "kpass agent agreement status --agreement-id agr_123 --watch --output json"
+}
+```
+
+The payload carries `sellerBps`, `buyerMutualSettlementSig`, `sellerMutualSettlementSig`, and `expiry` — two vault-domain signatures over one struct, placed by the signer's seat and not interchangeable. The vault verifies them, not the engine, which is why every check above runs locally first: a wrong domain, a wrong terms hash, or a stale nonce does not come back as a 400 after Passport and the engine have both said 200.
+
+### Exit codes on these two verbs
+
+| Exit | Cause |
+|---|---|
+| 2 USAGE | `--seller-bps` outside `0..9999` (including `10000`), a missing `--agreement-id` / `--output-file` / `--file`, an unreadable `--basis-file`, or a file that is not a `kite:cli:mutual-settlement-offer:v1` offer |
+| 8 PROTOCOL (local, nothing sent) | This agent's role is not `buyer` or `seller`; `kite.contract.settle_mutual` is not in the current `offered_commands`; the state is not one of the three origins; a vault anchor is missing or `latest_proof_hash` is zero; a stale offer (any anchor differs from the fresh read); a non-future or too-near `expiry`; the initiator's signature does not recover to the address pinned for its seat; `settle submit` run from the initiator's own seat |
+| 7 CONFLICT | `revision_conflict` — the agreement moved after the offer was signed. The initiator regenerates the offer from a fresh read; nothing is rewritten and re-signed by hand. Also `idempotency_conflict`, `illegal_transition`, `terms_hash_mismatch` |
+| 6 FORBIDDEN | `unauthorized_actor` — the server ruled this seat may not submit the command. The arbiter lands here even from `DISPUTED` |
+
+A server-side `command_not_offered` (the engine's 422) is the same refusal as the local offered-command check, reached one step later; re-read `agreement status` rather than retrying the same bytes.
+
+### `agreement actions` — is the split available right now?
+
+```bash
+kpass agent agreement actions --agreement-id <id> --output json
+```
+
+The chart plus the current state is the authority on which commands are available, and this read is where that answer surfaces. On a chart that offers the split it gains one row, with no schema change:
+
+```json
+{
+  "command": "kite.contract.settle_mutual",
+  "actor_roles": ["buyer", "seller"],
+  "required_signer_roles": ["buyer", "seller"],
+  "available_to_caller": true,
+  "cli_supported": true,
+  "cli_command": "kpass agent agreement settle sign --agreement-id agr_123"
+}
+```
+
+`available_to_caller` is `true` for the buyer and the seller and `false` for the arbiter, even from `DISPUTED`. `cli_supported` is `false` on a CLI that predates the verbs — which is the check to run instead of reasoning about version strings. `workflow-template get` publishes the same both-party metadata from the chart, and omits the compatibility scalar `role`: naming one primary role for a both-signed command would be wrong.
+
+---
+
 ## `kpass agent agreement proofs`
 
 | Flag | Type | Default | Required | Notes |
@@ -606,3 +755,5 @@ There is no exit code 9. A matched `error_code` short-circuits HTTP-status class
 | 5 RATE_LIMITED | `rate_limited` |
 
 Local refusals carry no `error_code` — exit 8 with a hint is the whole signal.
+
+`command_not_offered` is the engine's 422 for a command that is not available at this state and revision — the server-side twin of the local offered-command check on `settle sign`. It is not retriable with the same bytes: re-read `agreement status` and `agreement actions`.
