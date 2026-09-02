@@ -64,23 +64,29 @@ the wrong one costs an owner approval on a session that can never be used.
 The difference is not "which lane you are on", which nothing observable tells
 you. It is **what the session will be spent on**, which the task always says.
 
-The prefix is what tells them apart. `kpass session create` is **your** lane:
-it authenticates with the **human's** JWT (so `kpass login` first) and
-authorizes an agent to spend. `kpass agent session request` is the **agent's**
-lane: the agent signs with **its own runtime key**, and the request carries a
-v2 **scope** -- an agreement id, a seller allowlist, or a template -- which
-`create` has no way to express. (The human verb used to live at
-`kpass agent session create`, where the two lanes shared a prefix; that
-spelling is now a tombstone that names the move.)
+The prefix is what tells them apart. `kpass session create` is the **legacy
+spending-agent lane**: it authenticates with the agent token minted at
+`agent:register` (so `kpass login` and registration first), the OWNER approves
+with their passkey, and `session execute` spends with the per-session key.
+`kpass agent session request` is the **runtime-key lane**: the agent signs
+with **its own bound key**, and the request carries a v2 **scope** -- an
+agreement id, a seller allowlist, or a template -- which `create` has no way
+to express. (The legacy verbs used to live at `kpass agent session <verb>`,
+where the two lanes shared a prefix; those spellings are now tombstones that
+name the move.)
 
-**A `create` session cannot fund an agreement.** Funding is fail-closed on the
-scope, so it refuses with `error_code: session_scope_forbidden` and
+**A `create` session cannot fund an agreement through the buyer runtime.**
+The runtime lane's `kpass agent fund` is fail-closed on the v2 scope, so it
+refuses with `error_code: session_scope_forbidden` and
 
 > `agreement funding requires a session-request v2 session carrying a scope`
 
 If you see that, the session was minted on this lane and the deal needs one
 from `buyer-purchase` instead. Do not retry, and do not widen the budget --
-neither is the problem.
+neither is the problem. (A deprecated compatibility exception exists on the
+legacy lane itself -- `kpass session fund-agreement`, owner-level funding
+through the session key -- but it is not part of either flow these skills
+drive and is slated for removal with the rest of the legacy spending lane.)
 
 **Never reach Passport over MCP, for either lane.** Passport has no MCP
 surface: the hosted connector and the `passport-mcp` stdio server are both

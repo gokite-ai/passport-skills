@@ -216,13 +216,14 @@ The seller's serve echoes the frame back signed — that reply is your receipt t
 
 ### Step 3: Get a Spending Session the Owner Approves
 
-**This CLI verb is the ONLY session entry for this buyer agent.** The human
-lane's `kpass session create` (formerly `kpass agent session create`, now a
-tombstone) is the other lane and cannot serve this one: it
-authenticates with the human's JWT rather than this agent's runtime key, and it
-has no way to express the v2 **scope** an agreement needs. Funding is
-fail-closed on that scope, so a session minted with `create` is refused at the
-funding chokepoint with `error_code: session_scope_forbidden` and *"agreement
+**This CLI verb is the ONLY session entry for this buyer agent.** The legacy
+spending-agent lane's `kpass session create` (formerly `kpass agent session
+create`, now a tombstone) is the other lane and cannot serve this one: it
+authenticates with the registration-time agent token rather than this agent's
+bound runtime key, and it has no way to express the v2 **scope** an agreement
+needs. This runtime's funding is fail-closed on that scope, so a session
+minted with `create` is refused at `kpass agent fund` with
+`error_code: session_scope_forbidden` and *"agreement
 funding requires a session-request v2 session carrying a scope"* -- after the
 owner has already approved it. Use `create` only for paid API calls and
 shopping checkout (the **`request-session`** skill); use `request` below for
