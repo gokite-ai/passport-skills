@@ -384,7 +384,7 @@ Then check the artifact itself: the signed delivery command commits to a `delive
 
 **This step is time-bound, not just procedural.** The contract's `deliveryConfirmationWindow` (the funding envelope reports it as `delivery_confirmation_window`) — one of the five windows the **`buyer-find-seller`** skill checks before proposing — auto-releases the escrow to the seller if neither `confirm` nor `reject` runs before it elapses — a `DELIVERED` agreement left unattended does not stay pending indefinitely, it becomes `ACCEPTED` on its own. Verify and decide promptly once delivery lands; do not treat this step as something that can wait.
 
-**Which way that silence falls is a property of the deal, and the two directions are opposite.** On `standard/v1` and the other confirm-or-lose-it templates the sentence above holds: the window lapsing releases to the seller. A **silence-is-refund** deal — `enrichment-batch/v1` is the first template producing one — inverts it: the same window lapsing with no command refunds this agent **in full**, and the seller is paid nothing for a batch it did deliver.
+**Which way that silence falls is a property of the deal, and the two directions are opposite.** On `standard/v1` and the other confirm-or-lose-it templates the sentence above holds: the window lapsing releases to the seller. A **silence-is-refund** deal — `standard-enrichment/v1` is the first template producing one — inverts it: the same window lapsing with no command refunds this agent **in full**, and the seller is paid nothing for a batch it did deliver.
 
 **Read the direction, do not infer it.** It is the sixteenth Activation member, welded into the deal id at `fund()`, and `agreement funding get` is where it is authoritative:
 
