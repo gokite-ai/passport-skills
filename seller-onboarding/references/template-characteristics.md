@@ -9,7 +9,7 @@ Three kinds of columns here:
 
 The catalog is these 6 templates as of 2026-08-31 (`origin/main`, `passport` repo) -- there is no undescribed/unavailable-template case to handle; every template a seller could pick has a real descriptor.
 
-A 7th, `standard-enrichment/v1`, is listed separately below because it is **not served everywhere**: it installs into `local`, `dev`, and `staging` with the mutual-settlement work, and `prod` waits for the vault redeploy that ships `settleMutual`. Confirm it with `ksearch workflow-template list` against the environment the seller will actually sell in before offering it as a choice.
+A 7th, `enriched-standard/v1`, is listed separately below because it is **not served everywhere**: it installs into `local`, `dev`, and `staging` with the mutual-settlement work, and `prod` waits for the vault redeploy that ships `settleMutual`. Confirm it with `ksearch workflow-template list` against the environment the seller will actually sell in before offering it as a choice.
 
 | Template ID | Name | Summary | Windows | Max redeliveries | Escalation path | Choose this when |
 |---|---|---|---|---|---|---|
@@ -20,11 +20,11 @@ A 7th, `standard-enrichment/v1`, is listed separately below because it is **not 
 | `coding/v1` | Coding | Software-deliverable workflow with rejection and bounded redelivery, no arbitration. | funding, delivery, deliveryConfirmation, appeal | 0-3 | Mid: same shape as `content-generator/v1` | Code/implementation deliverables -- redeliver-on-reject fits "the tests didn't pass, try again" better than a dispute process. |
 | `security-audit/v1` | Security audit | Audit-report delivery with rejection and bounded redelivery, no arbitration. | funding, delivery, deliveryConfirmation, appeal | 0-3 | Mid: same shape as `content-generator/v1` | Audit/report deliverables with a possible one-shot revision, no formal appeal process. |
 
-## `standard-enrichment/v1` -- per-unit batches (availability-gated)
+## `enriched-standard/v1` -- per-unit batches (availability-gated)
 
 | Template ID | Name | Windows | Max redeliveries | Escalation path | Choose this when |
 |---|---|---|---|---|---|
-| `standard-enrichment/v1` | Enrichment batch | funding, delivery, deliveryConfirmation, appeal, arbitration | 0 (welded) | Full, plus a co-signed split (`kite.contract.settle_mutual`) available from `DELIVERED`, `REJECTED`, and `DISPUTED` | The deliverable is a **batch of countable units** and partial fulfilment is normal, not exceptional -- 100 enrichment records of which 62 come back valid is a routine outcome the seller expects to be paid 6200 bps for. |
+| `enriched-standard/v1` | Enrichment batch | funding, delivery, deliveryConfirmation, appeal, arbitration | 0 (welded) | Full, plus a co-signed split (`kite.contract.settle_mutual`) available from `DELIVERED`, `REJECTED`, and `DISPUTED` | The deliverable is a **batch of countable units** and partial fulfilment is normal, not exceptional -- 100 enrichment records of which 62 come back valid is a routine outcome the seller expects to be paid 6200 bps for. |
 
 Pick this row only when all three of these are true, because each one is a real obligation on the seller rather than a preference:
 
@@ -41,6 +41,6 @@ The split verbs themselves (`kagent agreement settle sign` / `settle submit`) re
 Ask the seller about deal-shape *characteristics*, never the template name:
 - "If a buyer isn't happy with what you deliver, do you want a chance to redo it, or is delivered-is-delivered?" -> maps to escalation-path column.
 - "Could a delivery genuinely be disputed by a reasonable buyer, or is success obvious from the artifact itself?" -> distinguishes `standard/v1` (formal arbitration warranted) from the mid-lifecycle group.
-- "Is what you deliver a batch of separate items, where some can be good and others not -- and would you expect to be paid for just the good ones?" -> a yes points at `standard-enrichment/v1`, and only then ask the two follow-ups that row requires: "How many items is one order, and how would your buyer tell a good one from a bad one?" (that answer becomes the published `maxUnits` and counting rule).
+- "Is what you deliver a batch of separate items, where some can be good and others not -- and would you expect to be paid for just the good ones?" -> a yes points at `enriched-standard/v1`, and only then ask the two follow-ups that row requires: "How many items is one order, and how would your buyer tell a good one from a bad one?" (that answer becomes the published `maxUnits` and counting rule).
 
 Then pick the matching row and only *afterward* reveal the template ID in the phase-3 summary.

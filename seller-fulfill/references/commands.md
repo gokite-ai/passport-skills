@@ -611,7 +611,7 @@ The chart plus the current state is the authority on which commands are availabl
   "actions_available": true,
   "proof_anchors_available": true,
   "deadline": "…",
-  "workflow_id": "standard-enrichment/v1",
+  "workflow_id": "enriched-standard/v1",
   "actions": [
     {
       "command": "kite.contract.settle_mutual",
