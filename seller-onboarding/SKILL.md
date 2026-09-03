@@ -77,6 +77,19 @@ Every template in `references/template-characteristics.md` is now platform-descr
 
 Record `seller.offer.template_id`.
 
+### Phase 3b -- Configure the template (deadlines + revisions)
+
+A template is only a *shape*; the seller sets its actual deadlines. **Any window the seller doesn't set, the platform fills with a deployment default** (`0` or absent in config means "use the default", not "no window") -- so an empty `config` still activates. The risk isn't a broken offering; it's the seller silently inheriting deadlines that don't fit their business (a default delivery window shorter than the work takes will just default the deal). So configure the ones that matter for business fit, but stay at intent altitude and keep it short (ask two -- or three where a revision count applies; default the rest and say you did).
+
+Ask, with defaults, only for windows the chosen template actually has (the "Windows" column of the table):
+
+- **`deliveryWindow`** (always): *"Once a deal is funded, how long do you realistically need to deliver?"* Derive the default from the seller's own turnaround; never below 45s.
+- **`deliveryConfirmationWindow`** (always): *"After you deliver, how long should the buyer have to accept before it auto-confirms and pays you?"* Default 48h.
+
+Default the rest and state it in one line rather than asking (they can adjust later): `fundingWindow` 12h; `arbitrationWindow` 72h (`standard/v1` and `enriched-standard/v1`); and `appealResponseWindow` 24h wherever present -- but name its role correctly: on `standard/v1` and `enriched-standard/v1` it is the window to appeal into arbitration, while on the mid group (`coding`/`content-generator`/`security-audit`) the same descriptor-named window is the seller's **redelivery-response deadline** (how long your agent has to redo or consent-refund after a rejection), not a formal appeal. If the template has a redelivery lane (the mid group: `coding` / `content-generator` / `security-audit`), ask one more: *"If a buyer rejects, how many times may your agent redo it before a refund?"* -> `maxRedeliveries` (0-3, default 1). Templates with no redelivery lane (`recruiting/v1`, `data-seller/v1`, `standard/v1`, and `enriched-standard/v1` -- welded 0) -- do not ask.
+
+Convert every answer to **integer seconds**. Record `seller.offer.config` = `{ "windows": { <only the windows the seller actually chose> }, "limits": { "maxRedeliveries": <n, only if applicable> } }` -- include only what the seller set; anything omitted resolves to the platform default. Leave `skippedStates` / `parameters` empty unless the seller explicitly wants a lane turned off.
+
 ## Phase 4 -- Governance
 
 Derived, not asked. Compute the mandate directly from what the seller already decided in phase 2:
@@ -102,6 +115,10 @@ Present the filled scaffold to the seller as: "these are your agent's standing o
 ## Phase 6 -- Publish
 
 Refuse to proceed if `seller.governance.confirmed` is not `true` or the standing-orders file from phase 5 wasn't written -- fail-closed is the correct default for a fresh seller (no policy means refuse everything, which looks exactly like a broken agent, not a safety net).
+
+Assemble the offering's workflow member as `{ "templateId": seller.offer.template_id, "config": seller.offer.config }` in the workflow-terms input (see `references/commands.md#publish-phase-6`). Record the phase-3b config so the seller's chosen deadlines are what ships; any window the seller left unset resolves to the platform default (an empty `config` still activates).
+
+**Verify the pricing chain before publishing -- the one consistency the platform cannot check for you.** The reserve floor is a single number computed once in phase 2; the *same* value went into the mandate (phase 4) and the standing-orders file (phase 5), so within a run it cannot drift. Confirm it actually held: GET the mandate back (`curl ... /acceptancePolicy` -- the call phase 4 already uses) and check that `price_floors[<template>]` equals the floor written to the standing orders **and** sits at or below the advertised card price. If they differ -- e.g. the owner edited the mandate in the dashboard since phase 4 -- stop and re-derive both from the one value before publishing. This is the deterministic check, not a hunch: `kagent registration validate` (below) covers the card/workflow config; this GET-and-compare covers the mandate <-> standing-orders floor, which no platform call verifies.
 
 Run `kagent registration validate` (see `references/commands.md#publish-phase-6`), then `kagent registration publish`, then confirm with `kagent registration get`. Only declare success once readiness is actually confirmed by that last call -- not merely because the publish command didn't error.
 

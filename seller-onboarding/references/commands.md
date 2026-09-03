@@ -24,6 +24,14 @@ Every command this skill shells out to. These are the same underlying calls `sel
 
 No new commands -- this phase is a lookup against `references/template-characteristics.md`, confirmed against `ksearch workflow-template get <family/version>` if the seller wants to double check a specific template's raw definition.
 
+**Phase 3b (configuration)** also runs no command -- it only *computes* the offering's `workflow.config` from the seller's deadline/revision answers, which phase 6 then records in the workflow-terms input. The configurable surface (descriptor `configuration.schema`, verified against `pkg/a2a/templates/v1/*.json`):
+
+- `windows` -- integer **seconds**, min 45, max 315360000 (~10y): `fundingWindow`, `deliveryWindow`, `deliveryConfirmationWindow`, and (only if the template has them) `appealResponseWindow`, `arbitrationWindow`. **Any window left unset (or `0`) resolves to the platform's deployment default** (`0`/absent means "use the default", not "no window" -- passport `pkg/a2a/routes.go`), so config is about business fit, not activation-safety. Set only the ones the seller cares about.
+- `limits.maxRedeliveries` -- integer 0-3 (mid group only).
+- `skippedStates`, `parameters` -- leave empty unless the seller explicitly turns a lane off.
+
+Shape: `config = { "windows": { ... }, "limits": { "maxRedeliveries": <n> } }`. Inspect a template's exact required window set with `ksearch workflow-template get <id>` (the `deadline_edges` names).
+
 ## Governance (phase 4)
 
 **Corrected 2026-08-31, mid-execution** (per `docs/Seller Onboarding Artifacts -- Runtime Key, Registration Files, Mandate.md` §7, user-supplied reference): the PUT requires optimistic concurrency. GET first, then PUT with the version it returned:
@@ -46,6 +54,12 @@ No new commands -- this phase is a lookup against `references/template-character
 No CLI command -- this phase writes a file (`<seller-repo>/.claude/skills/seller-acceptance/SKILL.md`) from `references/standing-orders-template.md`.
 
 ## Publish (phase 6)
+
+The workflow-terms input carries, per offering, a `workflow` member `{ "templateId": "<id>", "config": <phase-3b config> }`. `config` is recorded verbatim, content-addressed, not interpreted by the platform (`seller-agent-setup/references/commands.md`, workflow-terms v1 skeleton). Publish the phase-3b `config` so the seller's chosen deadlines are recorded; any window the seller left unset resolves to the platform default (an empty `config` still activates). To dry-run a `{templateId, config}` pair before publishing, `POST /v1/agent/workflows:validate` (seller runtime key) runs exactly the validation + hashing a publish would. Reconfiguring an offering's workflow later is a **registration republish** (atomic full-replace) -- there is no per-offering PUT.
+
+**Pricing-chain verification (deterministic, no script).** Two layers, using only tools this skill already has:
+1. `kagent registration validate` (above) is the platform's own check of the card / money / negotiation / workflow config.
+2. The mandate <-> standing-orders floor is the one link no platform call verifies. Read it back and compare: `curl -H "Authorization: Bearer <owner-jwt>" .../acceptancePolicy` (the phase-4 GET) and assert `price_floors[<template>]` equals the reserve floor written into `seller-acceptance/SKILL.md`, and is `<=` the advertised card price. Both come from one number computed in phase 2, so a mismatch means real drift (usually a later dashboard edit) -- re-derive both and republish. This is the replacement for a standalone check script: the platform validates what it can, and this readback covers the gap it can't.
 
 - `kagent registration validate --storefront --rate-card --workflow-terms` -- local schema/money/negotiation checks before publish.
 - `kagent registration publish --rate-card <f> [...]` -- atomic publish.
