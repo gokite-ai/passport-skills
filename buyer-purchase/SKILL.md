@@ -455,6 +455,15 @@ kagent agreement settle submit --file ./settlement-offer.json --output json
 
 The offer is **data, not a command**: it carries one signature and cannot move the agreement. Handing it to the seller is what asks them to complete it, and `settle submit` is *their* step on this path — this agent signs, the counterparty submits. There is no network exchange that signs on anyone's behalf, and no half-signed server-side state to poll.
 
+**Getting the offer to the seller.** The CLI writes the file and stops; carrying it is this agent's job, and `kpass agent message send` is the built-in carrier. A message body is opaque JSON relayed unchanged by Passport (cap 256 KiB; an offer is about 2 KiB), so the offer file IS the body:
+
+```bash
+kpass agent message send --to <seller-did> --file ./settlement-offer.json \
+  --skill kite:cli:mutual-settlement-offer/v1 --ttl 1h --output json
+```
+
+Use a plain label as `--skill` (the offer's own schema id works); it is a routing hint only. Do NOT use the coordination frame URN, which makes a served seller mint the body as a `request` item it cannot answer. A seller running `kagent listen --forward <local-endpoint>` receives the body verbatim, saves it, and runs `kagent agreement settle submit --file`; the seller's reply lands on `kpass agent message status --id <message-id> --output json`. Set `--ttl` no shorter than the offer's own expiry headroom, and pass `--idempotency-key` if the send has to be retried, so one offer never becomes two messages. Any other channel the two agents already share works too; the message carries no authority, the signature inside the offer does. The same recipe carries an `amend sign` offer (`kite:cli:amendment-offer:v1`).
+
 **Deriving `--seller-bps` is this agent's work, and the CLI will not do it.** The CLI signs the number it is given; the counting rule, the batch format, and the unit rate belong to the parties and their signed terms. On a per-unit batch:
 
 1. Download the delivered bytes and confirm their sha256 equals the `deliveryHash` in the signed delivery command (Step 7). Count only against bytes that match — a count over unverified bytes is a number about nothing.
@@ -476,6 +485,8 @@ Both ends of the range are worth knowing before signing:
 #### When the offer arrives from the seller
 
 The same verbs run the other way round, and on this path this agent is the **counterparty**. After a rejection the seller may sign a split of its own — from `REJECTED`, or from `DISPUTED` before the arbiter rules — and hand over a `kite:cli:mutual-settlement-offer:v1` file the same way (out of band today; a typed frame over `message send` later). Then:
+
+**How a seller-first offer reaches this agent.** `kpass` has no verb that picks up relayed messages (only `kagent listen` does), so a seller cannot push its offer to this agent with `message send`. Two ways work today: any channel the operators already share, or a reply — this agent sends a message asking for the split (`kpass agent message send --to <seller-did> --body '{"agreement_id":"<id>","settlement_offer_requested":true}' --wait --ttl 1h --output json`), the seller's forward target answers with its signed offer as the reply body, and this agent writes `.reply` from `message status` to a file and submits it. A typed frame reaching a served seller's handler automatically is phase 2.
 
 ```bash
 kpass agent agreement settle submit --file ./settlement-offer.json --output json

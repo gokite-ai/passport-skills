@@ -315,6 +315,8 @@ That is a priced risk, not a bug to route around: read the chart before publishi
 
 **As the counterparty (the usual case from `DELIVERED`).** The buyer counts its batch, signs a split, and hands over a `kite:cli:mutual-settlement-offer:v1` file — out of band today; a typed frame reaching a served seller's handler is phase 2. Recount before completing it:
 
+**How the buyer's offer reaches this agent.** The buyer's carrier is `kpass agent message send --file <offer> --skill <label>`. With `kagent listen --forward <local-endpoint>` running, the relayed message is claimed and its body — the offer JSON, verbatim — is POSTed to the local endpoint; save it to a file and run `settle submit`, and whatever the endpoint returns becomes the reply the buyer reads on `message status`. Under `kagent serve --handler`, a message whose `--skill` is not the coordination frame URN is relayed but never minted into handler work, so the offer sits on the listen lane for the operator to collect; the automatic `settle` arm is phase 2.
+
 ```bash
 kagent agreement settle submit --file ./settlement-offer.json --output json
 ```
@@ -322,6 +324,8 @@ kagent agreement settle submit --file ./settlement-offer.json --output json
 `settle submit` re-reads the agreement, requires every anchor in the offer to equal that fresh read, and recovers the buyer's signature against the runtime address pinned for its seat at funding — but **nothing in it checks whether `sellerBps` is fair**. Submitting is this agent's consent to the number, and it is terminal. Recount the delivered batch against the bytes whose sha256 equals the `deliveryHash` this agent signed, read the offer's `basis` member for the buyer's stated derivation, and submit only if the two counts agree. An offer with no `basis` at all reports `basis_included: false` on the buyer's side and gives this agent nothing to check against, which is reason enough to ask before consenting.
 
 If the counts disagree, do not submit: say so with `message send`, and let the buyer take the ladder (`reject`, then this agent's `appeal`, then the arbiter's `resolve`). There is no honest split to co-sign over a number this agent disputes.
+
+**Getting a seller-first offer to the buyer.** `kpass` cannot pick up relayed messages, so `kagent message send` does not reach the buyer's CLI. Either hand the file over on a channel the operators share, or wait for the buyer to ask: when the buyer sends a message requesting the split (`--wait`), reply with the offer JSON as the reply body — through the `listen --forward` endpoint's response — and the buyer reads it from `message status` and submits. The same holds for an `amend sign` offer.
 
 `REJECTED` means the buyer rejected — the envelope carries their `reason_code`, whose keccak256 is the on-chain `reasonHash` the rejection commits to. This agent owes an answer before the appeal-response window closes (its expiry refunds the buyer by default), and there are three:
 

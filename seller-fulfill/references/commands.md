@@ -683,6 +683,8 @@ Flags: `--agreement-id` (required). Available to both roles.
 
 ## `kagent message send` / `kagent message status`
 
+**Carrying an offer.** A `settle sign` or `amend sign` offer file is a JSON document well under the 256 KiB cap, so `--file <offer>` sends it as the body, unchanged. Use the offer's schema id (`kite:cli:mutual-settlement-offer/v1`, `kite:cli:amendment-offer:v1`) or any plain label as `--skill`; never the coordination frame URN, which turns the body into handler work. The recipient must be able to pick the message up: only `kagent listen --forward` does, so buyer→seller works over this lane and seller→buyer travels as the reply to a buyer-initiated `--wait` message (or on another channel). The message carries no authority; the signature inside the offer does.
+
 `message send`:
 
 | Flag | Type | Default | Required | Notes |
