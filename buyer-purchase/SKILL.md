@@ -464,7 +464,6 @@ kpass agent message send --to <seller-did> --file ./settlement-offer.json \
 
 Use a plain label as `--skill` (the offer's own schema id works); it is a routing hint only. Do NOT use the coordination frame URN, which makes a served seller mint the body as a `request` item it cannot answer. Set `--ttl` no shorter than the offer's own expiry headroom, and pass `--idempotency-key` if the send has to be retried, so one offer never becomes two messages. The message carries no authority; the signature inside the offer does. The same recipe carries an `amend sign` offer (`kite:cli:amendment-offer:v1`). What the seller receives is described in the seller runbook: `kagent listen --forward` hands the local endpoint an A2A envelope whose base64 `raw` part decodes to a notification with the offer at `.message.body`; the seller saves that member, not the envelope, and runs `settle submit`. The seller's reply lands on `kpass agent message status --id <message-id> --output json`.
 
-
 **Deriving `--seller-bps` is this agent's work, and the CLI will not do it.** The CLI signs the number it is given; the counting rule, the batch format, and the unit rate belong to the parties and their signed terms. On a per-unit batch:
 
 1. Download the delivered bytes and confirm their sha256 equals the `deliveryHash` in the signed delivery command (Step 7). Count only against bytes that match — a count over unverified bytes is a number about nothing.
