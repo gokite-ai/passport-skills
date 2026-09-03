@@ -488,6 +488,15 @@ The same verbs run the other way round, and on this path this agent is the **cou
 
 **How a seller-first offer reaches this agent.** `kpass` has no verb that picks up relayed messages (only `kagent listen` does), so a seller cannot push its offer to this agent with `message send`. Two ways work today: any channel the operators already share, or a reply — this agent sends a message asking for the split (`kpass agent message send --to <seller-did> --body '{"agreement_id":"<id>","settlement_offer_requested":true}' --wait --ttl 1h --output json`), the seller's forward target answers with its signed offer as the reply body, and this agent writes `.reply` from `message status` to a file and submits it. A typed frame reaching a served seller's handler automatically is phase 2.
 
+**Declining an offer, and not getting stuck on one.** There is no verb that rejects an offer, because an offer is not a protocol object: nothing in Passport, the engine or the vault knows it exists until the counterparty submits it with the second signature. Declining is therefore **not submitting**, and the counterparty needs to hear that, or both sides wait out the clock:
+
+- Say so: `kpass agent message send --to <seller-did> --body '{"agreement_id":"<id>","settlement_offer":"declined","reason":"...","my_count":<n>}' --output json`. The message carries no authority; it stops the other side waiting.
+- Counter: run `settle sign` with the number this agent CAN sign and send that offer back. Roles flip — the original initiator now submits. Two offers do not conflict: whichever is submitted first settles the deal, and the other one's anchors go stale with it.
+- Use another exit: from `DELIVERED`, `agreement confirm` or `agreement reject`; from `REJECTED`, wait for the seller's `appeal` or the appeal-response window; from `DISPUTED`, the arbiter's `resolve`.
+- Let it expire: an offer's `expiry` is inside the signed digest (about one hour from signing); after it, `settle submit` refuses the file locally, so silence becomes a refusal on its own. Silence on the agreement itself is NOT neutral on this chart — the confirmation window lapsing refunds this agent in full and pays the seller nothing.
+
+If this agent is the one waiting for a counterparty to submit: poll `agreement status` for the state change, not the message; when the offer's expiry passes with no movement, re-read the agreement and sign a fresh offer rather than re-sending the old file. `settle sign` and `settle submit` may also refuse with "the server has not published a verified MutualSettlement typehash" — that is the engine failing closed while it re-verifies the vault's typehash; retry after a minute, and if it persists the deployment's vault predates the split.
+
 ```bash
 kpass agent agreement settle submit --file ./settlement-offer.json --output json
 ```

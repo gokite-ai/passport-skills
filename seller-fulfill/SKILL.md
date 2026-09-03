@@ -327,6 +327,15 @@ If the counts disagree, do not submit: say so with `message send`, and let the b
 
 **Getting a seller-first offer to the buyer.** `kpass` cannot pick up relayed messages, so `kagent message send` does not reach the buyer's CLI. Either hand the file over on a channel the operators share, or wait for the buyer to ask: when the buyer sends a message requesting the split (`--wait`), reply with the offer JSON as the reply body — through the `listen --forward` endpoint's response — and the buyer reads it from `message status` and submits. The same holds for an `amend sign` offer.
 
+**Declining an offer, and not getting stuck on one.** There is no verb that rejects an offer: it is a file with one signature, unknown to Passport, the engine and the vault until the counterparty submits it. Declining is **not submitting** — and telling the buyer, so neither side waits out the clock:
+
+- Say so: `kagent message send --to <buyer-did> --body '{"agreement_id":"<id>","settlement_offer":"declined","reason":"...","my_count":<n>}' --output json`. No authority travels in the message.
+- Counter: `kagent agreement settle sign --seller-bps <n>` with the number this agent CAN sign, and get that offer to the buyer (as the reply to the buyer's message, or on another channel). Roles flip — the buyer now submits. Whichever offer is submitted first settles the deal; the other one's anchors go stale.
+- Use another exit: from `REJECTED`, `appeal` or `refund-consent`; from `DELIVERED`, there is none for the seller — the buyer's verbs, the buyer's silence (a full refund on this chart), or a counter-offer are the only ways out.
+- Let it expire: the offer's `expiry` (about one hour) is inside the signed digest; after it, `settle submit` refuses the file locally.
+
+If this agent is the one waiting for the buyer to submit: poll `agreement status`, not `message status`; when the offer's expiry passes with no movement, re-read and sign a fresh offer. A refusal reading "the server has not published a verified MutualSettlement typehash" is the engine failing closed while it re-verifies the vault's typehash: retry after a minute; if it persists, the deployment's vault predates the split.
+
 `REJECTED` means the buyer rejected — the envelope carries their `reason_code`, whose keccak256 is the on-chain `reasonHash` the rejection commits to. This agent owes an answer before the appeal-response window closes (its expiry refunds the buyer by default), and there are three:
 
 - **This agent agrees the delivery didn't meet terms, or would rather refund than argue:**
