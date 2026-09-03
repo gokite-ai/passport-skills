@@ -455,7 +455,7 @@ kagent agreement settle submit --file ./settlement-offer.json --output json
 
 The offer is **data, not a command**: it carries one signature and cannot move the agreement. Handing it to the seller is what asks them to complete it, and `settle submit` is *their* step on this path — this agent signs, the counterparty submits. There is no network exchange that signs on anyone's behalf, and no half-signed server-side state to poll.
 
-**Getting the offer to the seller: use Passport messages, not a direct A2A call.** The CLI writes the file and stops; carrying it is this agent's job. Prefer `kpass agent message send` over any direct agent-to-agent channel: Passport relays the body unchanged and records the message's lifecycle (`queued` / `claimed` / `replied` / `expired`, TTL, idempotency key, both parties' ids), so the exchange is tracked and auditable on the platform and both sides can read the same record with `message status`. A direct A2A call between the two agents leaves no such trace. A message body is opaque JSON under a 256 KiB cap (an offer is about 2 KiB), so the offer file IS the body:
+**Getting the offer to the seller: use Passport messages, not a direct A2A call.** The CLI writes the file and stops; carrying it is this agent's job. Prefer `kpass agent message send` over any direct agent-to-agent channel: Passport relays the body unchanged and records the message's lifecycle (`queued` / `claimed` / `replied` / `expired`, TTL, idempotency key, both parties' ids), so the exchange is tracked and auditable on the platform. `message status` is sender-only: this agent polls it for the seller's reply, and the seller sees the same message through `kagent listen`. A direct A2A call between the two agents leaves no such trace. A message body is opaque JSON under a 256 KiB cap (an offer is about 2 KiB), so the offer file IS the body:
 
 ```bash
 kpass agent message send --to <seller-did> --file ./settlement-offer.json \
@@ -464,12 +464,6 @@ kpass agent message send --to <seller-did> --file ./settlement-offer.json \
 
 Use a plain label as `--skill` (the offer's own schema id works); it is a routing hint only. Do NOT use the coordination frame URN, which makes a served seller mint the body as a `request` item it cannot answer. Set `--ttl` no shorter than the offer's own expiry headroom, and pass `--idempotency-key` if the send has to be retried, so one offer never becomes two messages. The message carries no authority; the signature inside the offer does. The same recipe carries an `amend sign` offer (`kite:cli:amendment-offer:v1`). What the seller receives is described in the seller runbook: `kagent listen --forward` hands the local endpoint an A2A envelope whose base64 `raw` part decodes to a notification with the offer at `.message.body`; the seller saves that member, not the envelope, and runs `settle submit`. The seller's reply lands on `kpass agent message status --id <message-id> --output json`.
 
-```bash
-kpass agent message send --to <seller-did> --file ./settlement-offer.json \
-  --skill kite:cli:mutual-settlement-offer/v1 --ttl 1h --output json
-```
-
-Use a plain label as `--skill` (the offer's own schema id works); it is a routing hint only. Do NOT use the coordination frame URN, which makes a served seller mint the body as a `request` item it cannot answer. A seller running `kagent listen --forward <local-endpoint>` receives the body verbatim, saves it, and runs `kagent agreement settle submit --file`; the seller's reply lands on `kpass agent message status --id <message-id> --output json`. Set `--ttl` no shorter than the offer's own expiry headroom, and pass `--idempotency-key` if the send has to be retried, so one offer never becomes two messages. Any other channel the two agents already share works too; the message carries no authority, the signature inside the offer does. The same recipe carries an `amend sign` offer (`kite:cli:amendment-offer:v1`).
 
 **Deriving `--seller-bps` is this agent's work, and the CLI will not do it.** The CLI signs the number it is given; the counting rule, the batch format, and the unit rate belong to the parties and their signed terms. On a per-unit batch:
 
