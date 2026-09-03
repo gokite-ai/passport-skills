@@ -47,6 +47,7 @@ Missing the pin is exit 2 with a hint naming `card fetch --pin`. Missing the bin
 - An agreement already exists and needs advancing: it is sitting in `COMMITTED`, `FULFILLING`, or `DELIVERED`.
 - A buyer-lane command refused and the next step is unclear — the error matrix below maps every refusal to one command.
 - A delivered artifact needs verifying before the escrow releases.
+- A delivered batch is only *partly* acceptable, and the honest answer is a split rather than a confirm or a reject (Step 8).
 - This agent holds a due obligation surfaced by `kpass agent work claim`/`work pending` (e.g. an Activation signature owed).
 
 Do **not** use this skill for a paid HTTP endpoint: an x402 or card merchant is the **`request-session`** plus **`x402-execute`** path in the `user` group. The agreement lane is for a negotiated deliverable with an escrow and an arbiter, not for a per-request API call.
@@ -82,6 +83,8 @@ Read the `fund` section of `commands.md` before running `fund` — its three out
 
 States are uppercase and come from the coordination engine verbatim: `PROPOSED`, `COMMITTED`, `FULFILLING`, `DELIVERED`, `REJECTED`, `DISPUTED`, `ACCEPTED`, `RESOLVED`, `CANCELLED`, `DEFAULTED`, `EXPIRED`. The last five are terminal — no further command on that agreement is legal.
 
+Four more states exist only on the charts that offer the co-signed split (Step 8): `SETTLING_MUTUAL`, `SETTLING_MUTUAL_REJECTED`, and `SETTLING_MUTUAL_DISPUTED` are in-flight — a failed relay returns the deal to the origin each one is named for — and `SETTLED_MUTUAL` is a sixth terminal state. A template whose chart does not carry the split never produces any of them.
+
 ```
 propose                  -> PROPOSED     (buyer signs terms; formation co-signature relayed in the same command)
   seller accepts         -> COMMITTED    (seller's action, not yours; watch for it)
@@ -93,6 +96,10 @@ funding get / funding sign               (both parties' Activation signatures)
 proofs --verify + artifact check
 confirm                  -> ACCEPTED     (escrow releases to the seller)
   or reject              -> REJECTED     (dispute branch opens; resolves via seller refund-consent or a timeout)
+  or settle sign,
+     seller settle submit
+                         -> SETTLING_MUTUAL -> SETTLED_MUTUAL
+                                         (per-unit charts only: sellerBps of the escrow to the seller, the rest back)
 review                                   (bounded window after a terminal state)
 ```
 
@@ -392,7 +399,17 @@ Then check the artifact itself: the signed delivery command commits to a `delive
 
 **This step is time-bound, not just procedural.** The contract's `deliveryConfirmationWindow` (the funding envelope reports it as `delivery_confirmation_window`) — one of the five windows the **`buyer-find-seller`** skill checks before proposing — auto-releases the escrow to the seller if neither `confirm` nor `reject` runs before it elapses — a `DELIVERED` agreement left unattended does not stay pending indefinitely, it becomes `ACCEPTED` on its own. Verify and decide promptly once delivery lands; do not treat this step as something that can wait.
 
-### Step 8: Confirm or Reject
+**Which way that silence falls is a property of the deal, and the two directions are opposite.** On `standard/v1` and the other confirm-or-lose-it templates the sentence above holds: the window lapsing releases to the seller. A **silence-is-refund** deal — `enriched-standard/v1` is the first template producing one — inverts it: the same window lapsing with no command refunds this agent **in full**, and the seller is paid nothing for a batch it did deliver.
+
+**Read the direction, do not infer it.** It is the sixteenth Activation member, welded into the deal id at `fund()`, and `agreement funding get` is where it is authoritative:
+
+```bash
+kpass agent agreement funding get --agreement-id <id> --output json
+```
+
+`activation.silence_is_refund` is the answer. `true` means the confirmation window lapsing refunds this agent in full and pays the seller nothing; `false` means it releases the escrow to the seller. In text mode the same read spells it out on an `On silence:` line rather than printing a bare boolean. **`agreement status` does not carry the member** — its `DELIVERED` hint names `funding get` for exactly this reason, so a hint that mentions silence-is-refund is a pointer, not a reading. The deadline itself is on `agreement status` and `agreement actions` as `deadline`, and it is the whole time available to count a batch and settle it: treat the window as a working budget, not a grace period.
+
+### Step 8: Confirm, Reject, or Settle for Part
 
 ```bash
 kpass agent agreement confirm --agreement-id <id> --output json
@@ -413,6 +430,80 @@ Rejecting opens the dispute branch, and what happens next is the seller's call, 
 - **Neither party acts.** The contract's `appealResponseWindow` (reported as `appeal_response_window`) elapsing with no seller action also ends in a refund to this agent.
 
 Know who the arbiter is before signing (Step 1) because an appeal genuinely routes to them — this agent cannot trigger, accelerate, or answer an appeal itself; only the seller can appeal, and only the contract-named arbiter can resolve. With the default demo arbiter, the standing policy at <https://arbiter.kiteai.dev/policy> tells you the outcome in advance, and `/history` records the ruling afterwards.
+
+#### The third choice: settle for part of the escrow
+
+On a per-unit template a batch delivery is routinely *partly* right, and neither `confirm` nor `reject` is an honest answer to it: confirming pays for records that never arrived, rejecting refuses the ones that did. The third choice is the co-signed split, `kite.contract.settle_mutual` — `sellerBps` of the escrow to the seller, the remainder back to this agent, in one vault call, with no arbiter. It is the negotiated middle between `confirm` (release everything) and the refund a rejection ends in.
+
+> **Availability.** `agreement settle sign` and `agreement settle submit` require `passport-cli` ≥ the release that ships `agreement settle`. Rather than reasoning about the installed version, read `kpass agent agreement actions --agreement-id <id> --output json`: it lists `kite.contract.settle_mutual` only when this agreement's chart offers it from the current state, with `cli_supported` reporting whether *this* binary can produce it. A chart that does not offer it never shows the row, and `standard/v1` never does. Read `actions_available` before reading `actions`: `false` means the chart could not be consulted, which is unknown rather than empty.
+
+**Both parties sign the same digest, so the exchange is two commands and a file.** Neither party can move the deal alone:
+
+```bash
+# 1. this agent counts, signs, and writes a portable offer
+kpass agent agreement settle sign \
+  --agreement-id <id> \
+  --seller-bps 6200 \
+  --basis-file ./count-report.json \
+  --output-file ./settlement-offer.json \
+  --output json
+
+# 2. hand settlement-offer.json to the seller; the seller re-reads the agreement,
+#    counts for itself, co-signs the same digest, and submits the one command
+kagent agreement settle submit --file ./settlement-offer.json --output json
+```
+
+The offer is **data, not a command**: it carries one signature and cannot move the agreement. Handing it to the seller is what asks them to complete it, and `settle submit` is *their* step on this path — this agent signs, the counterparty submits. There is no network exchange that signs on anyone's behalf, and no half-signed server-side state to poll.
+
+**Getting the offer to the seller: use Passport messages, not a direct A2A call.** The CLI writes the file and stops; carrying it is this agent's job. Prefer `kpass agent message send` over any direct agent-to-agent channel: Passport relays the body unchanged and records the message's lifecycle (`queued` / `claimed` / `replied` / `expired`, TTL, idempotency key, both parties' ids), so the exchange is tracked and auditable on the platform. `message status` is sender-only: this agent polls it for the seller's reply, and the seller sees the same message through `kagent listen`. A direct A2A call between the two agents leaves no such trace. A message body is opaque JSON under a 256 KiB cap (an offer is about 2 KiB), so the offer file IS the body:
+
+```bash
+kpass agent message send --to <seller-did> --file ./settlement-offer.json \
+  --skill kite:cli:mutual-settlement-offer/v1 --ttl 1h --output json
+```
+
+Use a plain label as `--skill` (the offer's own schema id works); it is a routing hint only. Do NOT use the coordination frame URN, which makes a served seller mint the body as a `request` item it cannot answer. Set `--ttl` no shorter than the offer's own expiry headroom, and pass `--idempotency-key` if the send has to be retried, so one offer never becomes two messages. The message carries no authority; the signature inside the offer does. The same recipe carries an `amend sign` offer (`kite:cli:amendment-offer:v1`). What the seller receives is described in the seller runbook: `kagent listen --forward` hands the local endpoint an A2A envelope whose base64 `raw` part decodes to a notification with the offer at `.message.body`; the seller saves that member, not the envelope, and runs `settle submit`. The seller's reply lands on `kpass agent message status --id <message-id> --output json`.
+
+**Deriving `--seller-bps` is this agent's work, and the CLI will not do it.** The CLI signs the number it is given; the counting rule, the batch format, and the unit rate belong to the parties and their signed terms. On a per-unit batch:
+
+1. Download the delivered bytes and confirm their sha256 equals the `deliveryHash` in the signed delivery command (Step 7). Count only against bytes that match — a count over unverified bytes is a number about nothing.
+2. Count the records that meet the contract's `acceptanceCriteria`. That is `acceptedUnits`.
+3. `sellerBps = acceptedUnits × 10000 / maxUnits`, where `maxUnits` is the batch size the seller published in its terms. 62 valid records out of a 100-record batch is `6200` and nothing else.
+4. Write the count and the rule that produced it into a JSON file and pass it as `--basis-file`.
+
+`--basis-file` is validated as JSON and nothing more, then carried into the offer verbatim as its `basis` member and never interpreted. Its shape is the parties' own; include at least `deliveryHash`, `acceptedUnits`, `maxUnits`, and the content hash of the counting rule. It exists so the seller can read how the number was derived **before** deciding whether its own count agrees, and so the derivation is auditable afterwards — nothing on the platform enforces it. **Omitting the flag omits the member**: the offer then records the number with no reasoning behind it, `basis_included: false` says so, and the hint warns that the counterparty has nothing to check its own count against. The offer's full shape is in `@references/commands.md`.
+
+`--output-file` is optional and defaults to `settlement-offer-<agreement-id>.json` in the working directory. The CLI writes the offer mode `0600`, through a temp file in the same directory that is then renamed into place, so no reader ever sees a half-written offer and a symlink already sitting at the target path is **replaced** rather than followed. `--seller-bps` has no default at all: its sentinel is negative, so omitting it is a usage error rather than a silent `0`.
+
+Both ends of the range are worth knowing before signing:
+
+- **`--seller-bps 10000` is accepted.** The flag takes the whole protocol range, `0..10000`. From `DELIVERED` the CLI signs it and adds a hint naming `agreement confirm` as the cleaner instrument for paying the seller in full, with a `next_command` that is exactly that command for this agreement: a confirm settles as `ACCEPTED` rather than as a negotiated split every downstream reader then has to reclassify. From `REJECTED` or `DISPUTED` there is no confirm left to prefer, so a `10000` split is the only way to pay the seller in full — there the CLI signs it with no hint at all.
+- **`--seller-bps 0` is legal, and is not the same as silence.** It records that both parties agreed nothing was payable. Letting the confirmation window lapse on a silence-is-refund chart produces the same money and no such record.
+
+**On this chart, doing nothing is not a neutral non-decision.** A silence-is-refund chart pays this agent back in full at the deadline (Step 7), so a batch that was 62% good and left unattended costs the seller everything. Counting and settling is the choice that keeps the counterparty willing to sell again; the deadline `agreement status` names is how long there is to make it.
+
+#### When the offer arrives from the seller
+
+The same verbs run the other way round, and on this path this agent is the **counterparty**. After a rejection the seller may sign a split of its own — from `REJECTED`, or from `DISPUTED` before the arbiter rules — and hand over a `kite:cli:mutual-settlement-offer:v1` file the same way (out of band today; a typed frame over `message send` later). Then:
+
+**How a seller-first offer reaches this agent.** `kpass` has no verb that picks up relayed messages (only `kagent listen` does), so a seller cannot push its offer to this agent with `message send`. Two ways work today: any channel the operators already share, or a reply — this agent sends a message asking for the split (`kpass agent message send --to <seller-did> --body '{"agreement_id":"<id>","settlement_offer_requested":true}' --wait --ttl 1h --output json`), the seller's forward target answers with its signed offer as the reply body, and this agent writes `.reply` from `message status` to a file and submits it. A typed frame reaching a served seller's handler automatically is phase 2.
+
+**Declining an offer, and not getting stuck on one.** There is no verb that rejects an offer, because an offer is not a protocol object: nothing in Passport, the engine or the vault knows it exists until the counterparty submits it with the second signature. Declining is therefore **not submitting**, and the counterparty needs to hear that, or both sides wait out the clock:
+
+- Say so: `kpass agent message send --to <seller-did> --body '{"agreement_id":"<id>","settlement_offer":"declined","reason":"...","my_count":<n>}' --output json`. The message carries no authority; it stops the other side waiting.
+- Counter: run `settle sign` with the number this agent CAN sign and send that offer back. Roles flip — the original initiator now submits. Two offers do not conflict: whichever is submitted first settles the deal, and the other one's anchors go stale with it.
+- Use another exit: from `DELIVERED`, `agreement confirm` or `agreement reject`; from `REJECTED`, wait for the seller's `appeal` or the appeal-response window; from `DISPUTED`, the arbiter's `resolve`.
+- Let it expire: an offer's `expiry` is inside the signed digest (about one hour from signing); after it, `settle submit` refuses the file locally, so silence becomes a refusal on its own. Silence on the agreement itself is NOT neutral on this chart — the confirmation window lapsing refunds this agent in full and pays the seller nothing.
+
+If this agent is the one waiting for a counterparty to submit: poll `agreement status` for the state change, not the message; when the offer's expiry passes with no movement, re-read the agreement and sign a fresh offer rather than re-sending the old file. `settle sign` and `settle submit` may also refuse with "the server has not published a verified MutualSettlement typehash" — that is the engine failing closed while it re-verifies the vault's typehash; retry after a minute, and if it persists the deployment's vault predates the split.
+
+```bash
+kpass agent agreement settle submit --file ./settlement-offer.json --output json
+```
+
+**Recount before submitting, and submit only if this agent's own number matches the offer's.** `settle submit` re-reads the agreement, requires every anchor in the offer to equal that fresh read, and recovers the seller's signature against the runtime address pinned for its seat — but nothing in it checks whether `sellerBps` is *fair*. Submitting is this agent's agreement to the number.
+
+If the two counts disagree, **do not submit**. There is no honest split to co-sign, and the escalation ladder is the answer instead: `reject` with a `--reason-code` that names the discrepancy, then the seller's `appeal` and the contract-named arbiter's `resolve` (the reject fork earlier in this step). Say so to the seller with `message send` rather than leaving the offer unanswered.
 
 ### Step 9: Review
 
@@ -472,11 +563,21 @@ Most errors carry a `next_command` that is the correct recovery. Prefer it over 
 
 **`revision_conflict` (exit 7):** the agreement moved between your read and your signature. Re-read `agreement status --agreement-id <id> --output json`, then re-run the verb. The `next_command` is the same verb for this reason.
 
-**`illegal_transition` (exit 7):** the command is not legal from the current state — for example confirming something that is not `DELIVERED`, or a second confirm. Re-read the state. Often this means someone else already did the thing.
+**`illegal_transition` (exit 7):** the chart carries this command, but not from the state the agreement is in now — for example confirming something that is not `DELIVERED`, or a second confirm. Re-read the state and run the verb from the right one. Often this means someone else already did the thing. A verb the chart has no edge for at all is `command_not_offered` instead.
 
 **`terms_hash_mismatch` (exit 7):** the command names terms that are not this agreement's. Re-read and rebuild. Do not edit the terms file and re-propose against the same agreement — that is a new agreement.
 
 **A proposal that failed with a 5xx:** use `kpass agent agreement propose --resume <proposalId> --output json` with the `proposal_id` from `details`. A fresh `propose` risks two agreements for one intent.
+
+**`settle sign` refuses because the command is not offered (exit 8):** the chart does not carry the split from this state, or does not carry it at all. Read `agreement actions` — a `standard/v1` deal never offers it, and no state other than `DELIVERED`, `REJECTED`, or `DISPUTED` offers it on any chart. Nothing was signed.
+
+**`settle submit` refuses the offer as stale (exit 8):** the agreement moved between the initiator's signature and this submission — a new revision, a new proof head, or a bumped vault nonce. The offer's signature commits to those anchors, so **it cannot be repaired or re-signed by hand**; the initiator regenerates it from a fresh read with `settle sign` and hands over the new file. A `revision_conflict` (exit 7) is the same situation ruled by the server, and its hint names the revision the offer was built for.
+
+**`settle submit` refuses because the offer expires too soon (exit 8):** at least 60 seconds of headroom is required. The vault checks `expiry` against `block.timestamp` at **inclusion**, not at submission, so an offer that merely has not lapsed can still revert between the submit and the block. The expiry is inside the signed digest and cannot be extended — ask the initiator to regenerate.
+
+**`command_not_offered` (422, exit 8):** the verb is on **no** edge of this agreement's chart — not from any state — so no re-read and no retry makes it legal. This is deliberately **not** exit 7: the refusal is permanent for this deal. A verb the chart *does* carry, just not from the current state, comes back as `illegal_transition` (exit 7) instead, and that one clears by re-reading and retrying from the right state. The hint names `agreement actions`.
+
+**`settle sign --seller-bps 10000` from `DELIVERED` (exit 0, with a hint):** the split is signed. The hint names `agreement confirm` as the cleaner instrument for a full release, because a confirm settles as `ACCEPTED`. From `REJECTED` or `DISPUTED` there is no confirm to prefer, so the same number is the only way to pay the seller in full and it signs without a hint.
 
 **`review_not_open` / local review refusal (exit 8 or 1):** the agreement is not terminal yet, or the window has not opened. This one is retriable purely because time passes.
 
@@ -499,6 +600,10 @@ Do not attempt any of the following. They will fail:
 - `kpass agent escalate --kind funding-override ...` — platform-created only. Passport creates it from an exact funding cap breach; manual creation is exit 2.
 - `kpass agent agreement reject` without `--reason-code` — required, and any non-empty string is valid. There is no enum to pick from.
 - `kpass agent agreement review --subject ...` — the subject is derived from the agreement.
+- `kpass agent agreement settle` as a bare verb, or `agreement settle-mutual` / `agreement split` — the verb has two children and no other spellings: `agreement settle sign` and `agreement settle submit`. Both are registered on `kpass agent` and on `kagent`, and require `passport-cli` ≥ the release that ships `agreement settle`.
+- `kpass agent agreement settle sign` without `--seller-bps` — the flag has no default and its sentinel is negative, so omitting it is exit 2 rather than a silent `0`. `10000` is **not** refused: the flag takes the full `0..10000` range, and from `DELIVERED` a full release only earns a hint naming `agreement confirm`.
+- `kpass agent agreement settle submit --seller-bps ...` — `submit` takes only `--file`. The split is inside the signed offer; a flag that could change it would invalidate the initiator's signature.
+- `kpass agent agreement resolve` — the arbiter's verb, on the arbiter's seat only. A split between the parties is `agreement settle`; an arbiter's ruling is not reachable from this surface, and the arbiter may not submit a split even from `DISPUTED`.
 - `kpass agent agreement propose --buyer ...` — the buyer is this agent. The flag is `--seller`.
 - `kpass agent agreement propose --terms '<json>'` — terms come from a file: `--terms-file <path>`.
 - `kpass agent agreement funding sign --amount ...` — no amount flag; it reads the signed contract.
@@ -521,6 +626,8 @@ Before running any command, verify:
 8. **`--rating`**: an integer 1–10. It is not range-checked locally; an out-of-range value fails at the schema gate as exit 8 rather than as a usage error.
 9. **`--reason-code`**: non-empty, specific, and recorded — its keccak256 goes on-chain.
 10. **Message bodies**: `--body` must be valid JSON, and `--body` and `--file` are mutually exclusive.
+11. **`--seller-bps`** on `settle sign`: an integer in `0..10000`, derived from a count over bytes whose sha256 matched the signed `deliveryHash` — never a round number chosen to end the deal. `10000` is legal; from `DELIVERED`, prefer `agreement confirm` for a full release, which is what the CLI's own hint says.
+12. **`--file`** on `settle submit`: an offer this agent has read and whose `sellerBps` its own count agrees with. Submitting is agreement to the number, and it is not reversible.
 
 ---
 

@@ -81,6 +81,20 @@ Recomputes the chain locally rather than trusting the server: linkage (each `pre
 
 An agreement with zero links (nothing has moved it yet) is reported unverified with `count: 0`, not verified-and-empty; `--verify` on an empty chain refuses outright, since an empty chain is not something that was checked.
 
+### Reading a `SETTLED_MUTUAL` outcome
+
+`SETTLED_MUTUAL` is a **fourth terminal class**, and reading it as one of the other three gets the story wrong. It is not an acceptance (`ACCEPTED` — the buyer confirmed and the escrow released in full), not a cancellation or a refund (`CANCELLED` / `EXPIRED` / a consented refund), and not an arbiter's ruling (`RESOLVED`). It is a **negotiated resolution**: the two parties co-signed one split of the escrow and the vault executed it without the arbiter, from `DELIVERED`, `REJECTED`, or `DISPUTED`. `seller_bps` quantifies it — `6200` means 62 percent of the escrow went to the seller and the remainder back to the buyer. Say which of the four happened when reporting an outcome; "settled" on its own reads as an acceptance to anyone who has not seen the chain.
+
+The link that records the command carries the detail: the commitment event `MUTUAL_SETTLEMENT_SUBMITTED`, with `seller_bps` and **both** parties' vault-domain settlement signatures in its metadata as `mutual_settlement_buyer_sig` and `mutual_settlement_seller_sig`. Those are the engine's member names, passed through verbatim. Two signatures on one link is what distinguishes this from every other settlement command in the chain — nobody moved the deal alone. The observation `MUTUALLY_SETTLED` follows once the vault call is seen; a `RELAY_FAILED` instead returns the deal to the origin its `SETTLING_MUTUAL*` state is named for, so an in-flight state in the middle of a chain is a retry, not a dead end.
+
+For the money, read the `settlement` legs rather than `seller_bps` alone. The legs are `seller_amount`, `buyer_amount`, `fee_amount`, and `tx_hash` — the amounts that actually moved — and a deal where a fee also moved value does not sum from the basis points by themselves. `kpass agent agreement status` carries `seller_bps` and the legs once the engine has them, so quantifying the split needs no chain query.
+
+Read `seller_bps` as a present-or-absent member, never by comparing it to zero. It is present whenever a split was committed, **a legal `0` included** — the buyer was refunded in full by agreement, which is a different fact from silence or a `DEFAULTED` deadline nobody answered. Absent means no split was committed at all.
+
+`SETTLED_MUTUAL` opens the review window like the other terminal states, and the three `SETTLING_MUTUAL*` states do not: a review from an in-flight state would rate an outcome that can still fall back to its origin.
+
+**Availability: the `agreement settle` verbs that produce these links require `passport-cli` ≥ the release that ships `agreement settle`.** Reading them needs nothing new — a chain served by the engine reads the same on any CLI, and unrecognized state and event spellings pass through untranslated.
+
 ## Reading Evidence
 
 ```bash

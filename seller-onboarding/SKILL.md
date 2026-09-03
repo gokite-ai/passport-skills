@@ -71,7 +71,9 @@ Multiple offers are supported by repeating phases 2-4 once per offer (source des
 
 Ask about characteristics, never template names, using `references/template-characteristics.md`'s "How phase 3 uses this table" guidance. Once you have enough answers to pick a row, tell the seller the mapping in the summary only: **"This maps to `<template_id>`."**
 
-Every template in `references/template-characteristics.md` is now platform-described (no undescribed-template case exists as of the 2026-08-31 catalog correction). If the seller's answers genuinely don't fit any of the 6 rows, default to `standard/v1` -- the full lifecycle (reject -> appeal -> dispute -> arbitration -> resolve) is the safest general-purpose fallback -- and say so plainly rather than silently forcing a fit.
+Every template in `references/template-characteristics.md` is now platform-described (no undescribed-template case exists as of the 2026-08-31 catalog correction). If the seller's answers genuinely don't fit any row, default to `standard/v1` -- the full lifecycle (reject -> appeal -> dispute -> arbitration -> resolve) is the safest general-purpose fallback -- and say so plainly rather than silently forcing a fit.
+
+`enriched-standard/v1` is the one availability-gated row and needs two extra steps before it can be offered. Confirm the environment the seller will sell in actually serves it (`ksearch workflow-template list`), and tell the seller in their own words that on that chart a silent buyer means an unpaid batch, since it is the only row where inaction costs the seller rather than the buyer. It also obliges the seller to publish a batch size, a unit rate, and a counting rule by hash -- decide those here, in phase 3, because phase 6 publishes them. The row in `references/template-characteristics.md` carries the full conditions.
 
 Record `seller.offer.template_id`.
 

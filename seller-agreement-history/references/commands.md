@@ -106,6 +106,87 @@ Note the `next_command` still offers `--verify` here, but running it against zer
 
 `receipt_hash_for_next_command` is the newest link's `proofHash` — the value a settlement signature would quote next. `signer_attested` reports whether every link's `signedBy` was found in the attesting agent's published key set. An unreadable key set (the signer agent's keys cannot be resolved) fails the verification like any other check: exit 8 (`PROTOCOL`), `status: "error"`, `verified: false`, with `attestation_notes` in `details` naming the resolution failure. The note distinguishes this from a bad signature — the signatures themselves may have verified — but a chain whose signer cannot be attested is never reported as verified.
 
+### A Chain That Ends in `SETTLED_MUTUAL`
+
+A deal closed by the co-signed split (`kite.contract.settle_mutual`) ends on a
+fourth terminal class — a **negotiated resolution**, not an acceptance, not a
+cancellation or refund, and not an arbiter's ruling. The two links that record
+it are the only ones in the vocabulary carrying two party signatures for one
+transition:
+
+```json
+{
+  "sequence": 5,
+  "fromState": "DELIVERED",
+  "toState": "SETTLING_MUTUAL",
+  "event": "MUTUAL_SETTLEMENT_SUBMITTED",
+  "actorId": "did:kite:this-seller",
+  "signedBy": "0xabc123...",
+  "proofHash": "sha256:...",
+  "previousProofHash": "sha256:...",
+  "metadata": {
+    "seller_bps": 6200,
+    "mutual_settlement_buyer_sig": "0x...",
+    "mutual_settlement_seller_sig": "0x..."
+  }
+}
+```
+
+These member names are the **engine's**, not this CLI's: `proofs` passes each
+served link through verbatim, so match on them rather than on the spellings a
+command envelope uses for the same values.
+
+- `seller_bps` is the committed split in basis points: `6200` sends 62 percent
+  of the escrow to the seller and the remainder back to the buyer. The whole
+  protocol range `0..10000` can appear. `0` means both parties agreed nothing
+  was payable, and `10000` means they agreed the seller was owed everything —
+  the normal way to pay a seller in full from `REJECTED` or `DISPUTED`, where
+  no buyer `confirm` is available.
+- `mutual_settlement_buyer_sig` and `mutual_settlement_seller_sig` are both
+  vault-domain EIP-712 signatures over **one** `MutualSettlement` struct. Two
+  signatures on one link is the whole point: neither party could move the deal
+  alone. Three layers verified the pair before the money moved: the signing
+  CLI locally, Passport again before anything reached the engine, and the
+  vault last, on chain — so a pair recorded here satisfied all three.
+- `MUTUALLY_SETTLED` follows once the vault call is observed, landing the deal
+  on `SETTLED_MUTUAL`. A `RELAY_FAILED` instead returns it to the origin the
+  `SETTLING_MUTUAL*` state is named for (`DELIVERED`, `REJECTED`, or
+  `DISPUTED`), so an in-flight state mid-chain is a retry rather than a dead
+  end.
+- The origin the split came from is readable off `fromState`, which is what
+  distinguishes a split of a delivered batch from one negotiated after a
+  rejection or during a dispute.
+
+`--verify` treats these links like any other: linkage, recomputation, and
+signature recovery against the attesting agent's published keys. The chain's
+`signedBy` is the engine's proof-signer, not either party's settlement
+signature — the two party signatures are content inside the link, and what
+attests them is the vault's own execution.
+
+For the amounts that actually moved, read the `settlement` legs on
+`kagent agreement status` rather than deriving them from `seller_bps`: a deal
+where a fee also moved value does not sum from the basis points alone. The legs
+are `seller_amount`, `buyer_amount`, `fee_amount`, and `tx_hash`, and they are
+the money as the settlement layer **observed** it. That read also carries
+`seller_bps` directly, so quantifying the split needs no chain query.
+
+Read `seller_bps` as a present-or-absent member, never by comparing it to
+zero. It is **present whenever a split was committed, a legal `0` included** —
+the buyer was refunded in full by agreement, which is a different fact from
+silence or a `DEFAULTED` deadline nobody answered. **Absent** means no split
+was committed at all. Testing `seller_bps == 0` for "no split reported" erases
+the one fact the settlement recorded.
+
+Event and state spellings are passed through **verbatim** from the engine, so
+match on them rather than reformatting, and an unfamiliar spelling is not a
+reason to treat a link as malformed. Events are UPPERCASE and split into two
+kinds that must not be conflated: a **commitment** names what a party submitted
+and carries `actorId` with a command id, and an **observation** names what the
+settlement layer or a deadline did and carries no party.
+`MUTUAL_SETTLEMENT_SUBMITTED` is the commitment; `MUTUALLY_SETTLED` and
+`RELAY_FAILED` are observations. An audit asking who consented reads the
+commitment, never the observation.
+
 ### Error Output — Verification Failed (exit 8, `PROTOCOL`)
 
 ```json
