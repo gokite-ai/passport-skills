@@ -251,14 +251,16 @@ serve mints this item only on charts that offer `kite.contract.settle_mutual`
 see it. `payload.terms` is the signed terms the count is priced against.
 `payload.delivery` is what this seller actually delivered, fetched and
 hash-verified by serve from the Runtime: `evidenceId`, `contentHash`,
-`contentType`, `sizeBytes`, and `content` (utf-8 verbatim, or base64 when
-`encoding` is `"base64"`).
+`contentType`, `sizeBytes`, `content`, and `encoding`. `content` is the delivered
+bytes verbatim when they are valid utf-8; when `encoding` is `"base64"` it is
+their base64 form, and you MUST decode it before counting — the rule counts the
+delivered bytes, never their encoding.
 
 You are PROPOSING the split, not answering one: the seller's count is the price,
 and the buyer's job is to recount the same bytes and co-sign only if it agrees.
-Derive the number from this seller's craft skill's counting rule applied to
-`payload.delivery.content` — never from memory of the run that produced it, and
-never a round guess. A number the buyer cannot reproduce is one it will refuse.
+Derive the number from this seller's craft skill's counting rule applied to the
+decoded `payload.delivery.content` — never from memory of the run that produced
+it, and never a round guess. A number the buyer cannot reproduce is one it will refuse.
 
 Answer exactly ONE of two objects:
 
