@@ -6,8 +6,9 @@ description: >-
   (`kite-agent-handler`) expects on stdout. Produce a deliverable for a `start`,
   a typed reply or quote frame for a `request`, an accept/decline/escalate for a
   `decide`, one arm of the rejected fork — a revised delivery, an appeal, or a
-  refund consent — for a `rejected`, or a bookkeeping acknowledgment for a
-  `closed`. Invoke whenever the task prompt is a JSON
+  refund consent — for a `rejected`, a split proposal or an explicit no-split
+  for a `settle`, or a bookkeeping acknowledgment for a `closed`. Invoke
+  whenever the task prompt is a JSON
   item envelope carrying an `operation` field. Judgment and production are yours;
   serve validates and signs. Requires the active binding from seller-agent-setup.
 ---
@@ -37,7 +38,7 @@ for whoever operates the seller rather than for you.
 The task prompt is one JSON item envelope:
 
 - `operation` — what kind of answer is owed: `start`, `request`, `decide`,
-  `rejected`, or `closed`.
+  `rejected`, `settle`, or `closed`.
 - `itemId`, `attempt` — identity and retry count. `attempt > 1` means a prior
   run failed: produce the SAME intended outcome, not a variation.
 - `agreement` — the full authoritative platform state, already fetched and
@@ -235,15 +236,57 @@ Choose exactly ONE of three answers:
 
 Emit exactly one of these objects. Two arms, or none, is discarded fail-closed.
 
-**There is no `settle` arm, and this fork is still three arms wide.** A
-co-signed split of the escrow (`kite.contract.settle_mutual`) is a fourth
-answer to a rejection on the charts that offer it, but carrying the offer to a
-handler is phase 2 and is not available — a `settle` object emitted here is
-discarded like any other unrecognized answer. This seller's human operator runs
-`kagent agreement settle sign` / `settle submit` by hand in the meantime
-(**`seller-fulfill`** Step 8), so answer with one of the three arms above and
-note in that answer's own prose that a split is what the delivery warrants —
-that line is what the operator reads.
+**A co-signed split is not one of these arms.** On charts that offer
+`kite.contract.settle_mutual`, serve mints a separate `settle` item while the
+agreement is still DELIVERED — before the buyer accepts or rejects — and that
+item is where you propose a split (see `settle` below). At REJECTED the fork is
+three arms wide; a `settlement` object emitted here is discarded like any other
+unrecognized answer, and a split from REJECTED stays the human operator's verb
+(`kagent agreement settle sign`, **`seller-fulfill`** Step 8).
+
+### settle — the delivery is DELIVERED and this chart offers a co-signed split
+
+serve mints this item only on charts that offer `kite.contract.settle_mutual`
+(per-unit, partially-fulfillable offerings); on an all-or-nothing chart you never
+see it. `payload.terms` is the signed terms the count is priced against.
+`payload.delivery` is what this seller actually delivered, fetched and
+hash-verified by serve from the Runtime: `evidenceId`, `contentHash`,
+`contentType`, `sizeBytes`, `content`, and `encoding`. `content` is the delivered
+bytes verbatim when they are valid utf-8; when `encoding` is `"base64"` it is
+their base64 form, and you MUST decode it before counting — the rule counts the
+delivered bytes, never their encoding.
+
+You are PROPOSING the split, not answering one: the seller's count is the price,
+and the buyer's job is to recount the same bytes and co-sign only if it agrees.
+Derive the number from this seller's craft skill's counting rule applied to the
+decoded `payload.delivery.content` — never from memory of the run that produced
+it, and never a round guess. A number the buyer cannot reproduce is one it will refuse.
+
+Answer exactly ONE of two objects:
+
+- **Propose a split**:
+  ```json
+  {"settlement": {"sellerBps": <integer 0..10000>, "basis": {…}}}
+  ```
+  `sellerBps` is this seller's share of the escrow in basis points (10000 = the
+  whole escrow; the remainder refunds the buyer). `basis` is your derivation,
+  carried into the signed offer verbatim for the buyer to check: the counting
+  rule, the accepted and funded counts, `evidenceId`, `contentHash`, and a
+  one-line statement. serve signs the offer and publishes it as evidence; the
+  buyer countersigns or not.
+- **No split is owed**:
+  ```json
+  {"no_settlement": {"reason": "<why>"}}
+  ```
+  Use it when the delivery was complete — do not propose 10000 bps; the buyer's
+  `accept` releases the full escrow more cleanly — and when this seller's craft
+  skill defines no counting rule for the delivered artifact, because a number
+  you cannot derive is one the buyer cannot check.
+
+Silence forfeits: on a chart whose confirmation window refunds the buyer,
+proposing nothing loses the whole escrow while the buyer keeps the delivery, so
+this item must be answered. Both arms, or neither, or a `settlement` without an
+integer `sellerBps`, is discarded fail-closed.
 
 ### closed — a buyer closed a negotiation thread (bookkeeping only)
 
