@@ -776,11 +776,11 @@
   {
     "id": 76,
     "prompt": "You're going to run as a live service that responds to deals in real time -- how should you start taking work?",
-    "expected_output": "Agent recommends running kagent serve --handler \"$HOME/.kpass/bin/kite-agent-handler\" --handler-timeout 10m --sweep-interval 30s from the seller directory. serve itself holds the platform stream and invokes the handler for each item, so the seller writes no code and does not call kagent listen directly -- that CLI-driven path (seller-fulfill) is only for a seller that cannot keep a process running, already owns its own agent loop, or needs something the standard handler can't express.",
+    "expected_output": "Agent recommends running kagent serve --config kite.config.yaml --sweep-interval 30s from the seller directory. serve itself holds the platform stream and the signing key and runs the seller's own model for each item, so the seller writes no platform code and does not call kagent listen directly -- that CLI-driven path (seller-fulfill) is only for a seller that cannot keep a process running, already owns its own agent loop, or needs something the served brain can't express.",
     "assertions": [
       "kagent serve",
-      "--handler",
-      "kite-agent-handler"
+      "--config",
+      "kite.config.yaml"
     ]
   },
   {
@@ -946,11 +946,11 @@
   {
     "id": 93,
     "prompt": "This seller is set up and ready -- start it serving live so it can respond to buyer proposals in real time.",
-    "expected_output": "Agent cd's into the seller directory first, since serve sets no working directory and the cwd it is started from IS the whole configuration (skills and card facts load relative to it), sets ANTHROPIC_API_KEY (or the model runtime's own auth), then runs kagent serve --handler \"$HOME/.kpass/bin/kite-agent-handler\" --handler-timeout 10m --sweep-interval 30s.",
+    "expected_output": "Agent cd's into the seller directory -- the directory kite.config.yaml lives in, since skills and card facts load relative to it -- exports the variable brain.apiKeyEnv names (ANTHROPIC_API_KEY for claude-code), then runs kagent serve --config kite.config.yaml --sweep-interval 30s and reads the [serve] brain: startup line and any [serve] warning: lines before calling it healthy.",
     "assertions": [
-      "kagent serve --handler",
+      "kagent serve --config",
       "the cwd IS the configuration",
-      "--handler-timeout 10m"
+      "kite.config.yaml"
     ]
   },
   {
@@ -966,7 +966,7 @@
   {
     "id": 95,
     "prompt": "Before I run kagent serve for this seller, does it need anything from setup first, and when would I use seller-fulfill instead?",
-    "expected_output": "Agent explains seller-serve assumes an active binding and a ready offering already produced by seller-agent-setup, which must run first. It recommends the seller-serve handler lane as the default, since it needs no seller code -- the platform's kite-agent-handler runs the seller's own skills directly. It should switch to the seller-fulfill CLI lane instead only when the seller cannot keep a process running or run the model runtime on that machine, already has its own agent or business system that must own the loop, or the work needs something the standard handler cannot express (a non-JSON deliverable, a custom evidenceType/units, or a moot answer) -- not because one lane supersedes the other.",
+    "expected_output": "Agent explains seller-serve assumes an active binding and a ready offering already produced by seller-agent-setup, which must run first. It recommends the seller-serve lane (kagent serve --config kite.config.yaml) as the default, since it needs no platform code -- serve runs the seller's own model with the seller's skills directly. It should switch to the seller-fulfill CLI lane instead only when the seller cannot keep a process running or run the model runtime on that machine, already has its own agent or business system that must own the loop, or the work needs something the served brain cannot express (a non-JSON deliverable, a custom evidenceType/units, or a moot answer) -- not because one lane supersedes the other.",
     "assertions": [
       "seller-agent-setup",
       "active binding",
@@ -986,7 +986,7 @@
   {
     "id": 97,
     "prompt": "Every proposal this served seller receives gets escalated to the owner instead of being decided on the spot -- is that expected?",
-    "expected_output": "Agent explains this is the documented symptom of a missing seller-acceptance skill under <cwd>/.claude/skills/, or of serve having been started from the wrong directory (since skills load relative to wherever kagent serve was launched from). kite-seller escalates every proposal to the owner when this file is absent, since a seller with no stated acceptance standard cannot say yes on its own.",
+    "expected_output": "Agent explains this is the documented symptom of a missing seller-acceptance skill under <seller>/.claude/skills/ (or the directory tools.skills names), or of --config pointing at a file outside the seller directory (since skills load relative to the config file's directory). kite-seller escalates every proposal to the owner when this file is absent, since a seller with no stated acceptance standard cannot say yes on its own.",
     "assertions": [
       "seller-acceptance",
       ".claude/skills/",
@@ -1026,7 +1026,7 @@
   {
     "id": 101,
     "prompt": "This served seller's next item envelope came back with operation: \"dispute\" -- handle it.",
-    "expected_output": "Agent recognizes dispute handling is undesigned for this contract -- the standard handler escalates it to the owner before any agent run is ever started, so a dispute operation should never reach the model. It treats the envelope as foreign input and escalates rather than attempting an accept/decline/appeal/redeliver-shaped answer.",
+    "expected_output": "Agent recognizes dispute handling is undesigned for this contract -- serve never hands a dispute to the brain -- it escalates to the owner before any model run is ever started, so a dispute operation should never reach the model. It treats the envelope as foreign input and escalates rather than attempting an accept/decline/appeal/redeliver-shaped answer.",
     "assertions": [
       "dispute",
       "undesigned",
@@ -1100,7 +1100,7 @@
   },
   {
     "id": 109,
-    "prompt": "You are running under kagent serve --handler kite-agent-handler and receive a `request` operation: a buyer asking for a sample of your work before committing. Your repo has a .claude/skills/seller-acceptance/SKILL.md with a `## request` section saying to answer briefly and never quote below your floor.",
+    "prompt": "You are running under kagent serve --config kite.config.yaml and receive a `request` operation: a buyer asking for a sample of your work before committing. Your repo has a .claude/skills/seller-acceptance/SKILL.md with a `## request` section saying to answer briefly and never quote below your floor.",
     "expected_output": "kite-seller reads the seller-acceptance file's request section (not just decide) and follows its quoting-floor instruction, rather than improvising an answer with no reference to the seller's own standing orders.",
     "assertions": [
       "seller-acceptance",
@@ -1109,7 +1109,7 @@
   },
   {
     "id": 110,
-    "prompt": "You are running under kagent serve --handler kite-agent-handler and receive a `rejected` operation after a buyer rejected your delivery. Your seller-acceptance/SKILL.md has a `## rejected` section saying to consent-refund if the objection is right.",
+    "prompt": "You are running under kagent serve --config kite.config.yaml and receive a `rejected` operation after a buyer rejected your delivery. Your seller-acceptance/SKILL.md has a `## rejected` section saying to consent-refund if the objection is right.",
     "expected_output": "kite-seller reads the seller-acceptance file's rejected section and applies its stated policy (consent-refund vs revise vs appeal) rather than defaulting to always-appeal or always-revise.",
     "assertions": [
       "seller-acceptance",
@@ -1129,7 +1129,7 @@
   {
     "id": 112,
     "prompt": "Run seller-onboarding phase 7 after a successful publish.",
-    "expected_output": "Prints the kagent serve --handler kite-agent-handler command and describes what a healthy start looks like, but does not run the command itself -- it's a long-running process that must not die with the assistant.",
+    "expected_output": "Writes kite.config.yaml for the seller's review, prints the kagent serve --config kite.config.yaml command and describes what a healthy start looks like (the [serve] brain: line, no warnings, the process stays up), but does not run the command itself -- it's a long-running process that must not die with the assistant.",
     "assertions": [
       "kagent serve",
       "does not run"

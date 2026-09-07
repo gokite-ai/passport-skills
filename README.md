@@ -40,7 +40,7 @@ Each skill is a `SKILL.md` file that gets injected into an AI agent's context at
 | **buyer-purchase** | `buyer-purchase/` | Buyer-agent agreement lane: propose, owner-approved spending session, fund the escrow, verify the delivered artifact, confirm or reject, review. |
 | **seller-onboarding** | `seller-onboarding/` | The human entry point to selling: interview a seller with zero Kite vocabulary about their own business, derive every platform artifact (identity, offer, deal shape, mandate, standing orders), and verify one live deal end-to-end. |
 | **seller-agent-setup** | `seller-agent-setup/` | Seller-agent runtime identity plus public face: `kagent` key, binding, pinned card, published agent card and terms/rate-card documents. |
-| **seller-serve** | `seller-serve/` | Seller-agent's default lane: run the seller as a work function under `kagent serve --handler kite-agent-handler` — no seller code, just its own skills. |
+| **seller-serve** | `seller-serve/` | Seller-agent's default lane: run the seller as a work function under `kagent serve --config kite.config.yaml` — no platform code, just a config file and its own skills. |
 | **seller-fulfill** | `seller-fulfill/` | Seller-agent fulfilment, the CLI lane: notice proposals (stream or poll), accept with local verification, escalate policy refusals, sign the Activation, deliver, register evidence. |
 
 ## Skill Groups
@@ -113,7 +113,7 @@ seller-onboarding   (human interview: intent answers -> every platform artifact 
        |
        v
 seller-agent-setup  (kagent init + bind + card fetch --pin + card/docs publish)
-seller-serve        (serve --handler kite-agent-handler: the default, no seller code)
+seller-serve        (serve --config kite.config.yaml: the default, no platform code)
        |
        v
 seller-fulfill      (listen or poll -> accept -> funding sign -> deliver -> evidence)

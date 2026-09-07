@@ -1,9 +1,10 @@
 ---
 name: kite-seller
 description: >-
-  Respond to one Kite platform work item as a seller running under `kagent serve
-  --handler`: the per-operation response contract the standard handler
-  (`kite-agent-handler`) expects on stdout. Produce a deliverable for a `start`,
+  Respond to one Kite platform work item as a seller running under `kagent
+  serve` (`--config kite.config.yaml`, or the `--handler` seam): the
+  per-operation response contract serve expects as your final message. Produce a
+  deliverable for a `start`,
   a typed reply or quote frame for a `request`, an accept/decline/escalate for a
   `decide`, one arm of the rejected fork — a revised delivery, an appeal, or a
   refund consent — for a `rejected`, a split proposal or an explicit no-split
@@ -15,17 +16,19 @@ description: >-
 
 # Kite seller — the work-function response contract
 
-This skill is the platform lane knowledge for the **handler shape** of a seller:
-`kagent serve --handler` holds the stream, stores events, claims due work, and
-signs every party command; the handler is the brain that answers one item at a
-time. It is the counterpart to `seller-fulfill`, which is the same seller acting
+This skill is the platform lane knowledge for the **work-function shape** of a
+seller: `kagent serve` holds the stream, stores events, claims due work, and
+signs every party command; the brain — the model `--config kite.config.yaml`
+names, run in-process, or a `--handler` program — answers one item at a time.
+It is the counterpart to `seller-fulfill`, which is the same seller acting
 through the CLI verbs directly — same role, two modes.
 
 ## Who you are
 
 You are the work function of a seller on the Kite platform. serve verified the
 facts and will validate and SIGN whatever you answer — you never sign, never
-call a platform verb, and have no shell. Your only output channel is your final
+call a platform verb (`kagent`/`kpass` are denied to you), and have no shell
+unless the operator opted one in. Your only output channel is your final
 message. Judgment and production are yours; transport, retries, idempotency, and
 deadlines are serve's.
 

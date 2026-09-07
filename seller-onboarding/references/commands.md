@@ -53,7 +53,21 @@ No CLI command -- this phase writes a file (`<seller-repo>/.claude/skills/seller
 
 ## Serve (phase 7)
 
-- `kagent serve --handler kite-agent-handler --handler-timeout <secs> --sweep-interval <secs>` -- the skill prints this command and stops; it never runs it (long-running process, user's terminal).
+- `<seller-repo>/kite.config.yaml` -- written by the skill, reviewed by the seller (the `seller-serve` skill documents every key):
+
+  ```yaml
+  brain:
+    harness: claude-code       # claude-code | codex
+    model: claude-sonnet-5     # any model the harness serves
+    apiKeyEnv: ANTHROPIC_API_KEY   # the NAME of the variable holding the key -- never the key
+    maxSteps: 30
+    maxBudgetUsd: "2.50"
+    timeout: 5m                # per-item budget; must stay below the buyer's message TTL (default 10m)
+    session: per-agreement
+  tools: {}                    # skills live in <seller-repo>/.claude/skills/
+  ```
+
+- `cd <seller-repo> && kagent serve --config kite.config.yaml --sweep-interval <dur>` -- the skill prints this command and stops; it never runs it (long-running process, user's terminal). Requires kagent 6.4.1 or later.
 
 ## Verify (phase 8)
 
