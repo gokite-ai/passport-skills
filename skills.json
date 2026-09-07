@@ -5,7 +5,7 @@
   "description": "Skills that teach AI agents how to authenticate users, manage spending sessions, execute payments, and transfer tokens using the kpass CLI.",
   "version": "3.2.0",
   "min_kpass_version": "6.1.0",
-  "min_kagent_version": "6.4.0",
+  "min_kagent_version": "6.4.1",
   "min_ksearch_version": "3.0.0",
   "setup_script": "scripts/setup.sh",
   "groups": {
