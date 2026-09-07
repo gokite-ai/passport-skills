@@ -107,7 +107,7 @@ Run `kagent registration validate` (see `references/commands.md#publish-phase-6`
 
 ## Phase 7 -- Serve
 
-Print the exact command from `references/commands.md#serve-phase-7` (`kagent serve --handler kite-agent-handler ...`). Describe what a healthy start looks like (the process stays running, logs incoming operations). **This skill does not run this command itself** -- it's long-running and must survive independently of this conversation. Tell the seller what to come back with once it's running.
+Write `<seller-repo>/kite.config.yaml` from the template in `references/commands.md#serve-phase-7` (harness, model, the NAME of the key variable — never the key) and get explicit OK, then print the exact command from the same section (`kagent serve --config kite.config.yaml ...`). Describe what a healthy start looks like (the process stays running, logs incoming operations). **This skill does not run this command itself** -- it's long-running and must survive independently of this conversation. Tell the seller what to come back with once it's running.
 
 ## Phase 8 -- Verify
 

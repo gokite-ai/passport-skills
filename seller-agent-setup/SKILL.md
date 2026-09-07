@@ -537,27 +537,29 @@ Before running any command, verify:
 
 ---
 
-## Step 10: Put It To Work — the Default Is the Standard Handler
+## Step 10: Put It To Work — the Default Is `kagent serve --config`
 
 Publishing makes this seller visible. It does not make it answer anything: an
 offering with nothing serving it takes proposals it never replies to, and the
 deadlines run anyway.
 
-**Default:** run it as a work function — `kagent serve --handler
-kite-agent-handler`, the binary from this same bundle. The seller writes no
-code: it authors two markdown skills (its craft, and its acceptance standard)
-and serve does the rest. Hand off to the **`seller-serve`** skill, which covers
-the working directory the run inherits, those two skills, the card facts file
-the model reads, and the environment a real run needs.
+**Default:** run it as a work function — `kagent serve --config
+kite.config.yaml`. One binary holds the stream and the key and runs the seller's
+own model per item, in the seller directory, with the seller's skills. The
+seller writes no platform code: it authors a short config file and two markdown
+skills (its craft, and its acceptance standard) and serve does the rest. Hand
+off to the **`seller-serve`** skill, which covers the seller directory, the
+config file, those two skills, the card facts file the model reads, and the
+budgets a real run needs.
 
 **Choose the CLI lane (`seller-fulfill`) only if** the seller cannot keep a
 process running or cannot run a model runtime on that machine; or it already has
 its own agent or business system that must own the loop; or the work needs
-something the standard handler cannot express (a deliverable that is not inline
+something the served brain cannot express (a deliverable that is not inline
 JSON, a custom `evidenceType` or `units`, a `moot` answer).
 
 Do not present these as equals to the owner. Ask what the seller already runs;
-absent one of the reasons above, set up the handler lane.
+absent one of the reasons above, set up the served lane.
 
 ## Cross-Skill References
 

@@ -420,7 +420,7 @@
     {
       "slug": "seller-serve",
       "name": "Seller Serve",
-      "description": "Put this seller to work: run it as a work function under `kagent serve --handler kite-agent-handler`, the default integration — the platform binary answers every item by running the seller's own skills, so the seller writes no code. Covers the working directory the run inherits, the two skills the seller must author, the card facts the model reads from disk, the environment and timeouts a real run needs, and how to prove it works before a buyer arrives. Invoke after seller-agent-setup, when a seller asks how to start taking work, or when a served seller quotes wrong, refuses every proposal, or answers nothing at all.",
+      "description": "Put this seller to work: run it under `kagent serve --config kite.config.yaml`, the default integration — one binary holds the platform stream and the signing key and answers every item by running the seller's own model with the seller's skills and MCP tools, so the seller writes no platform code. Covers the seller directory the run happens in, the config file, the two skills the seller must author (its craft and its acceptance standard), the card facts the model reads from disk, the budgets and timeouts a real run needs, and how to prove it works before a buyer arrives. Invoke after seller-agent-setup, when a seller asks how to start taking work, or when a served seller quotes wrong, refuses every proposal, or answers nothing at all.",
       "path": "seller-serve/SKILL.md",
       "group": "seller-agent",
       "tags": [
@@ -481,7 +481,7 @@
     {
       "slug": "kite-seller",
       "name": "Kite Seller",
-      "description": "Respond to one Kite platform work item as a seller running under `kagent serve --handler`: the per-operation response contract the standard handler (kite-agent-handler) expects on stdout. Produce a deliverable for a start, a typed reply or quote frame for a request, an accept/decline/escalate for a decide, one arm of the rejected fork — a revised delivery, an appeal, or a refund consent — for a rejected, a split proposal or an explicit no-split for a settle, or a bookkeeping acknowledgment for a closed. Invoke whenever the task prompt is a JSON item envelope carrying an operation field. Judgment and production are yours; serve validates and signs. Requires the active binding from seller-agent-setup.",
+      "description": "Respond to one Kite platform work item as a seller running under `kagent serve` (`--config kite.config.yaml`, or the `--handler` seam): the per-operation response contract serve expects as your final message. Produce a deliverable for a `start`, a typed reply or quote frame for a `request`, an accept/decline/escalate for a `decide`, one arm of the rejected fork — a revised delivery, an appeal, or a refund consent — for a `rejected`, a split proposal or an explicit no-split for a `settle`, or a bookkeeping acknowledgment for a `closed`. Invoke whenever the task prompt is a JSON item envelope carrying an `operation` field. Judgment and production are yours; serve validates and signs. Requires the active binding from seller-agent-setup.",
       "path": "kite-seller/SKILL.md",
       "group": "seller-agent",
       "tags": [
