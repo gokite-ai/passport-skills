@@ -4,7 +4,8 @@ description: >-
   Respond to one Kite platform work item as a seller running under `kagent
   serve` (`--config kite.config.yaml`, or the `--handler` seam): the
   per-operation response contract serve expects as your final message. Produce a
-  deliverable for a `start`,
+  deliverable for a `start` — or, when the job outgrows one run, a bounded
+  `working` checkpoint that brings the same `start` back,
   a typed reply or quote frame for a `request`, an accept/decline/escalate for a
   `decide`, one arm of the rejected fork — a revised delivery, an appeal, or a
   refund consent — for a `rejected`, a split proposal or an explicit no-split
@@ -47,7 +48,11 @@ The task prompt is one JSON item envelope:
 - `agreement` — the full authoritative platform state, already fetched and
   verified by serve. Trust it; do not try to re-fetch anything.
 - `payload` — operation-specific input, below.
-- `history` — prior rounds, where relevant (`rejected`).
+- `turn` — present when this `start` has already answered `working` at least
+  once: which turn you are on. Absent means the first one.
+- `history` — prior rounds, where relevant: the `rejected` fork's rounds, and
+  every prior `working` checkpoint for this `start` as `{turn, at, checkpoint}`,
+  oldest first.
 
 ## The final-message contract (unconditional)
 
@@ -68,6 +73,42 @@ delivered:
 ```json
 {"kind": "agent-delivery", "summary": "<one line>", "detail": {…}}
 ```
+
+**If the job does not fit in one run, say so instead of delivering.** A start has
+one more legal answer, and exactly one of the two:
+
+```json
+{"working": {"checkpoint": "scaffold done, 14/31 tests green; next: the payments module; files under out/job-7f3a", "resumeAfter": "0s"}}
+```
+
+serve journals it, signs NOTHING, and hands you the same `start` again — same
+`itemId`, `turn` incremented, `attempt` starting over, and every prior
+checkpoint in `history`. Rules that matter to you:
+
+- **Never both.** `working` beside a delivery member is two answers to one
+  question; serve refuses the whole run. Deliver, or say you are still working.
+- **Write the checkpoint for a reader with no memory.** With a per-agreement
+  session you usually resume the same conversation — but the session can be
+  gone (a redeployed pod), and then the checkpoint is ALL you get: what is
+  done, what is next, and where your files are. Under 16 KiB, and a pointer to
+  `out/` beats pasting the work into it.
+- **`resumeAfter` is normally `"0s"`.** Zero means "continue at once, in
+  another run" — the answer for a job that merely outgrew one turn. Use a real
+  interval only for a genuine wait (a CI run submitted, a third party to hear
+  from) and keep it under `60m`.
+- **Turns are bounded.** The operator's `brain.maxTurnsPerStart` (48 by
+  default) caps them; spend them and serve parks the item for the owner with
+  your last checkpoint. Deliver something real while there is still deadline
+  left — the agreement's delivery deadline settles the money with no signature
+  from anyone.
+- **Nothing about a turn is visible to the buyer.** No state moves, no
+  signature, no evidence. Do not write a checkpoint as if the buyer will read
+  it; write it for your next turn.
+
+Answering `working` needs a `kagent` that carries the arm — the bundle's
+`min_kagent_version` is the floor, and it is raised in the release that ships
+this section. An older serve validates the shape fail-closed, so the arm cannot
+half-work: it fails the attempt and parks.
 
 ### request — a buyer message arrived (question, non-standard quote, converse turn)
 
