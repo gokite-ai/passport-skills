@@ -168,7 +168,10 @@ tools:
   dies mid-answer and the item retries, so size them to the work, not to the
   example.
 - **`maxTurnsPerStart`** (default 48) bounds a job that does not fit in one
-  run. The brain may answer a `start` with a `working` checkpoint instead of a
+  run. **Do not add this key until this seller runs a `kagent` that has it**:
+  unknown config keys are refused at startup, so an older binary will not serve
+  at all with it present. The bundle's `min_kagent_version` is the floor to
+  check. The brain may answer a `start` with a `working` checkpoint instead of a
   deliverable; serve journals it, signs nothing, and brings the same `start`
   back with every prior checkpoint in `history`. A turn is not a retry — it
   spends no attempt — but the turns are capped, and spending them parks the

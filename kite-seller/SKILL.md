@@ -48,11 +48,11 @@ The task prompt is one JSON item envelope:
 - `agreement` — the full authoritative platform state, already fetched and
   verified by serve. Trust it; do not try to re-fetch anything.
 - `payload` — operation-specific input, below.
-- `turn` — present when this `start` has already answered `working` at least
-  once: which turn you are on. Absent means the first one.
+- `turn` — how many `working` checkpoints this `start` has already recorded.
+  Absent on the first run.
 - `history` — prior rounds, where relevant: the `rejected` fork's rounds, and
-  every prior `working` checkpoint for this `start` as `{turn, at, checkpoint}`,
-  oldest first.
+  this `start`'s recent `working` checkpoints as `{turn, at, checkpoint}`,
+  oldest first. Bounded — on a long job the oldest checkpoints are dropped.
 
 ## The final-message contract (unconditional)
 
@@ -82,8 +82,21 @@ one more legal answer, and exactly one of the two:
 ```
 
 serve journals it, signs NOTHING, and hands you the same `start` again — same
-`itemId`, `turn` incremented, `attempt` starting over, and every prior
-checkpoint in `history`. Rules that matter to you:
+`itemId`, `attempt` starting over, and your recent checkpoints in `history`.
+
+**How the numbers read.** `turn` counts checkpoints ALREADY RECORDED, not the
+run you are in: the first run of a `start` carries no `turn` member, the run
+after your first checkpoint carries `turn: 1`, and the checkpoint you write on
+that run is recorded as turn 2. `history` is those records, oldest first, each
+`{turn, at, checkpoint}` — so `history[last].turn == turn`. The operator's
+`maxTurnsPerStart` is measured against the same count.
+
+**`history` is bounded, and the oldest go first.** serve replays the most recent
+checkpoints within a 64 KiB budget, so on a long job the early ones are gone.
+Write every checkpoint to stand on its own rather than as a diff against the
+last one.
+
+Rules that matter to you:
 
 - **Never both.** `working` beside a delivery member is two answers to one
   question; serve refuses the whole run. Deliver, or say you are still working.
@@ -91,7 +104,8 @@ checkpoint in `history`. Rules that matter to you:
   session you usually resume the same conversation — but the session can be
   gone (a redeployed pod), and then the checkpoint is ALL you get: what is
   done, what is next, and where your files are. Under 16 KiB, and a pointer to
-  `out/` beats pasting the work into it.
+  `out/` beats pasting the work into it — the pointer survives a trimmed
+  history, the pasted text may not.
 - **`resumeAfter` is normally `"0s"`.** Zero means "continue at once, in
   another run" — the answer for a job that merely outgrew one turn. Use a real
   interval only for a genuine wait (a CI run submitted, a third party to hear
