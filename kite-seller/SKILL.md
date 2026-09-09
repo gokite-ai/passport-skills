@@ -119,10 +119,9 @@ Rules that matter to you:
   signature, no evidence. Do not write a checkpoint as if the buyer will read
   it; write it for your next turn.
 
-Answering `working` needs a `kagent` that carries the arm — the bundle's
-`min_kagent_version` is the floor, and it is raised in the release that ships
-this section. An older serve validates the shape fail-closed, so the arm cannot
-half-work: it fails the attempt and parks.
+Answering `working` needs `kagent` 6.6.0 or newer — the bundle's
+`min_kagent_version`. An older serve validates the shape fail-closed, so the
+arm cannot half-work: it fails the attempt and parks.
 
 ### request — a buyer message arrived (question, non-standard quote, converse turn)
 
