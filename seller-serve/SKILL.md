@@ -28,7 +28,7 @@ config names (Claude Code or Codex), in the seller directory, with the seller's
 skills and MCP servers, one conversation per agreement. The model decides and
 produces; serve validates, signs and publishes. The seller writes **no platform
 code**: a published card, a short config file, plus two markdown skills, is a
-working seller. Requires kagent **6.4.1** or later (`kagent --version`).
+working seller. Requires kagent **6.6.0** or later (`kagent --version`).
 
 Use the CLI lane (`seller-fulfill`) instead only when one of these is true:
 

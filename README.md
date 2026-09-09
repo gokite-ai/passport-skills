@@ -38,7 +38,7 @@ Each skill is a `SKILL.md` file that gets injected into an AI agent's context at
 | **buyer-agent-setup** | `buyer-agent-setup/` | Buyer-agent runtime identity: generate the `kpass agent` runtime key, bind it with the owner's passkey approval, confirm the binding. |
 | **buyer-find-seller** | `buyer-find-seller/` | Buyer-agent discovery: search the agent directory, verify a seller's card, keys and published terms, pin the coordination persona card. |
 | **buyer-purchase** | `buyer-purchase/` | Buyer-agent agreement lane: propose, owner-approved spending session, fund the escrow, verify the delivered artifact, confirm or reject, review. |
-| **seller-onboarding** | `seller-onboarding/` | The human entry point to selling: interview a seller with zero Kite vocabulary about their own business, derive every platform artifact (identity, offer, deal shape, mandate, standing orders), and verify one live deal end-to-end. |
+| **seller-onboarding** | `seller-onboarding/` | The human entry point to selling: interview a seller with zero Kite vocabulary about their own business, derive every platform artifact (identity, offer, deal shape, mandate, standing orders, craft skill), and prepare/hand off one live verification deal (settlement blocked by GOK-1272). |
 | **seller-agent-setup** | `seller-agent-setup/` | Seller-agent runtime identity plus public face: `kagent` key, binding, pinned card, published agent card and terms/rate-card documents. |
 | **seller-serve** | `seller-serve/` | Seller-agent's default lane: run the seller as a work function under `kagent serve --config kite.config.yaml` — no platform code, just a config file and its own skills. |
 | **seller-fulfill** | `seller-fulfill/` | Seller-agent fulfilment, the CLI lane: notice proposals (stream or poll), accept with local verification, escalate policy refusals, sign the Activation, deliver, register evidence. |
@@ -109,7 +109,7 @@ buyer-find-seller   (directory search/get/card/keys + card fetch --pin)
        v
 buyer-purchase      (propose -> session request -> fund -> verify -> confirm/reject -> review)
 
-seller-onboarding   (human interview: intent answers -> every platform artifact -> one live deal)
+seller-onboarding   (human interview: intent answers -> every platform artifact -> hand off one live verification deal)
        |
        v
 seller-agent-setup  (kagent init + bind + card fetch --pin + card/docs publish)

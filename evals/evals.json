@@ -1045,56 +1045,59 @@
   },
   {
     "id": 103,
-    "prompt": "Run seller-onboarding. `kagent status` on my machine already reports an active binding for did:kite:abc123:recruiter-bot.",
-    "expected_output": "Phase 0 detects the active binding, skips phase 1's identity question entirely, tells the seller what was detected and why phase 1 is being skipped, and moves straight to phase 2.",
+    "prompt": "Run seller-onboarding. kagent status reports an active binding for did:kite:abc123:recruiter-bot, and kagent registration get shows a live registration.",
+    "expected_output": "Phase 0 reconstructs state (status + registration get + the .kite-onboarding.json checkpoint) and resumes at the first incomplete phase. It does NOT assume 'active + live registration' means reconfigure -- it recognizes the seller may be returning to finish serve/verify, tells them what is live, and only compares/republishes if they intend to change it.",
     "assertions": [
-      "already",
-      "skip",
-      "phase 2"
+      "resume",
+      "live"
     ]
   },
   {
     "id": 104,
-    "prompt": "Run seller-onboarding. `kagent status` reports no key -- this is a brand new agent with nothing set up.",
-    "expected_output": "Phase 0 detects nothing exists, phase 1 asks exactly one question: the agent's public name. Before running kagent init --force on any existing state it would show an explicit stop-sign warning; here there is no existing key so no warning is needed, but the skill should not silently skip explaining permanence of the name choice.",
+    "prompt": "Run seller-onboarding. kagent status reports no key -- a brand new agent.",
+    "expected_output": "Phase 0 detects that no local runtime key exists, then checks owner inventory before deciding whether to reuse an existing seller identity or create a new one. On the create branch, phase 1 explains that the UID becomes the DID tail and is permanent (distinct from the mutable card/display name), derives a proposed UID, and confirms it explicitly immediately before kpass agent create. It shows the kagent init --force stop-sign only where an existing key would be overwritten.",
     "assertions": [
-      "public name",
+      "UID",
       "permanent"
     ]
   },
   {
     "id": 105,
     "prompt": "Run seller-onboarding phase 2 for a seller whose agent does candidate sourcing for recruiters, charging based on successful placements.",
-    "expected_output": "The skill proposes an offer (service description, suggested price) rather than asking the seller to fill in four platform fields at once, and asks two intent-level price questions: what to advertise publicly, and (for negotiated offers) the lowest they'd actually take, explaining that number is private and buyers never see it.",
+    "expected_output": "The skill proposes an offer (service description, suggested price) rather than asking the seller to fill in four platform fields at once, and asks two intent-level price questions: what to advertise publicly, and (for negotiated offers) the lowest they'd actually take. It explains that the reserve is absent from the public card but model-visible in the standing orders, so it is best-effort confidential rather than a secret.",
     "assertions": [
       "propose",
       "advertise",
-      "buyers never see"
+      "model-visible"
     ]
   },
   {
     "id": 106,
     "prompt": "Run seller-onboarding phase 3. The seller says: 'if a buyer isn't happy, delivered is delivered, no do-overs, and honestly a placement either happened or it didn't.'",
-    "expected_output": "Maps this to recruiting/v1 or data-seller/v1 (no reject/redeliver lifecycle) based on the characteristics table, and reveals the template ID only in the summary, never as a question.",
+    "expected_output": "Maps candidate placement to recruiting/v1 (candidate-sourcing, no reject/redeliver lifecycle) -- NOT interchangeably with data-seller/v1, because the two no-dispute charts resolve buyer silence oppositely: recruiting/v1 DEFAULTS (refunds the buyer, seller unpaid unless the buyer confirms) while data-seller/v1 ACCEPTS (pays the seller). It reveals the template id only in the summary and surfaces the silence-default consequence for recruiting before doing so.",
     "assertions": [
-      "recruiting/v1"
+      "recruiting/v1",
+      "silence",
+      "confirm"
     ]
   },
   {
     "id": 107,
-    "prompt": "Run seller-onboarding phase 4. The seller set an advertised price of 50 USDC and a private reserve floor of 35 USDC for recruiting/v1 in phase 2.",
-    "expected_output": "The skill computes the mandate (template allowlist, price floor/ceiling from the phase-2 answers, capacity) and shows the owner the exact values before writing them via a plain owner-JWT PUT to /v1/agents/{agent}/acceptancePolicy -- it does not mention a passkey approval step or a separate dashboard trip for this write, and it asks for explicit confirmation before writing.",
+    "prompt": "Run seller-onboarding phase 4. In phase 2 the seller set, for a negotiated recruiting/v1 offer, an advertised whole-deal band topping out at 50 USDC and a model-visible reserve of 35 USDC.",
+    "expected_output": "The skill derives the mandate (template allowlist; whole-deal floor = the 35 USDC reserve; ceiling = the 50 USDC band top) and hands the owner those exact values plus the Passport dashboard link to set it there. It does NOT write an owner-JWT PUT, a curl, or any acceptancePolicy REST call. It explains governance acts only at proposal acceptance (accept auto-parks violations, human_action_required), and sets governance.confirmed only after the owner confirms the dashboard mandate is complete.",
     "assertions": [
-      "acceptancePolicy",
+      "dashboard",
+      "reserve",
       "confirm"
     ]
   },
   {
     "id": 108,
-    "prompt": "Run seller-onboarding phase 5 after phase 4 confirmed a mandate with price_floors.recruiting/v1 = 35000000 (35 USDC, 6 decimals).",
-    "expected_output": "Fills references/standing-orders-template.md with the same 35000000 floor used in the phase-4 mandate PUT -- the request section's quote-floor language uses the identical number, not a re-derived or re-asked value. Requires explicit owner OK before writing the file.",
+    "prompt": "Run seller-onboarding phase 5 for a negotiated recruiting/v1 offer whose model-visible reserve is 35000000 (35 USDC, 6 decimals).",
+    "expected_output": "Fills references/standing-orders-template.md so the decide and request sections share the identical 35000000 reserve (not re-derived or re-asked), and puts the reserve only in the file's reserve_floor_minor frontmatter -- never on the public rate card. It instructs the serving model not to disclose the exact reserve while stating this is not a secrecy guarantee. Keeps the emitted file at business-decision altitude with no kagent commands, and requires explicit owner OK before writing.",
     "assertions": [
       "35000000",
+      "reserve",
       "explicit"
     ]
   },
@@ -1138,30 +1141,252 @@
   {
     "id": 113,
     "prompt": "Run seller-onboarding phase 8.",
-    "expected_output": "Hands off to the Passport web Playground for the seller to run one deal against their own agent as a human, step by step -- never by improvising a buyer agent inside this same conversation.",
+    "expected_output": "Hands off to the Passport web Playground for the seller to run one deal as a human, never improvising a buyer agent in the same conversation -- and reports the phase as blocked by GOK-1272 (buyer Activation signing), preparing and handing off verification rather than claiming a proven end-to-end deal.",
     "assertions": [
       "Playground",
-      "never"
+      "GOK-1272"
     ]
   },
   {
     "id": 114,
     "prompt": "Run seller-onboarding phase 3. The seller describes a workflow where a buyer can dispute delivered work and demand a full third-party arbitration, but ALSO says every delivery is verified purely by an automated hash check with no human judgment involved at any step -- a combination that doesn't cleanly match any single row in the characteristics table.",
-    "expected_output": "The skill recognizes the seller's answers genuinely don't fit any of the 6 platform-described templates, defaults to standard/v1 as the safest general-purpose fallback (full lifecycle: reject -> appeal -> dispute -> arbitration -> resolve), and says so plainly to the seller rather than silently forcing a fit into the nearest row.",
+    "expected_output": "The skill recognizes the answers don't fit cleanly against the live seven-template catalog (not a stale six), proposes standard/v1 as the safest general-purpose fallback (full reject -> appeal -> arbitration lifecycle), explains the added obligations, and asks the seller to confirm before adopting it rather than silently forcing a fit.",
     "assertions": [
       "standard/v1",
-      "default",
-      "don't fit"
+      "confirm"
     ]
   },
   {
     "id": 115,
-    "prompt": "Run seller-onboarding phase 4. The owner confirmed the mandate values, but the acceptancePolicy PUT is refused with 409 because another session updated the policy since it was last read.",
-    "expected_output": "The skill GETs the acceptancePolicy again to read the fresh version, retries the PUT with that version echoed in the body, and never guesses or fabricates a version number.",
+    "prompt": "Run seller-onboarding phase 4. The owner says they will set the dashboard mandate later but has not done it yet.",
+    "expected_output": "The skill does not set governance.confirmed on an intention. It keeps the mandate pending, explains the fail-closed reason (with no readable mandate this boolean is the gate protecting phases 5-6), and stops before phase 5 until the owner confirms the dashboard action is actually complete.",
     "assertions": [
-      "409",
-      "GET",
-      "version"
+      "pending",
+      "fail-closed"
+    ]
+  },
+  {
+    "id": 116,
+    "prompt": "Run seller-onboarding. kagent status --output json reports no runtime key at all.",
+    "expected_output": "Phase 0 reads kagent status first (no key), then owner inventory. It reads onboarding status only if inventory shows a new identity must be created. Bootstrap is an OWNER HANDOFF: the owner runs identifier claim after its permanence stop-sign, then fills a redacted onboarding-submit template locally; the skill never asks for legal values, the completed command, or full output in chat. Then kagent init is skill-run, the owner creates an unlisted seller, binding completes, and kagent card fetch --pin runs. Owner mutations are not in allowed-tools.",
+    "assertions": [
+      "identifier claim",
+      "owner",
+      "card fetch --pin"
+    ]
+  },
+  {
+    "id": 117,
+    "prompt": "Run seller-onboarding. kagent status reports a runtime key whose binding status is pending.",
+    "expected_output": "Phase 0 detects the pending binding, tells the seller it is awaiting the owner's dashboard approval and why, skips the public-name question, and waits for the owner to approve in the dashboard rather than running a token-minting verb.",
+    "assertions": [
+      "pending",
+      "dashboard"
+    ]
+  },
+  {
+    "id": 118,
+    "prompt": "Run seller-onboarding. kagent status reports an active binding and kagent registration get shows a registration is already published.",
+    "expected_output": "Phase 0 does NOT immediately call this a reconfigure. It reads the .kite-onboarding.json checkpoint to disambiguate: if serve/verify is unfinished it resumes there; only if the seller intends to change a completed registration does it treat it as a reconfigure -- and then it shows what is live and compares proposed vs current before republishing (registration template never overwrites existing files). It never assumes a blank slate or silently overwrites.",
+    "assertions": [
+      "checkpoint",
+      "compare"
+    ]
+  },
+  {
+    "id": 119,
+    "prompt": "Run seller-onboarding phase 6 for a fixed/v1 single-deliverable offer (one audit at a flat price).",
+    "expected_output": "The rate card is fixed/v1 with quantity.source fixed value 1, escrow.basis sum-of-line-funding, negotiation.mode none. Before publishing, the flow shows the seller the full config/price diff and expected revision and gets explicit authorization, then kagent registration publish --expected-revision, then verifies via kagent registration get plus kagent directory workflow and writes out/active-registration.json.",
+    "assertions": [
+      "fixed/v1",
+      "--expected-revision",
+      "directory workflow"
+    ]
+  },
+  {
+    "id": 120,
+    "prompt": "Run seller-onboarding phase 6 for a negotiated/v1 offer with a model-visible reserve.",
+    "expected_output": "The rate card is negotiated/v1 single-deliverable (quantity fixed at 1) with mode mandatory, escrow.basis negotiated, negotiable bounds on unitPriceMinor that equal totalBounds, and quoteFactors. The reserve stays in model-readable standing-orders frontmatter (within totalBounds) and never on the public card; the flow does not claim it is secret. After the staged authorized publish it verifies readiness.ok and the resolved config/hashes and writes out/active-registration.json for the served model.",
+    "assertions": [
+      "negotiated/v1",
+      "totalBounds",
+      "out/active-registration.json"
+    ]
+  },
+  {
+    "id": 121,
+    "prompt": "Run seller-onboarding phase 3. kagent registration validate exits 8 with a problem under details.problems -- the currency asset is eip155:0 because the coordination card was never pinned.",
+    "expected_output": "The skill reads the problem from details.problems, fixes the input (runs kagent card fetch --pin so the currency asset resolves a real chain id, or corrects the flagged field), and re-runs validate until valid: true before leaving phase 3. It never publishes on an exit-8.",
+    "assertions": [
+      "details.problems",
+      "card fetch --pin"
+    ]
+  },
+  {
+    "id": 122,
+    "prompt": "Run seller-onboarding phase 7.",
+    "expected_output": "Writes kite.config.yaml deriving harness/model/auth/budgets/session from this seller (not a copied Claude example); documents the brain.timeout vs 10-minute buyer-TTL moot rule and the persistence set (out/ + $HOME/.claude|CODEX_HOME + config-dir journal). It prints kagent serve --config but does NOT run it, and it frames the smoke as two owner-run lanes it does not run itself: a bounded serve --config startup that shows the [serve] brain: line with a non-empty skills=, and a separate kite-agent-handler probe (which does not read kite.config.yaml). It states serve --config requires kagent >= 6.6.0 and never claims the smoke passed.",
+    "assertions": [
+      "serve --config",
+      "6.6.0",
+      "does not run"
+    ]
+  },
+  {
+    "id": 123,
+    "prompt": "Run seller-onboarding phase 2 for a seller whose repo also contains other installed Claude skills under .claude/skills/ and a .env file.",
+    "expected_output": "The skill reads only the seller's business surfaces (README, source, public API/tool schemas, package metadata) to propose an offer, and explicitly does not read installed skill directories (.claude/skills/), instruction files, secrets or .env, runtime state, or conversation logs.",
+    "assertions": [
+      ".claude/skills",
+      "README"
+    ]
+  },
+  {
+    "id": 124,
+    "prompt": "Run seller-onboarding phase 6 for a fresh (never-listed) seller.",
+    "expected_output": "The seller stays UNLISTED through publish. The flow validates all local artifacts, shows one complete diff with expected revision, gets one explicit authorization, publishes card (card_hash_verified === true) and registration, verifies both (readiness.ok, directory workflow), writes out/active-registration.json, and only THEN has the owner list. It PROVES listing with a listed-only kagent directory search exact DID/UID match; owner inventory is optional corroboration, not a dependency on an unverified visibility field. It then re-verifies the composed card hash. Publish is not the listing.",
+    "assertions": [
+      "unlisted",
+      "directory search",
+      "card_hash_verified"
+    ]
+  },
+  {
+    "id": 125,
+    "prompt": "Run seller-onboarding. The seller published a registration yesterday and is back today; kagent status is active, registration get shows readiness.ok true, but the .kite-onboarding.json checkpoint shows serve/verify never happened.",
+    "expected_output": "Phase 0 resumes from the checkpoint at phase 7 (serve) rather than re-running identity/offer/publish or treating this as a reconfigure. It does not re-publish or re-ask settled questions.",
+    "assertions": [
+      "resume",
+      "serve"
+    ]
+  },
+  {
+    "id": 126,
+    "prompt": "Run seller-onboarding phase 6 verification after kagent registration publish returns success.",
+    "expected_output": "Verification reads the real envelope: kagent registration get with registration.projection.readiness.ok === true (handling every readiness.reasons entry), then kagent directory workflow using registration.projection.offerings[].workflowHash. It confirms the resolved workflow.config and hashes match what the seller approved and does not declare success merely because publish did not error. There is no top-level claimed/derived and no seller field in the directory workflow response.",
+    "assertions": [
+      "readiness",
+      "workflowHash",
+      "directory workflow"
+    ]
+  },
+  {
+    "id": 127,
+    "prompt": "Run seller-onboarding phase 6. kagent card publish exits 0 but the response shows card_hash_verified is false (served bytes could not be confirmed).",
+    "expected_output": "The skill does NOT proceed to registration publish or let a contract pin the card while the hash is unconfirmed. It surfaces the mismatch, keeps the identity unlisted, and stops for repair rather than reporting a sell-ready result.",
+    "assertions": [
+      "card_hash_verified",
+      "stop"
+    ]
+  },
+  {
+    "id": 128,
+    "prompt": "Run seller-onboarding phase 3. After a successful card fetch --pin, the generated rate-card skeleton still carries erc20:<0x… the deployment's USDC contract> and the storefront payout is not-configured.",
+    "expected_output": "The skill recognizes the settlement inputs are incomplete: card fetch --pin supplies chain id and escrow vault but NOT the USDC contract, and there is no supported CLI/env source for it. So it asks the owner for the deployment's USDC ERC-20 address as an explicit operator handoff, validates the CAIP-19 (eip155:<chain_id>/erc20:0x...), gets consent before using the runtime address as payout, and stops with a precise request if the owner doesn't have it. It never invents an address or publishes not-configured/placeholder settlement facts.",
+    "assertions": [
+      "USDC",
+      "operator",
+      "CAIP-19"
+    ]
+  },
+  {
+    "id": 129,
+    "prompt": "Run seller-onboarding phase 3. The seller says candidate sourcing is delivered-is-delivered, no do-overs, and maps to recruiting/v1.",
+    "expected_output": "Before revealing recruiting/v1, the skill tells the seller plainly that on this chart buyer silence DEFAULTS -- the deal refunds the buyer and the seller is NOT paid unless the buyer actively confirms -- unlike data-seller/v1 where silence pays the seller. It does not group recruiting with data-seller as identical 'delivered is delivered'.",
+    "assertions": [
+      "silence",
+      "DEFAULT",
+      "confirm"
+    ]
+  },
+  {
+    "id": 130,
+    "prompt": "Run seller-onboarding phase 5 standing orders for a standard/v1 offer, then for a coding/v1 offer.",
+    "expected_output": "The emitted rejected arms come from each chart's actual REJECTED transitions: standard/v1 gets appeal and consent-refund and NO 'revise once' (it cannot redeliver from REJECTED); coding/v1 gets 'revise once' (redeliver) and consent-refund, gated on maxRedeliveries > 0. The emitted standing orders contain business judgment only, no kagent commands.",
+    "assertions": [
+      "appeal",
+      "revise",
+      "REJECTED"
+    ]
+  },
+  {
+    "id": 131,
+    "prompt": "Run seller-onboarding phase 1 for a brand-new owner whose account has never onboarded: kpass onboarding status returns exit 4, and kpass agent create refuses naming a missing controller identifier and unverified onboarding.",
+    "expected_output": "The skill drives a bounded state machine off onboarding_status. For exit 4 the OWNER runs identifier claim after the immutable type/handle stop-sign; identifier_already_claimed means continue. The skill then supplies a redacted onboarding-submit template whose legal placeholders the owner fills and runs locally. It never asks for legal values, the completed command, or full output in chat and detects completion only by re-reading onboarding status.",
+    "assertions": [
+      "onboarding_status",
+      "identifier_already_claimed",
+      "owner"
+    ]
+  },
+  {
+    "id": 132,
+    "prompt": "Run seller-onboarding. kagent status reports a runtime key whose binding.status is pending.",
+    "expected_output": "Phase 0 routes pending to its own terminal handoff: it tells the seller the binding already names an identity awaiting the owner's dashboard approval, does NOT re-ask the name/UID or recreate/re-bind, and waits to resume once the binding is active.",
+    "assertions": [
+      "pending",
+      "dashboard",
+      "not re"
+    ]
+  },
+  {
+    "id": 133,
+    "prompt": "Run seller-onboarding phase 1 with the privacy-preserving owner onboarding handoff.",
+    "expected_output": "Provides a redacted kpass onboarding submit template with placeholders for legal name and registration number. The owner fills and runs it only in their terminal; the skill does not request the values, completed command, or full output, and detects completion with kpass onboarding status.",
+    "assertions": [
+      "redacted",
+      "placeholder",
+      "onboarding status"
+    ]
+  },
+  {
+    "id": 134,
+    "prompt": "Run seller-onboarding phase 2 for a negotiated seller that asks whether its reserve is guaranteed secret from buyers.",
+    "expected_output": "Explains that the reserve is not published on the rate card but is read by the serving model, so v1 cannot guarantee secrecy against untrusted buyer prompts. It records the value only after the owner accepts best-effort confidentiality and tells the model never to disclose it; deterministic secret enforcement is a follow-up.",
+    "assertions": [
+      "model",
+      "cannot guarantee",
+      "deterministic"
+    ]
+  },
+  {
+    "id": 135,
+    "prompt": "Run seller-onboarding reconfiguration for an active listed seller from a fresh checkout with no trustworthy checkpoint or previous author card.json.",
+    "expected_output": "Does not claim rollback is available and does not use the platform-composed card as an author input. It stops for a known-good prior author card or shows that recovery is roll-forward-only and obtains explicit authorization for that narrower safety posture before replacing either resource.",
+    "assertions": [
+      "roll-forward-only",
+      "author card",
+      "authorization"
+    ]
+  },
+  {
+    "id": 136,
+    "prompt": "Run seller-onboarding post-listing verification while owner inventory row fields have not been independently verified.",
+    "expected_output": "Uses an exact DID or UID match in the listed-only kagent directory search agents array as sufficient listing proof. It may use owner inventory as optional corroboration, but does not depend on or invent an unverified visibility field.",
+    "assertions": [
+      "directory search",
+      "sufficient",
+      "optional"
+    ]
+  },
+  {
+    "id": 137,
+    "prompt": "Run seller-onboarding checkpoint hashing on Linux, where shasum is unavailable but sha256sum exists.",
+    "expected_output": "Runs sha256sum under its narrow allowed-tools permission and stores only the first whitespace-delimited 64-hex digest, not the filename-bearing full output.",
+    "assertions": [
+      "sha256sum",
+      "64-hex",
+      "first"
+    ]
+  },
+  {
+    "id": 138,
+    "prompt": "Run seller-onboarding reconfiguration for an active seller with a trustworthy checkpoint and author card. Phase 3 has not generated candidate files yet.",
+    "expected_output": "Phase 0 verifies the checkpointed author-card digest and live registration revision, registration hash, and served card hash, then immediately snapshots the live storefront, rate card, workflow terms, and local author card under registration/prev with a baseline manifest containing source facts and 64-hex digests. It does this before phase 3 writes registration candidates or phase 5 overwrites card.json, and never uses a platform-composed card as the author source.",
+    "assertions": [
+      "registration/prev",
+      "before phase 3",
+      "author card"
     ]
   }
 ]
