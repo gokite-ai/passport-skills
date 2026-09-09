@@ -1,6 +1,6 @@
 # Evals — Skills Regression Set
 
-`evals.json` is the master list of behavioral eval scenarios for this repo's skills: 101 cases, each `{id, prompt, expected_output, assertions}`. There is currently **no automated runner in this repo**. Grading is manual: dispatch a subagent (or run the skill interactively) against each `prompt`, capture its response, and check that the response's actual behavior matches `expected_output` and that every string in `assertions` appears in it. Treat a failing assertion as a real regression, not noise — assertions are kept short and literal (command names, flag names, key output markers) specifically so they can be eyeballed against a transcript without ambiguity.
+`evals.json` is the master list of behavioral eval scenarios for this repo's skills: 138 cases, each `{id, prompt, expected_output, assertions}`. There is currently **no automated runner in this repo**. Grading is manual: dispatch a subagent (or run the skill interactively) against each `prompt`, capture its response, and check that the response's actual behavior matches `expected_output` and that every string in `assertions` appears in it. Treat a failing assertion as a real regression, not noise — assertions are kept short and literal (command names, flag names, key output markers) specifically so they can be eyeballed against a transcript without ambiguity.
 
 There used to be references here to a `functional-workspace/` transcript store, `grade_all.py`, `build_benchmark.py`, and a `RUNBOOK.md` describing an automated grading pipeline. None of that ever existed in this repo (checked against full git history) — it described tooling from a separate porting session that was never committed. This file now describes how grading actually happens today instead of pointing at nonexistent scripts.
 
@@ -26,7 +26,7 @@ There used to be references here to a `functional-workspace/` transcript store, 
 | 89-92 | kite-passport (gateway routing) | user |
 | 76, 93-97 | seller-serve | seller-agent |
 | 98-101, 109-110 | kite-seller | seller-agent |
-| 102-108, 111-115 | seller-onboarding | seller-agent |
+| 102-108, 111-138 | seller-onboarding | seller-agent |
 
 `form-session-delegation`, `cloud-deploy`, and `report-feedback` have no evals and were explicitly out of scope for the 2026-08-28 correctness pass below.
 

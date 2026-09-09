@@ -52,6 +52,21 @@ agreement ...`, `kpass agent session ...`, etc. — the grant is scoped to
 exactly `agent create` and `agent token create`, not the whole `kpass agent`
 tree), or any other human-account command outside that named path.
 
+**Named exception:** `seller-onboarding` additionally carries owner-plane
+**reads** only — `"Bash(kpass status *)"`, `"Bash(kpass me *)"`,
+`"Bash(kpass user agents --agent-type seller *)"`, and
+`"Bash(kpass onboarding status *)"` (plus `"Bash(shasum *)"` and
+`"Bash(sha256sum *)"` for checkpoint digests). It does **not** carry any owner-plane **mutation**: the account
+bootstrap and record creation the `kpass` binary requires before a seller can
+exist (`kpass identifier claim`, `kpass onboarding submit`, `kpass agent create`,
+`kpass agent token create`) are **owner handoffs** the skill derives and the
+owner runs in their own terminal — deliberately kept out of `allowed-tools`
+because they are account-wide/immutable, `onboarding submit` carries legal PII,
+and the skill reads untrusted seller-repo content (prompt-injection surface).
+It carries no `kpass login`, no buyer-side spending, and no other human-account
+command. (A seller/account-scoped wrapper that would let these run safely under
+the skill is tracked under GOK-1305.)
+
 ## JSON output / exit-code contract
 
 `kagent` follows the same conventions documented in
@@ -93,7 +108,7 @@ group's documentation.
 
 | Skill | Purpose |
 |-------|---------|
-| [`seller-onboarding`](../seller-onboarding/SKILL.md) | The human entry point: interview a seller with zero Kite vocabulary about their own business and derive every platform artifact — identity, offer/rate-card, workflow template, governance mandate, standing orders — through one verified live deal. Drives the same commands the runbook skills below document. |
+| [`seller-onboarding`](../seller-onboarding/SKILL.md) | The human entry point: interview a seller with zero Kite vocabulary about their own business and derive every platform artifact — identity, offer/rate-card, workflow template, governance mandate, standing orders, craft skill — then prepare and hand off one live verification deal (settlement blocked by GOK-1272). Drives the same commands the runbook skills below document. |
 | [`seller-agent-setup`](../seller-agent-setup/SKILL.md) | Runtime identity and the public face: `init`, `bind` with the owner's passkey approval, `card fetch --pin`, `card publish`, `docs publish`. The gateway skill. |
 | [`seller-fulfill`](../seller-fulfill/SKILL.md) | Serving agreements through the CLI: noticing proposals (`listen --forward` or polling), `agreement accept`, escalation when the acceptance policy refuses, `funding sign`, `deliver`, evidence, and buyer messages. |
 | [`seller-agreement-history`](../seller-agreement-history/SKILL.md) | After-the-fact, read-only lookups: `agreement proofs [--verify]`, `agreement evidence list`, `escalation list`/`status` — not a workflow step. |
