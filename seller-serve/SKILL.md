@@ -142,6 +142,7 @@ brain:
   maxSteps: 30                  # claude-code --max-turns
   maxBudgetUsd: "2.50"          # claude-code --max-budget-usd, as a string
   timeout: 5m                   # per-item budget; default 5m — see below
+  maxTurnsPerStart: 48          # optional; how many `working` turns one start may spend
   session: per-agreement        # per-agreement | none
 tools:
   skills: ./skills              # optional; omit when the skills already live in .claude/skills/
@@ -166,6 +167,26 @@ tools:
 - **`maxSteps` / `maxBudgetUsd`** cap each claude run. A run that hits either
   dies mid-answer and the item retries, so size them to the work, not to the
   example.
+- **`maxTurnsPerStart`** (default 48) bounds a job that does not fit in one
+  run. **Do not add this key until this seller runs a `kagent` that has it**:
+  unknown config keys are refused at startup, so an older binary will not serve
+  at all with it present. The bundle's `min_kagent_version` is the floor to
+  check. The brain may answer a `start` with a `working` checkpoint instead of a
+  deliverable; serve journals it, signs nothing, and brings the same `start`
+  back with every prior checkpoint in `history`. A turn is not a retry — it
+  spends no attempt — but the turns are capped, and spending them parks the
+  item for you with the last checkpoint attached.
+
+**If this seller takes long jobs, put its state on a real volume.** Two
+directories decide whether a job survives a deploy: the seller directory (where
+the brain writes its files, normally under `out/`) and the harness's own session
+store (`$HOME/.claude` for claude-code, `CODEX_HOME` for codex). On an
+`emptyDir` both vanish when the pod is recreated, and the next turn starts from
+the checkpoint text alone — acceptable for a five-minute item, not for a job
+that spans hours. Mount them, and keep `<config-dir>` (the journal, where the
+turns themselves live) on the same persistent volume. While a start is still
+turning, serve escalates to you once the delivery deadline gets closer than one
+more turn plausibly needs — that escalation is your cue to look, not a failure.
 
 ### Tools — open by default, one boundary
 
