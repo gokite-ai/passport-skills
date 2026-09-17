@@ -23,6 +23,7 @@ npm-debug.log*
 # Build artifacts
 dist/
 coverage/
+eval-results/
 tmp/
 
 .kite-passport/

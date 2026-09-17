@@ -10,6 +10,24 @@ permissions:
   contents: read
 
 jobs:
+  eval-runner:
+    name: Eval runner tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Test eval runner with coverage
+        run: npm run test:coverage
+
   validate:
     name: Validate Skills
     runs-on: ubuntu-latest
@@ -100,4 +118,3 @@ jobs:
           echo "  ok  10 precedence cases"
           T
           bash /tmp/vcmp.sh
-
