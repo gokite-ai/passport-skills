@@ -27,6 +27,6 @@
   "devDependencies": {
     "js-yaml": "^5.4.1",
     "markdownlint-cli2": "^0.23.2",
-    "skills": "^1.5.23"
+    "skills": "^1.5.26"
   }
 }
