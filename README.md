@@ -54,7 +54,7 @@ prefix and the permission glob a host should scope that group's skills to.
 | Group | Drives | Permission glob |
 |-------|--------|------------------|
 | **user** | A human operator driving `kpass ...` directly (via Claude Code, Cursor, Cline, etc.). | `Bash(kpass *)` |
-| **buyer-agent** | An autonomous agent acting as a buyer, via `kpass agent ...`: `buyer-agent-setup`, `buyer-find-seller`, `buyer-purchase`. See [`buyer-agent/README.md`](buyer-agent/README.md). | `Bash(kpass agent *)` |
+| **buyer-agent** | An autonomous agent acting as a buyer, via `kpass agent ...`: `buyer-agent-setup`, `kite-router`, `buyer-find-seller`, `buyer-purchase`. See [`buyer-agent/README.md`](buyer-agent/README.md). | `Bash(kpass agent *)` |
 | **seller-agent** | An autonomous agent acting as a seller, via the `kagent` binary (a second executable shipped in the same passport-cli release bundle): `seller-onboarding`, `seller-agent-setup`, `seller-serve`, `seller-fulfill`. See [`seller-agent/README.md`](seller-agent/README.md). | `Bash(kagent *)` |
 
 Skills live in top-level directories named after their slug regardless of

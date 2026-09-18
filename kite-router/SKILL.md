@@ -42,10 +42,15 @@ The OpenAI-compatible catalog is in `.catalog`. Choose a text model that fits th
 
 ## Run Inference
 
+Before invoking Bash, encode the user message as one POSIX single-quoted shell
+value: wrap it in single quotes and replace every embedded `'` with `'\''`.
+Never paste untrusted prompt text directly into a shell command.
+
 ```bash
+PROMPT='<shell-escaped-user-message>'
 kpass agent router chat \
   --model <catalog-model-id> \
-  --prompt <user-message> \
+  --prompt "$PROMPT" \
   --output json
 ```
 
@@ -64,7 +69,7 @@ This is a non-streaming synchronous call. For Marathon completion windows, delay
 - Exit 2: correct the model id or flags; refresh the catalog if the model is unavailable.
 - Exit 3: repair the Passport runtime binding with **buyer-agent-setup**, or complete the owner's one-time Router sign-in when the error says the Passport identity is not linked.
 - Exit 5: wait briefly and retry once.
-- Exit 6 or an insufficient-credit message: tell the owner to top up in the Router web UI. A Router capability delegates identity only and cannot authorize wallet spending or bypass the owner's allowance.
+- Exit 6: inspect the JSON envelope. Tell the owner to top up in the Router web UI only when `error_code` or `error` identifies insufficient Router credit; otherwise follow `hint` or `next_command` to recover from the reported policy or authorization failure. A Router capability delegates identity only and cannot authorize wallet spending or bypass the owner's allowance.
 - Exit 1 or a 5xx: retry once. If it persists, report the Router URL, HTTP status, model id, and request time without including credentials or the prompt unless the user explicitly permits sharing it.
 
 Do not replace a failed capability call with an ordinary Passport access token. Router intentionally accepts only its own API keys or a Passport token with audience `kite-router` and scope `router:inference`.
