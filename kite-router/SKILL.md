@@ -28,7 +28,7 @@ Use the Passport CLI for both authentication and inference. Do not install or in
 
 3. The owner must sign in to Kite Router with Passport at least once before capability authentication can resolve a local Router account and allowance. If chat says to sign in first, send the owner to `https://marathon.build/playground`, have them choose Passport sign-in, then retry. This is account linking, not an A2A approval.
 
-The CLI defaults to production. For a non-production deployment, set `KITE_ROUTER_URL` to the exact Router origin supplied by the operator; never infer a staging hostname.
+The CLI pairs the Router with the selected Passport environment: Passport dev uses Router dev, and Passport production uses Router production. For staging, local development, or another custom Passport backend, set `--router-url` or `KITE_ROUTER_URL` to the exact Router origin supplied by the operator; never infer a staging hostname.
 
 ## Select a Model
 

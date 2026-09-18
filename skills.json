@@ -3,8 +3,8 @@
   "name": "kskills",
   "display_name": "Kite Passport Skills",
   "description": "Skills that teach AI agents how to authenticate users, manage spending sessions, execute payments, and transfer tokens using the kpass CLI.",
-  "version": "3.3.0",
-  "min_kpass_version": "6.1.0",
+  "version": "3.4.0",
+  "min_kpass_version": "6.7.0",
   "min_kagent_version": "6.6.0",
   "min_ksearch_version": "3.0.0",
   "setup_script": "scripts/setup.sh",
@@ -17,7 +17,7 @@
     },
     "buyer-agent": {
       "name": "Buyer Agent",
-      "description": "Skills that drive the buyer-agent CLI surface (`kpass agent ...`) for an autonomous agent acting as a buyer on the user's behalf, as opposed to a human operator driving `kpass` directly. See buyer-agent/README.md. Covers runtime identity (buyer-agent-setup), counterparty discovery (buyer-find-seller), and the escrowed agreement lane (buyer-purchase).",
+      "description": "Skills that drive the buyer-agent CLI surface (`kpass agent ...`) for an autonomous agent acting as a buyer on the user's behalf, as opposed to a human operator driving `kpass` directly. See buyer-agent/README.md. Covers runtime identity (buyer-agent-setup), synchronous Router inference (kite-router), counterparty discovery (buyer-find-seller), and the escrowed agreement lane (buyer-purchase).",
       "command_prefix": "kpass agent",
       "permission_glob": "Bash(kpass agent *)"
     },

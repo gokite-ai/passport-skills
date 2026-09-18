@@ -157,6 +157,7 @@ npx skills add gokite-ai/passport-skills/cloud-deploy
 
 # Autonomous buyer agent (uses kpass agent ... ):
 npx skills add gokite-ai/passport-skills/buyer-agent-setup
+npx skills add gokite-ai/passport-skills/kite-router
 npx skills add gokite-ai/passport-skills/buyer-find-seller
 npx skills add gokite-ai/passport-skills/buyer-purchase
 
