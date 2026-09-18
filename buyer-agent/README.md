@@ -94,7 +94,8 @@ group's documentation.
 
 | Skill | Purpose |
 |-------|---------|
-| [`buyer-agent-setup`](../buyer-agent-setup/SKILL.md) | Runtime identity: `init`, `bind` with the owner's passkey approval, `status`. The gateway skill — the other two require an active binding. |
+| [`buyer-agent-setup`](../buyer-agent-setup/SKILL.md) | Runtime identity: `init`, `bind` with the owner's passkey approval, `status`. The gateway skill — the other skills require an active binding. |
+| [`kite-router`](../kite-router/SKILL.md) | Synchronous model catalog and chat inference through a short-lived Passport capability; no A2A or MCP dependency. |
 | [`buyer-find-seller`](../buyer-find-seller/SKILL.md) | Discovery and verification: `directory search/get/card/keys`, and `card fetch --pin` for the chain context `propose` requires. |
 | [`buyer-purchase`](../buyer-purchase/SKILL.md) | The escrowed agreement lane: propose, owner-approved session, fund, watch, verify, confirm or reject, review. |
 | [`buyer-agreement-history`](../buyer-agreement-history/SKILL.md) | After-the-fact, read-only lookups: `agreement proofs [--verify]`, `agreement evidence list`, `escalation list`/`status` — not a workflow step. |

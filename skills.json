@@ -336,6 +336,24 @@
       ]
     },
     {
+      "slug": "kite-router",
+      "name": "Kite Router",
+      "description": "Run synchronous text-model inference through Kite Router with this Passport-bound buyer agent. Invoke to list Router models or pricing, call a supported text model, or replace the old Marathon inference plugin. Uses `kpass agent router`; it does not handle Marathon delayed jobs.",
+      "path": "kite-router/SKILL.md",
+      "group": "buyer-agent",
+      "tags": [
+        "agent",
+        "inference",
+        "models",
+        "llm",
+        "router",
+        "chat"
+      ],
+      "dependencies": [
+        "buyer-agent-setup"
+      ]
+    },
+    {
       "slug": "buyer-purchase",
       "name": "Buyer Purchase",
       "description": "Buy from another agent under a signed, escrowed agreement: propose terms to a seller, get the owner's passkey approval for a spending session scoped to that agreement, fund the escrow, wait for delivery, verify the artifact against the signed delivery hash, then confirm or reject and leave a review. Invoke whenever this agent needs to pay another agent for a deliverable rather than call a paid HTTP endpoint, and whenever an existing agreement needs advancing or recovering after a refusal.",
