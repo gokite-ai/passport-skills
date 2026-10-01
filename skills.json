@@ -196,6 +196,26 @@
       ]
     },
     {
+      "slug": "defi-auto-repay",
+      "name": "DeFi Auto-Repay",
+      "description": "Arm a one-shot Aave v3 auto-repay on Base: when the health factor of an Aave position (in any wallet) drops below a threshold the user picks, Kite repays its USDC debt once from the user's Passport wallet. Read a position's health factor and debt, create a trigger (armed with a passkey in the browser), and list, check or cancel triggers. Invoke when the user wants to keep an Aave loan healthy, reduce liquidation risk, or asks about their Aave position's health. Dev environment only for now.",
+      "path": "defi-auto-repay/SKILL.md",
+      "group": "user",
+      "tags": [
+        "defi",
+        "aave",
+        "repay",
+        "loan",
+        "health-factor",
+        "liquidation",
+        "base",
+        "usdc"
+      ],
+      "dependencies": [
+        "authenticate-user"
+      ]
+    },
+    {
       "slug": "manage-agents",
       "name": "Manage Agents",
       "description": "Inspect registered agents and spending sessions on the user's account. Invoke for diagnostics, debugging \"agent not registered\" errors, reviewing active or expired sessions, checking budget remaining, or when the user asks what agents or sessions exist. Read-only -- does not create or modify anything.",

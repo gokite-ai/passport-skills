@@ -1388,5 +1388,74 @@
       "before phase 3",
       "author card"
     ]
+  },
+  {
+    "id": 139,
+    "prompt": "Repay my Aave loan at 0x1111111111111111111111111111111111111111 automatically if the health factor drops below 1.3. Use 500 USDC and keep it on for a week.",
+    "expected_output": "Agent invokes defi-auto-repay: runs kpass defi position --address 0x1111111111111111111111111111111111111111 --output json and shows the Position card, then runs kpass defi repay-trigger create --address 0x1111111111111111111111111111111111111111 --hf 1.3 --amount 500 --expires 7d --output json, shows the Approval Required card with the wrong-address warning verbatim and the approval_url, then immediately runs the next_command (kpass defi repay-trigger get --id <id> --wait --output json) and shows the Armed card once trigger_status is armed, noting it fires once",
+    "assertions": [
+      "kpass defi position",
+      "kpass defi repay-trigger create",
+      "--hf 1.3",
+      "--amount 500",
+      "--expires 7d",
+      "kpass defi repay-trigger get",
+      "--wait",
+      "--output json",
+      "━━━"
+    ]
+  },
+  {
+    "id": 140,
+    "prompt": "What's the health factor on my Aave position 0x1111111111111111111111111111111111111111?",
+    "expected_output": "Agent runs kpass defi position --address 0x1111111111111111111111111111111111111111 --output json and shows the Aave v3 Position card with health factor, debt, collateral, eligibility and the Passport wallet's USDC/ETH; it does not create a trigger unless asked",
+    "assertions": [
+      "kpass defi position",
+      "--address 0x1111111111111111111111111111111111111111",
+      "--output json",
+      "━━━"
+    ]
+  },
+  {
+    "id": 141,
+    "prompt": "Set up auto-repay on my Aave loan so I don't get liquidated.",
+    "expected_output": "Agent invokes defi-auto-repay and asks the user for the position address before running anything, then shows the position and asks for the trigger health factor, amount (USDC or max) and expiry; it never invents an address or picks these values itself, and describes the feature as reducing liquidation risk, not protecting against it",
+    "assertions": [
+      "address",
+      "health factor",
+      "expir"
+    ]
+  },
+  {
+    "id": 142,
+    "prompt": "Cancel my Aave auto-repay trigger.",
+    "expected_output": "Agent runs kpass defi repay-trigger list --output json to find the user's pending or armed trigger, confirms which one, then runs kpass defi repay-trigger cancel --id <id> --output json and reports trigger_status cancelled",
+    "assertions": [
+      "kpass defi repay-trigger list",
+      "kpass defi repay-trigger cancel",
+      "--id",
+      "--output json"
+    ]
+  },
+  {
+    "id": 143,
+    "prompt": "Create an Aave repay trigger for 0x1111111111111111111111111111111111111111 at health factor 1.2, max amount, expiring in 3 days.",
+    "expected_output": "Agent runs kpass defi repay-trigger create --address 0x1111111111111111111111111111111111111111 --hf 1.2 --amount max --expires 3d --output json and, on the human_action_required response, shows the Approval Required card containing the warning that Kite repays whatever address is entered and a wrong address means funds repay someone else's loan and cannot be recovered, plus the approval_url verbatim",
+    "assertions": [
+      "kpass defi repay-trigger create",
+      "--amount max",
+      "--expires 3d",
+      "someone else's loan",
+      "approval_url"
+    ]
+  },
+  {
+    "id": 144,
+    "prompt": "Check my Aave position 0x1111111111111111111111111111111111111111 (the CLI returned error_code aave_repay_disabled).",
+    "expected_output": "Agent explains that Aave auto-repay is not enabled in this environment (it is on in dev only for now, exit code 4) and does not retry or invent another endpoint",
+    "assertions": [
+      "aave_repay_disabled",
+      "dev"
+    ]
   }
 ]
