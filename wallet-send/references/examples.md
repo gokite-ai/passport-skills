@@ -143,7 +143,9 @@ Display the Transfer Complete card:
 
 **Avalanche variation:** first confirm the user has native USDC on `avalanche`, then use `kpass wallet send --chain avalanche --to 0x... --amount <N> --asset USDC --output json`. Do not ask the user to fund AVAX; Passport sponsors gas.
 
-**Dev environment (arc):** the dev backend serves only Arc testnet, and it does **not** support direct wallet sends — a2a escrow funding flows through the buyer runtime's `kpass agent fund` instead. If a user on dev asks to "send", explain that dev is balance/receive-only on arc; do not offer the mainnet chains.
+**Arc variation:** first confirm the user has USDC on `arc`, then use `kpass wallet send --chain arc --to 0x... --amount <N> --asset USDC --output json`. Do not ask the user to fund a separate gas token: Arc gas is paid in the same USDC, and the server keeps ~0.02 USDC back for fees, so the sendable amount is the `amount` that `wallet balance` reports (already net of the reserve). If the requested amount would eat into that reserve, the send fails as insufficient — offer to send the reported `amount` (or less) instead.
+
+**Dev environment (arc):** the dev backend serves only Arc testnet — do not offer the mainnet chains there. a2a escrow funding still flows through the buyer runtime's `kpass agent fund`, not `wallet send`.
 
 ---
 
@@ -190,7 +192,7 @@ robinhood 0x1234abcd5678ef90...
 solana   9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin
 
 base + polygon + avalanche + tempo + robinhood share one EVM address.
-(On dev, this card shows a single arc row — same EVM address format.)
+(When `wallets[]` includes `arc` — Arc mainnet on staging/prod — add its row and the line `arc  USDC only — USDC is also Arc's gas token`. On dev, this card shows a single arc row for Arc testnet.)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 

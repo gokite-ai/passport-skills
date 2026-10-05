@@ -178,7 +178,7 @@
     {
       "slug": "wallet-send",
       "name": "Wallet Send",
-      "description": "Check a multichain wallet balance, send crypto on a specific chain (base/polygon/avalanche/tempo/solana/robinhood on mainnet; the dev environment serves arc testnet only — balance and address lookups; Passport dev exposes no direct sends, and its faucet cannot fund arc), look up per-chain wallet addresses, or get test tokens from the faucet (staging/testnet only). Proactively invoke for any task involving token transfers, balance inquiries, \"how much do I have?\", \"what's my address?\", or funding a wallet on testnet. No spending session required -- works directly with the user's wallet. Sends require a passkey approval in the browser.",
+      "description": "Check a multichain wallet balance, send crypto on a specific chain (base/polygon/avalanche/tempo/solana/robinhood/arc on mainnet — on arc, USDC also pays gas; the dev environment serves arc as Arc testnet only, with no routing, and its faucet cannot fund arc), look up per-chain wallet addresses, or get test tokens from the faucet (staging/testnet only). Proactively invoke for any task involving token transfers, balance inquiries, \"how much do I have?\", \"what's my address?\", or funding a wallet on testnet. No spending session required -- works directly with the user's wallet. Sends require a passkey approval in the browser.",
       "path": "wallet-send/SKILL.md",
       "group": "user",
       "tags": [
