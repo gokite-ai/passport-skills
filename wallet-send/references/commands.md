@@ -108,7 +108,7 @@ kpass wallet send --chain <base|polygon|avalanche|tempo|solana|robinhood|arc> --
 
 | Argument | Flag | Required | Source | Validation |
 |----------|------|----------|--------|------------|
-| Chain | `--chain` | **Yes** | Ask the user | One of `base`, `polygon`, `avalanche`, `tempo`, `solana`, `robinhood`, `arc`. No default. `kite` and anything else are rejected (exit 2). The backend additionally rejects chains its environment does not serve. **`arc` is balance/receive-only, never a send target** — dev (the only environment serving arc) has no direct sends; a2a escrow funding uses the buyer runtime's `kpass agent fund` (see `buyer-purchase`). |
+| Chain | `--chain` | **Yes** | Ask the user | One of `base`, `polygon`, `avalanche`, `tempo`, `solana`, `robinhood`, `arc`. No default. `kite` and anything else are rejected (exit 2). The backend additionally rejects chains its environment does not serve. **`arc`** is Arc mainnet on staging/prod and Arc testnet on dev: send `USDC` only, and ~0.02 USDC stays behind for Arc gas (USDC is Arc's gas token). a2a escrow funding still goes through the buyer runtime's `kpass agent fund` (see `buyer-purchase`), not `wallet send`. |
 | Recipient address | `--to` | Yes | Ask the user | Validated **for the chosen chain**: base/polygon/avalanche/tempo/robinhood/arc = EVM `0x` + 40 hex (EIP-55 checksum enforced when mixed-case); solana = base58 decoding to 32 bytes. Invalid → exit 2 before any network call. |
 | Amount | `--amount` | Yes | Ask the user | Positive decimal string (e.g. `"25"`, `"0.50"`). |
 | Asset symbol | `--asset` | Yes | Ask the user | Token symbol: `USDC` on base/polygon/avalanche/tempo/solana/arc, `PYUSD` on solana, `USDG` on robinhood. |
@@ -246,17 +246,18 @@ kpass wallet address --chain solana --output json
     { "chain": "avalanche", "vm_family": "evm", "address": "0x1234abcd5678ef90..." },
     { "chain": "tempo", "vm_family": "evm", "address": "0x1234abcd5678ef90..." },
     { "chain": "robinhood", "vm_family": "evm", "address": "0x1234abcd5678ef90..." },
+    { "chain": "arc", "vm_family": "evm", "address": "0x1234abcd5678ef90..." },
     { "chain": "solana", "vm_family": "solana", "address": "9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin" }
   ],
   "_version": "1",
   "status": "success",
-  "hint": "5 wallet(s) found.",
+  "hint": "7 wallet(s) found.",
   "next_command": ""
 }
 ```
 
 **Key fields:**
-- `wallets[]` — `{ chain, vm_family, address }`. The rows reflect the chains the environment's asset registry serves — mainnet returns the six chains below; **dev returns a single `arc` row**.
+- `wallets[]` — `{ chain, vm_family, address }`. The rows reflect the chains the environment's asset registry serves — mainnet (staging/prod) returns the seven chains below, `arc` being Arc mainnet; **dev returns a single `arc` row** (Arc testnet).
   - `vm_family` is `"evm"` for base/polygon/avalanche/tempo/robinhood/arc and `"solana"` for solana.
   - **All EVM chains share one EVM address** (same `address` value). When rows match, tell the user it is one wallet, not a duplicate.
   - The solana entry is **optional** — it is omitted if the user has no Solana wallet.

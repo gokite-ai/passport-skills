@@ -165,10 +165,11 @@ Output:
     { "chain": "avalanche", "vm_family": "evm", "address": "0x1234abcd5678ef90..." },
     { "chain": "tempo", "vm_family": "evm", "address": "0x1234abcd5678ef90..." },
     { "chain": "robinhood", "vm_family": "evm", "address": "0x1234abcd5678ef90..." },
+    { "chain": "arc", "vm_family": "evm", "address": "0x1234abcd5678ef90..." },
     { "chain": "solana", "vm_family": "solana", "address": "9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin" }
   ],
   "_version": "1", "status": "success",
-  "hint": "5 wallet(s) found.", "next_command": ""
+  "hint": "7 wallet(s) found.", "next_command": ""
 }
 ```
 
@@ -177,22 +178,24 @@ Display the addresses card:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 📬 Wallet Addresses
 
-⚠️ Gas is sponsored. Do not send native gas tokens.
+⚠️ Gas is sponsored (on Arc, USDC itself pays gas). Do not send native gas tokens.
 
 Supported receive assets:
 base / polygon / avalanche / tempo   USDC only — do not send native gas tokens
 robinhood      USDG only — do not send ETH
 solana         USDC or PYUSD only — do not send SOL
+arc            USDC only — USDC is also Arc's gas token
 
 base     0x1234abcd5678ef90...
 polygon    0x1234abcd5678ef90...
 avalanche  0x1234abcd5678ef90...
 tempo    0x1234abcd5678ef90...
 robinhood 0x1234abcd5678ef90...
+arc      0x1234abcd5678ef90...
 solana   9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin
 
-base + polygon + avalanche + tempo + robinhood share one EVM address.
-(When `wallets[]` includes `arc` — Arc mainnet on staging/prod — add its row and the line `arc  USDC only — USDC is also Arc's gas token`. On dev, this card shows a single arc row for Arc testnet.)
+base + polygon + avalanche + tempo + robinhood + arc share one EVM address.
+(On dev, this card shows a single arc row for Arc testnet.)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
