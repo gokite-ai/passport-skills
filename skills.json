@@ -3,8 +3,8 @@
   "name": "kskills",
   "display_name": "Kite Passport Skills",
   "description": "Skills that teach AI agents how to authenticate users, manage spending sessions, execute payments, and transfer tokens using the kpass CLI.",
-  "version": "3.4.1",
-  "min_kpass_version": "6.7.0",
+  "version": "3.5.0",
+  "min_kpass_version": "6.8.0",
   "min_kagent_version": "6.6.0",
   "min_ksearch_version": "3.0.0",
   "setup_script": "scripts/setup.sh",
@@ -190,6 +190,26 @@
         "balance",
         "crypto",
         "money"
+      ],
+      "dependencies": [
+        "authenticate-user"
+      ]
+    },
+    {
+      "slug": "defi-auto-repay",
+      "name": "DeFi Auto-Repay",
+      "description": "Arm a one-shot Aave v3 auto-repay on Base: when the health factor of an Aave position (in any wallet) drops below a threshold the user picks, Kite repays its USDC debt once from the user's Passport wallet. Read a position's health factor and debt, create a trigger (armed with a passkey in the browser), and list, check or cancel triggers. Invoke when the user wants to keep an Aave loan healthy, reduce liquidation risk, or asks about their Aave position's health.",
+      "path": "defi-auto-repay/SKILL.md",
+      "group": "user",
+      "tags": [
+        "defi",
+        "aave",
+        "repay",
+        "loan",
+        "health-factor",
+        "liquidation",
+        "base",
+        "usdc"
       ],
       "dependencies": [
         "authenticate-user"

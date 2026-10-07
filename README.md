@@ -30,6 +30,7 @@ Each skill is a `SKILL.md` file that gets injected into an AI agent's context at
 | **form-session-delegation** | `form-session-delegation/` | Helper skill for constructing delegation objects. Covers preflight 402 parsing, delegation schema, and construction rules. Not user-invocable. |
 | **x402-execute** | `x402-execute/` | Execute HTTP requests through approved sessions. The backend handles x402 payment negotiation. |
 | **wallet-send** | `wallet-send/` | Direct wallet-to-wallet token transfers and testnet faucet. No spending session required. |
+| **defi-auto-repay** | `defi-auto-repay/` | Arm a one-shot Aave v3 auto-repay on Base: when a position's health factor drops below the user's threshold, Kite repays its USDC debt once from the Passport wallet. Passkey-approved. |
 | **manage-agents** | `manage-agents/` | List and inspect registered agents and sessions from the user's perspective. Diagnostics and debugging. |
 | **shopping** | `shopping/` | Search and buy physical products, manage a shopping cart, collect shipping details, and checkout with crypto. |
 | **activity** | `activity/` | View recent account activity including wallet transfers, faucet drops, API payments, agent registrations, session approvals, and shopping checkouts. |
@@ -93,6 +94,8 @@ attach-session   (bind an existing attachable session by ID -- e.g. created
        |
        +----> wallet-send    (direct transfers + testnet faucet)
        |
+       +----> defi-auto-repay (Aave health-factor auto-repay, passkey-armed)
+       |
        +----> shopping       (search + buy physical products)
 
 upgrade-passport  (standalone -- detect and apply kpass CLI updates; no auth, no deps)
@@ -144,6 +147,9 @@ npx skills add gokite-ai/passport-skills/form-session-delegation
 npx skills add gokite-ai/passport-skills/x402-execute
 npx skills add gokite-ai/passport-skills/wallet-send
 npx skills add gokite-ai/passport-skills/manage-agents
+
+# DeFi (uses kpass defi):
+npx skills add gokite-ai/passport-skills/defi-auto-repay
 
 # Shopping (uses kpass shop:* CLI):
 npx skills add gokite-ai/passport-skills/shopping
@@ -230,6 +236,8 @@ passport-skills/
     SKILL.md                     Execute paid HTTP requests through sessions
   wallet-send/
     SKILL.md                     Check balance, send tokens, request test tokens
+  defi-auto-repay/
+    SKILL.md                     Arm, check and cancel one-shot Aave auto-repay triggers
   manage-agents/
     SKILL.md                     List/inspect agents and sessions (user perspective)
   shopping/
