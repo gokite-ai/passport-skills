@@ -1452,10 +1452,10 @@
   {
     "id": 144,
     "prompt": "Check my Aave position 0x1111111111111111111111111111111111111111 (the CLI returned error_code aave_repay_disabled).",
-    "expected_output": "Agent explains that Aave auto-repay is not enabled in this environment (it is on in dev only for now, exit code 4) and does not retry or invent another endpoint",
+    "expected_output": "Agent explains that Aave auto-repay is not enabled in this environment (exit code 4) and does not retry or invent another endpoint",
     "assertions": [
       "aave_repay_disabled",
-      "dev"
+      "not enabled"
     ]
   }
 ]

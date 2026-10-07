@@ -64,7 +64,7 @@ web search for product research when a direct product-search command exists.
 | Send crypto, transfer tokens to an address | `wallet-send` (chain set is environment-specific — mainnet includes arc, Arc mainnet; dev serves arc as Arc testnet only) |
 | Check wallet balance, see how much money is available | `wallet-send` |
 | Get test tokens on testnet | `wallet-send` (staging/testnet only) |
-| Auto-repay an Aave loan if its health factor drops, reduce liquidation risk | `defi-auto-repay` (dev only for now) |
+| Auto-repay an Aave loan if its health factor drops, reduce liquidation risk | `defi-auto-repay` |
 | Check an Aave position's health factor or debt | `defi-auto-repay` |
 | Sign up, log in, authenticate | `authenticate-user` |
 | Use a session created in the web dashboard, "here's a session ID" | `attach-session` |

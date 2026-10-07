@@ -7,8 +7,7 @@ description: >-
   factor and debt, creates a trigger (armed with a passkey in the browser), and
   lists, checks or cancels triggers. Invoke when the user wants to keep an Aave
   loan healthy, avoid or reduce liquidation risk, set a health-factor alert that
-  repays automatically, or asks about their Aave position's health. Currently
-  available on the dev environment only.
+  repays automatically, or asks about their Aave position's health.
 user-invocable: true
 allowed-tools:
   - "Bash(kpass defi *)"
@@ -40,7 +39,7 @@ Arm a **one-shot** repay trigger on an Aave v3 position: when its health factor 
 
 The user must be logged in. If a command exits **3** with "Not logged in", use **`authenticate-user`** first, then retry.
 
-**Availability:** the feature is on in the **dev** environment only for now. Any other environment answers `error_code: "aave_repay_disabled"` (exit 4). On dev, Aave runs on Base Sepolia with **Aave's own test USDC**, not Circle's.
+**Availability:** on in production, staging and dev. Production and staging run on **Base mainnet with Circle USDC — a repay spends real funds**. Dev runs on Base Sepolia with **Aave's own test USDC**, not Circle's. An environment with the feature switched off answers `error_code: "aave_repay_disabled"` (exit 4).
 
 ## Rules (Do Not Skip)
 
@@ -134,7 +133,7 @@ If `trigger_status` is `cancelled`, `expired` or `failed` (exit **3**), tell the
 | 0 | | Success, pending, or `human_action_required` | Continue the flow |
 | 2 | `invalid_request`, `aave_position_no_debt`, `aave_position_unsupported_debt`, `aave_trigger_not_below_hf`, `aave_trigger_already_active`, `aave_trigger_not_cancellable` | Bad input, or the position doesn't qualify | Show the reason; re-check with `defi position`; for an active trigger, `list` then `cancel` it first |
 | 3 | | Not logged in; trigger `cancelled`/`expired`/`failed`; `--wait` timed out | `authenticate-user`, or create a new trigger |
-| 4 | `aave_repay_disabled`, `aave_trigger_not_found` | Feature off in this environment; unknown ID | Check `--base-url` (dev only for now); `list` to find IDs |
+| 4 | `aave_repay_disabled`, `aave_trigger_not_found` | Feature off in this environment; unknown ID | Check `--base-url`; `list` to find IDs |
 | 1 | `aave_chain_unavailable` | The chain couldn't be read | Retry in a moment |
 
 ## Commands That DO NOT Exist

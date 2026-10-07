@@ -107,7 +107,7 @@ Cancels a `pending_approval` or `armed` trigger. No passkey (cancelling only rem
 
 | `error_code` | Exit | Cause |
 |--------------|------|-------|
-| `aave_repay_disabled` | 4 | Feature off in this environment (dev only for now) |
+| `aave_repay_disabled` | 4 | Feature switched off in this environment |
 | `invalid_request` | 2 | Malformed address, number, amount or expiry |
 | `aave_position_no_debt` | 2 | The position owes nothing |
 | `aave_position_unsupported_debt` | 2 | USDC is not the position's only debt |

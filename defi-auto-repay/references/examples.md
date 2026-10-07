@@ -57,4 +57,4 @@ Then create the new one. Ask the user before cancelling their existing trigger.
 
 ## 6. Not available in this environment
 
-Any command returns `aave_repay_disabled` (exit 4): the feature is on in dev only for now. Do not retry against production.
+Any command returns `aave_repay_disabled` (exit 4): the feature is switched off in the environment `--base-url` points at. Tell the user it is not available there. Do not retry against another environment.
