@@ -2,9 +2,9 @@
 name: wallet-send
 description: >-
   Check a multichain wallet balance, send crypto on a specific chain
-  (base/polygon/avalanche/tempo/solana/robinhood on mainnet; the dev
-  environment serves arc testnet only — balance and address lookups; Passport
-  dev exposes no direct sends, and its faucet cannot fund arc), look up per-chain wallet addresses, or get test tokens
+  (base/polygon/avalanche/tempo/solana/robinhood/arc on mainnet — on arc,
+  USDC also pays gas; the dev environment serves arc as Arc testnet only, with
+  no routing, and its faucet cannot fund arc), look up per-chain wallet addresses, or get test tokens
   from the faucet (staging/testnet only). Proactively invoke for any task
   involving token transfers, balance inquiries, "how much do I have?",
   "what's my address?", or funding a wallet on testnet. No spending session
@@ -20,7 +20,7 @@ allowed-tools:
 
 Check a wallet balance across chains, send tokens **on a specific chain**, list per-chain wallet addresses, and request test tokens from the faucet. These commands use the user's own JWT (not an agent session) and do NOT require a spending session.
 
-Kite is **multichain**. Every send targets one chain — on mainnet one of **`base`**, **`polygon`**, **`avalanche`**, **`tempo`**, **`solana`**, or **`robinhood`** — and `--chain` is **required** (there is no default; `kite` is rejected). Balances are aggregated across all chains the environment serves. **The chain set is environment-specific**: the backend only serves the chains in its asset registry, and the **dev environment serves `arc` (Arc testnet, chainId 5042002, Circle USDC) and nothing else** — Passport dev shows balances and addresses for arc only, exposes no direct sends, and has no cross-chain routing (these are Passport-deployment restrictions, not Arc limitations). A wallet send normally requires a **passkey approval in the browser** (step-up), so `wallet send` hands you an approval URL and you poll the result with `wallet send-status`.
+Kite is **multichain**. Every send targets one chain — on mainnet one of **`base`**, **`polygon`**, **`avalanche`**, **`tempo`**, **`solana`**, **`robinhood`**, or **`arc`** (Arc mainnet, chainId 5042) — and `--chain` is **required** (there is no default; `kite` is rejected). Balances are aggregated across all chains the environment serves. **The chain set is environment-specific**: the backend only serves the chains in its asset registry, and the **dev environment serves `arc` as Arc testnet (chainId 5042002, Circle USDC) and nothing else** — no cross-chain routing on dev, and Kite's faucet cannot fund arc (Passport-deployment restrictions, not Arc limitations). A wallet send normally requires a **passkey approval in the browser** (step-up), so `wallet send` hands you an approval URL and you poll the result with `wallet send-status`.
 
 > **Reference files** (read when you need exact detail):
 > - `@references/commands.md` — full per-command flag tables, validation rules, and every JSON shape.
@@ -48,26 +48,26 @@ No agent registration or spending session is required. Wallet commands operate w
 
 | Chain | VM family | Assets | Notes |
 |-------|-----------|--------|-------|
-| `base` | `evm` (`0x…`) | USDC | base + polygon + avalanche + tempo + robinhood share **one EVM address** |
+| `base` | `evm` (`0x…`) | USDC | base + polygon + avalanche + tempo + robinhood + arc share **one EVM address** |
 | `polygon` | `evm` (`0x…`) | USDC | native Circle USDC on Polygon PoS mainnet; gas is POL and is sponsored |
 | `avalanche` | `evm` (`0x…`) | USDC | native Circle USDC on Avalanche C-Chain mainnet; gas is AVAX and is sponsored |
 | `tempo` | `evm` (`0x…`) | USDC | physically USDC.e (surfaced as USDC); ~0.01 USDC is reserved for gas — the `amount` the CLI shows is already the spendable figure |
 | `solana` | `solana` (base58) | USDC, PYUSD | separate Solana address; optional (omitted if the user has no Solana wallet) |
-| `robinhood` | `evm` (`0x…`) | USDG | **USDG only**; same EVM address as base/polygon/avalanche/tempo; no faucet |
-| `arc` | `evm` (`0x…`) | USDC | **dev environment only** — Arc testnet (chainId 5042002), the a2a escrow settlement chain. Circle USDC doubles as Arc's gas token, so there is no separate native token to avoid. Balance/address only: **Passport dev exposes no direct sends or routing on arc, and its faucet cannot fund arc** (restrictions of the Passport deployment, not of Arc itself) — a2a escrow funding flows through the buyer runtime's `kpass agent fund`. |
+| `robinhood` | `evm` (`0x…`) | USDG | **USDG only**; same EVM address as base/polygon/avalanche/tempo/arc; no faucet |
+| `arc` | `evm` (`0x…`) | USDC | Arc **mainnet** (chainId 5042) on staging/prod; Arc **testnet** (chainId 5042002) on dev, where it is the a2a escrow settlement chain. Circle USDC **is** Arc's gas token, so Passport does **not** sponsor Arc gas: ~0.02 USDC is reserved for fees on every send — the `amount` the CLI shows is already the spendable figure. No faucet (on dev, use Circle's faucet — see below). |
 
-The mainnet rows above are what staging/prod serve; **on dev, `arc` is the ONLY chain** — never offer the mainnet chains there.
+The mainnet rows above are what staging/prod serve; **on dev, `arc` (Arc testnet) is the ONLY chain** — never offer the mainnet chains there.
 
-**Use `USDC` on base/polygon/avalanche/tempo/solana (and on arc on dev), `PYUSD` on solana, and `USDG` on robinhood.** Never imply that USDG is supported on base/polygon/avalanche/tempo or that USDC is supported on robinhood. `KITE` is not part of the multichain surface — do not suggest it as a send/receive asset even though the CLI's `--asset` help still lists it as an example.
+**Use `USDC` on base/polygon/avalanche/tempo/solana/arc, `PYUSD` on solana, and `USDG` on robinhood.** Never imply that USDG is supported on base/polygon/avalanche/tempo or that USDC is supported on robinhood. `KITE` is not part of the multichain surface — do not suggest it as a send/receive asset even though the CLI's `--asset` help still lists it as an example.
 
-**Passport sponsors gas on every supported chain.** Users do not need to deposit ETH, SOL, or another native gas token. Whenever you share a receive address, state the supported receive asset(s) and the gas-sponsorship warning **before** the address so crypto-native users do not fund gas out of habit.
+**Passport sponsors gas on every supported chain except Arc**, where gas is paid in the same USDC the user holds (a ~0.02 USDC reserve is kept per send). Users never need to deposit ETH, POL, AVAX, SOL, or another native gas token. Whenever you share a receive address, state the supported receive asset(s) and the gas-sponsorship warning **before** the address so crypto-native users do not fund gas out of habit.
 
 ## Defaults (Do Not Ask the User Unless They Specify Otherwise)
 
 | Setting | Default value | Override |
 |---------|--------------|---------|
 | Output format | `--output json` | Always use JSON output. Never omit this flag. |
-| Chain | Ask the user | **Required for `wallet send`.** There is no default. If the user did not say which chain, ask (e.g. "base, polygon, avalanche, tempo, solana, or robinhood?"). On dev the only chain is `arc` — and Passport dev does not expose direct sends. |
+| Chain | Ask the user | **Required for `wallet send`.** There is no default. If the user did not say which chain, ask (e.g. "base, polygon, avalanche, tempo, solana, robinhood, or arc?"). On dev the only chain is `arc` (Arc testnet). |
 | Asset | Ask the user | There is no default. You must know which token to send (e.g. `USDC`, `PYUSD`). |
 | Base URL | Omit (uses built-in default) | Only pass `--base-url` if the user explicitly provides a custom backend URL. |
 
@@ -201,6 +201,7 @@ After a successful **balance** check, present the aggregate and per-chain breakd
    tempo    {amount}
    solana   {amount}
    robinhood {amount}
+   arc      {amount}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
@@ -212,22 +213,23 @@ After a successful **address** lookup:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 📬 Wallet Addresses
 
-⚠️ Gas is sponsored. Do not send native gas tokens.
+⚠️ Gas is sponsored (on Arc, USDC itself pays gas). Do not send native gas tokens.
 
 Supported receive assets:
 base / polygon / avalanche / tempo   USDC only — do not send native gas tokens
 robinhood      USDG only — do not send ETH
 solana         USDC or PYUSD only — do not send SOL
-arc (dev only) USDC only — USDC is also Arc's gas token
+arc            USDC only — USDC is also Arc's gas token
 
 base     {address}
 polygon    {address}
 avalanche  {address}
 tempo    {address}
 robinhood {address}
+arc      {address}
 solana   {address}
 
-base + polygon + avalanche + tempo + robinhood share one EVM address.
+base + polygon + avalanche + tempo + robinhood + arc share one EVM address.
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
@@ -237,12 +239,12 @@ The safety notice and supported-assets block are mandatory and must appear **bef
 
 After displaying the balance card, check whether a proactive faucet suggestion applies — do this even if the user only asked "what's my wallet info" and did not ask about funding. **If the check in hand is an address lookup, not a balance one, run `kpass wallet balance --output json` first** — `wallet address` carries no `amount` data at all (its rows are just `{ chain, vm_family, address }`), so there is nothing to evaluate the threshold against until a real balance response exists. Never fabricate or assume a balance from an address response.
 
-**When to suggest:** the environment is dev/testnet (recognized by an `arc` row in `chains[]` — dev serves `arc` and nothing else) or another testnet/staging chain, **and** the main stablecoin's balance on that chain (`USDC`, the `amount` field of its `chains[]` row) is `0` or less than `1`. Never suggest the faucet against a mainnet/production balance.
+**When to suggest:** the environment is dev/testnet (recognized by `arc` being the **only** row in `chains[]` — dev serves `arc` as Arc testnet and nothing else; staging/prod also return an `arc` row, for Arc **mainnet**, alongside the other chains, so an `arc` row on its own does not mean dev) or another testnet/staging chain, **and** the main stablecoin's balance on that chain (`USDC`, the `amount` field of its `chains[]` row) is `0` or less than `1`. Never suggest the faucet against a mainnet/production balance.
 
 **What to suggest:**
 - **Any chain other than `arc` or `robinhood`:** offer to run `kpass faucet drop --recipient <address> --token USDC --output json` (see the `faucet drop` card below). **`faucet drop` takes no `--chain` flag** — it drops on a single backend-determined testnet (reported only informationally as `chain_id` in its response), not necessarily the same network as the chain whose balance was low, since the recipient address is shared across base/polygon/avalanche/tempo/robinhood. Don't claim the drop replenishes that specific chain; after it completes, re-run `wallet balance` and report what actually changed rather than assuming.
 - **`robinhood` specifically:** do NOT offer `kpass faucet drop` — robinhood is **USDG only** and, per `references/commands.md`, "is not a faucet-supported chain." There is no faucet path for it; say so if asked.
-- **`arc` specifically:** do NOT offer `kpass faucet drop` — Passport's own faucet cannot fund Arc (see the `arc` row in **Chains & Assets** above). Instead tell the user:
+- **`arc` specifically (dev only — never on Arc mainnet):** do NOT offer `kpass faucet drop` — Passport's own faucet cannot fund Arc (see the `arc` row in **Chains & Assets** above). Instead tell the user:
 
   > Your arc (Arc testnet) USDC balance is `<amount>`. Kite's own `faucet drop` cannot fund Arc, so get free test USDC directly from Circle:
   > 1. Open https://faucet.circle.com/

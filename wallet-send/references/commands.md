@@ -72,7 +72,7 @@ kpass wallet balance --output json
   - `asset` — symbol (e.g. `USDC`, `PYUSD`, `USDG`). `KITE` does not appear on the multichain surface.
   - `total` — summed spendable amount across chains (string).
   - `decimals` — token decimals.
-  - `chains[]` — per-chain breakdown: `{ chain, amount, partial }`. `chain` is `base`, `polygon`, `avalanche`, `tempo`, `solana`, or `robinhood`.
+  - `chains[]` — per-chain breakdown: `{ chain, amount, partial }`. `chain` is `base`, `polygon`, `avalanche`, `tempo`, `solana`, `robinhood`, or `arc` (on dev, `arc` — Arc testnet — is the only chain). On `arc` (like `tempo`), `amount` is already net of the gas reserve (0.02 USDC on arc), because USDC itself pays the chain's gas.
   - `partial` (on an asset or a chain) — `true` means that chain's read failed and the figure is incomplete. Tell the user the number may be understated.
 - `as_of` — timestamp the balances were read.
 
@@ -108,10 +108,10 @@ kpass wallet send --chain <base|polygon|avalanche|tempo|solana|robinhood|arc> --
 
 | Argument | Flag | Required | Source | Validation |
 |----------|------|----------|--------|------------|
-| Chain | `--chain` | **Yes** | Ask the user | One of `base`, `polygon`, `avalanche`, `tempo`, `solana`, `robinhood`, `arc`. No default. `kite` and anything else are rejected (exit 2). The backend additionally rejects chains its environment does not serve. **`arc` is balance/receive-only, never a send target** — dev (the only environment serving arc) has no direct sends; a2a escrow funding uses the buyer runtime's `kpass agent fund` (see `buyer-purchase`). |
+| Chain | `--chain` | **Yes** | Ask the user | One of `base`, `polygon`, `avalanche`, `tempo`, `solana`, `robinhood`, `arc`. No default. `kite` and anything else are rejected (exit 2). The backend additionally rejects chains its environment does not serve. **`arc`** is Arc mainnet on staging/prod and Arc testnet on dev: send `USDC` only, and ~0.02 USDC stays behind for Arc gas (USDC is Arc's gas token). a2a escrow funding still goes through the buyer runtime's `kpass agent fund` (see `buyer-purchase`), not `wallet send`. |
 | Recipient address | `--to` | Yes | Ask the user | Validated **for the chosen chain**: base/polygon/avalanche/tempo/robinhood/arc = EVM `0x` + 40 hex (EIP-55 checksum enforced when mixed-case); solana = base58 decoding to 32 bytes. Invalid → exit 2 before any network call. |
 | Amount | `--amount` | Yes | Ask the user | Positive decimal string (e.g. `"25"`, `"0.50"`). |
-| Asset symbol | `--asset` | Yes | Ask the user | Token symbol: `USDC` on base/polygon/avalanche/tempo/solana, `PYUSD` on solana, `USDG` on robinhood. |
+| Asset symbol | `--asset` | Yes | Ask the user | Token symbol: `USDC` on base/polygon/avalanche/tempo/solana/arc, `PYUSD` on solana, `USDG` on robinhood. |
 | Idempotency key | `--idempotency-key` | No | Omit | Forwarded as the `Idempotency-Key` header; auto-generated when omitted. **The backend accepts but does not yet de-duplicate on it — treat it as reserved; do not rely on it to make retries safe.** |
 | Output format | `--output json` | Yes | Always pass | Literal value `json` |
 
@@ -246,17 +246,18 @@ kpass wallet address --chain solana --output json
     { "chain": "avalanche", "vm_family": "evm", "address": "0x1234abcd5678ef90..." },
     { "chain": "tempo", "vm_family": "evm", "address": "0x1234abcd5678ef90..." },
     { "chain": "robinhood", "vm_family": "evm", "address": "0x1234abcd5678ef90..." },
+    { "chain": "arc", "vm_family": "evm", "address": "0x1234abcd5678ef90..." },
     { "chain": "solana", "vm_family": "solana", "address": "9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin" }
   ],
   "_version": "1",
   "status": "success",
-  "hint": "5 wallet(s) found.",
+  "hint": "7 wallet(s) found.",
   "next_command": ""
 }
 ```
 
 **Key fields:**
-- `wallets[]` — `{ chain, vm_family, address }`. The rows reflect the chains the environment's asset registry serves — mainnet returns the six chains below; **dev returns a single `arc` row**.
+- `wallets[]` — `{ chain, vm_family, address }`. The rows reflect the chains the environment's asset registry serves — mainnet (staging/prod) returns the seven chains below, `arc` being Arc mainnet; **dev returns a single `arc` row** (Arc testnet).
   - `vm_family` is `"evm"` for base/polygon/avalanche/tempo/robinhood/arc and `"solana"` for solana.
   - **All EVM chains share one EVM address** (same `address` value). When rows match, tell the user it is one wallet, not a duplicate.
   - The solana entry is **optional** — it is omitted if the user has no Solana wallet.
@@ -264,7 +265,7 @@ kpass wallet address --chain solana --output json
 
 ### Required Receive-Asset Warning
 
-Before displaying any address, state that Passport sponsors gas and users must not send native gas tokens. Then show the receive rules for each returned chain:
+Before displaying any address, state that Passport sponsors gas (on Arc, USDC itself pays gas) and users must not send native gas tokens. Then show the receive rules for each returned chain:
 
 | Chain | Supported receive assets | Explicit warning |
 |-------|--------------------------|------------------|
@@ -274,7 +275,7 @@ Before displaying any address, state that Passport sponsors gas and users must n
 | `tempo` | USDC only | Do not send unsupported assets |
 | `robinhood` | USDG only | Do not send ETH |
 | `solana` | USDC or PYUSD | Do not send SOL |
-| `arc` (dev only) | USDC only | Circle USDC doubles as Arc's gas token — deposit USDC and nothing else |
+| `arc` | USDC only | Circle USDC is Arc's gas token — deposit USDC and nothing else (Arc mainnet on staging/prod, Arc testnet on dev) |
 
 Never return a bare wallet address without this guidance. The same EVM address does not imply that an asset supported on one chain is supported on the others.
 
