@@ -21,6 +21,8 @@
     "url": "https://github.com/gokite-ai/passport-skills.git"
   },
   "scripts": {
+    "eval:replay": "node scripts/replay-evals.mjs",
+    "test:replay": "node --test test/replay-evals.test.mjs",
     "validate": "bash scripts/validate.sh",
     "lint": "markdownlint-cli2 '**/*.md' '#node_modules' '#evals' '#.agents' '#.claude' '#.superpowers'"
   },
