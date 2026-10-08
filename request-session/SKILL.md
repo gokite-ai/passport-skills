@@ -102,9 +102,37 @@ spending session for this agent") read like this skill's own: it bound the
 session to a different agent identity than the CLI runtime, so what it minted
 could not fund CLI-lane work, and it took no scope for the owner to review.
 
+## Shared account allowance (matching POC release)
+
+For a paid API confirmed to accept **Base USDC x402**, after agent registration,
+prefer the owner's existing account allowance when the user has not requested a
+separate budget or a scoped session:
+
+```bash
+kpass session allowance --output json
+```
+
+This binds this agent's own signing key to an already approved shared budget.
+It does not create another budget and requires no new passkey approval. A bare
+`kpass session create --output json` uses the same path. On success, use the
+returned `session_id`; do not ask the user to choose between default and new.
+
+Only `allowance_unavailable` (no allowance or feature disabled) or
+`allowance_disabled` (owner opted this agent out) permits continuing to the
+ordinary session request flow below. An older CLI that explicitly reports an
+unknown `allowance` subcommand uses the ordinary flow. Authentication, network,
+expiry, exhaustion, and unknown-payment errors are not permission to switch
+budgets or request a replacement silently.
+
+The shared allowance currently supports only direct Base USDC x402. A2A,
+shopping, cards and other settlement routes still use their existing scoped
+session flows. A failure on a supported allowance payment must stop; never try
+a broader session to evade its limit. All enabled agents consume the same
+account budget, and eligibility changes belong to the owner in the dashboard.
+
 ## Sessions Are Protocol-Agnostic
 
-A single approved session is fungible across paid-API and shopping flows. The settlement protocol (x402, paygate, tempo, or crossmint checkout) is detected at execute time from the merchant's preflight response — the delegation does **not** carry a protocol field. The authorization boundary is per-tx / total spending caps (`max_amount_per_tx` / `max_total_amount`, denominated in `payment_policy.currency`, default `USD`) plus optional `execution_constraints` endpoint scoping — there is **no `assets` allowlist field** and the caps are never expressed per-asset. The settlement asset itself is a separate, merchant-selected concern: the merchant's 402 dictates which token settles (normalized into the budget currency for cap enforcement), and the session locks to that first settled asset automatically (single-asset lock) — this lock is an emergent side effect of settlement, not a user-configurable allowlist. See the **`form-session-delegation`** skill for the full schema.
+A separately approved legacy session is fungible across paid-API and shopping flows. The account allowance POC has the narrower payment support described above. The settlement protocol (x402, paygate, tempo, or crossmint checkout) is detected at execute time from the merchant's preflight response — the delegation does **not** carry a protocol field. The authorization boundary is per-tx / total spending caps (`max_amount_per_tx` / `max_total_amount`, denominated in `payment_policy.currency`, default `USD`) plus optional `execution_constraints` endpoint scoping — there is **no `assets` allowlist field** and the caps are never expressed per-asset. The settlement asset itself is a separate, merchant-selected concern: the merchant's 402 dictates which token settles (normalized into the budget currency for cap enforcement), and the session locks to that first settled asset automatically (single-asset lock) — this lock is an emergent side effect of settlement, not a user-configurable allowlist. See the **`form-session-delegation`** skill for the full schema.
 
 For the full delegation schema and derivation rules, see the **`form-session-delegation`** skill.
 

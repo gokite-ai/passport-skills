@@ -37,6 +37,24 @@ Before using this skill, you MUST have:
 
 If any of these are missing, the command will fail with exit code 3 (auth error). Follow the error message to the appropriate prerequisite skill.
 
+## Recurring and shared allowance payments
+
+For a recurring session or account-allowance binding, supply
+`--idempotency-key <unique-operation-id>` on every `kpass session execute` call.
+Confirm the installed CLI exposes this flag with `kpass session execute --help`.
+If it does not, upgrade the CLI before attempting recurring or allowance-backed
+payments; do not omit the key to work around an older CLI.
+Keep that key and the exact request input for a transport retry. A genuinely
+new payment gets a new key; never change the key to work around a pending or
+unknown outcome.
+
+On `recurring_budget_exhausted`, stop and show the reset date. On
+`recurring_payment_unknown` or `execute_in_progress`, stop and ask the owner to
+reconcile the original operation. On `recurring_request_conflict`, restore the
+original request rather than generating another key. Never switch agents or
+sessions to bypass an exhausted shared budget. The allowance currently supports
+only direct Base USDC x402; it does not authorize shopping or A2A payments.
+
 ## Defaults (Do Not Ask the User Unless They Specify Otherwise)
 
 | Setting | Default value | Override |
@@ -194,7 +212,6 @@ Do NOT attempt any of the following. They will fail:
 - `kpass session execute --amount` -- does not exist; payment amount is determined by the target service's x402 requirements
 - `kpass session execute --currency` -- does not exist
 - `kpass session execute --to` -- does not exist; use `wallet send` for direct transfers
-- `kpass session execute --idempotency-key` -- does not exist in the current CLI
 - Any command with `--json` -- the correct flag is `--output json` (two separate tokens)
 
 ---

@@ -14,7 +14,7 @@ Sends an HTTP request through the Passport backend, which handles payment negoti
 kpass session execute --url <URL> --output json
 ```
 
-Full form with all optional flags:
+Full form with additional flags (the idempotency key is required for recurring or allowance-backed payments):
 
 ```
 kpass session execute \
@@ -23,6 +23,7 @@ kpass session execute \
   --headers '<JSON_OBJECT>' \
   --body '<JSON_VALUE>' \
   --session-id <session_id> \
+  --idempotency-key <unique-operation-id> \
   --output json
 ```
 
@@ -35,7 +36,10 @@ kpass session execute \
 | Request headers | `--headers` | No | Only if target API requires custom headers | Must be a valid JSON object string (key-value pairs) |
 | Request body | `--body` | No | Only if the request needs a payload | Must be a valid JSON string |
 | Session ID | `--session-id` | No | Auto-read from agent config | Only pass to override the current session |
+| Operation key | `--idempotency-key` | For recurring or allowance-backed payments | Generate once for each new payment; retain with the original request | Reuse the same key and identical request for a transport retry; never change it to bypass a pending or unknown outcome |
 | Output format | `--output json` | Yes | Always pass | Literal value `json` |
+
+Check `kpass session execute --help` for `--idempotency-key` before using a recurring session or allowance binding. If the installed CLI lacks it, upgrade before executing; do not drop the key. The flag is forwarded as the `Idempotency-Key` header to Passport, not as a merchant request header.
 
 ### Important Notes on `--headers` and `--body`
 
