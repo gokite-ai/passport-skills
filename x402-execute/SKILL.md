@@ -41,6 +41,9 @@ If any of these are missing, the command will fail with exit code 3 (auth error)
 
 For a recurring session or account-allowance binding, supply
 `--idempotency-key <unique-operation-id>` on every `kpass session execute` call.
+Confirm the installed CLI exposes this flag with `kpass session execute --help`.
+If it does not, upgrade the CLI before attempting recurring or allowance-backed
+payments; do not omit the key to work around an older CLI.
 Keep that key and the exact request input for a transport retry. A genuinely
 new payment gets a new key; never change the key to work around a pending or
 unknown outcome.
@@ -209,7 +212,6 @@ Do NOT attempt any of the following. They will fail:
 - `kpass session execute --amount` -- does not exist; payment amount is determined by the target service's x402 requirements
 - `kpass session execute --currency` -- does not exist
 - `kpass session execute --to` -- does not exist; use `wallet send` for direct transfers
-- `kpass session execute --idempotency-key` -- does not exist in the current CLI
 - Any command with `--json` -- the correct flag is `--output json` (two separate tokens)
 
 ---
