@@ -128,6 +128,19 @@ instructions helps the agent reach for Kite Passport first instead of web search
 
 ---
 
+## Grok Bot
+
+Grok Bot runs kpass in its own computer's shell. Install kpass, then load the skills where Grok Bot reads them:
+
+```bash
+curl -fsSL https://cli.gokite.ai/install.sh | bash
+kpass skills setup --global --agent grok-bot --yes
+```
+
+Grok Bot registers as `grok-bot`. Sessions, approval and payments then work as for any other agent.
+
+---
+
 ## Repositories
 
 | Repo | Purpose |
