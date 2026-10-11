@@ -119,7 +119,7 @@ The user MUST be authenticated before using this skill. If not logged in (exit c
 | Setting | Default value | Override |
 |---------|--------------|---------|
 | Output format | `--output json` | Always use JSON output. Never omit this flag. |
-| Agent type | Your own agent identity (e.g., `claude` for Claude Code, `cursor` for Cursor, `codex` for Codex, `cline` for Cline) | Never ask the user. Each agent passes its own name automatically. |
+| Agent type | Your own agent identity (e.g., `claude` for Claude Code, `cursor` for Cursor, `codex` for Codex, `cline` for Cline, `grok-bot` for Grok Bot) | Never ask the user. Each agent passes its own name automatically. |
 | TTL | `3600` (1 hour) in delegation `ttl_seconds` | Use 1 hour unless the user specifies a different duration. |
 | Max amount per tx | Derive automatically from 402 preflight response OR from a known amount (e.g., shopping cart total) | Never ask the user for this. See **`form-session-delegation`** for derivation rules. |
 | Max total amount | Derive automatically: per-tx price × estimated requests, or equal to per-tx for single transactions (e.g., shopping checkout) | Never ask the user. See **`form-session-delegation`** for derivation rules. |
@@ -352,7 +352,7 @@ End-to-end walkthroughs for new session creation and session reuse:
 - The user is not logged in. Use the **`authenticate-user`** skill to sign up or log in.
 
 **"Agent not registered. Run 'kpass agent:register --type <type>' first." (exit code 3):**
-- Run `agent:register --type <agent-type> --output json` before using any session commands. (Replace `<agent-type>` with your own agent identity: `claude`, `cursor`, `codex`, `cline`, etc.)
+- Run `agent:register --type <agent-type> --output json` before using any session commands. (Replace `<agent-type>` with your own agent identity: `claude`, `cursor`, `codex`, `cline`, `grok-bot`, etc.)
 - To investigate from the user's perspective, use `user agents --output json` (see the **`manage-agents`** skill) to verify what agents are registered.
 
 **"Agent is registered to a different user" (exit code 3):**
@@ -401,7 +401,7 @@ Do NOT attempt any of the following. They will fail:
 - `kpass session` (without a sub-command) — must use `list`, `create`, `status`, `use`, or `execute`
 - `kpass agent:register --agent-app` — the flag is `--type`, not `--agent-app`
 - `kpass agent:register --name` — does not exist; use `--type`
-- `kpass agent:register --type <AGENT_TYPE>` with a user-provided value — the `--type` value is NEVER user-provided. The agent always passes its own identity (e.g., `claude`, `cursor`, `codex`, `cline`). Do not ask the user what agent type to use.
+- `kpass agent:register --type <AGENT_TYPE>` with a user-provided value — the `--type` value is NEVER user-provided. The agent always passes its own identity (e.g., `claude`, `cursor`, `codex`, `cline`, `grok-bot`). Do not ask the user what agent type to use.
 - `kpass agent:balance` — does not exist; use `wallet balance` for balance checks
 - `kpass session create --max-amount-per-tx` — **REMOVED.** Use `--delegation` with the full delegation JSON instead.
 - `kpass session create --ttl` — **REMOVED.** TTL is now inside the delegation JSON as `payment_policy.ttl_seconds`.
@@ -421,7 +421,7 @@ Do NOT attempt any of the following. They will fail:
 
 Before running any command, verify:
 
-1. **Agent type:** Your own agent identity string, no spaces. Use `claude` for Claude Code, `cursor` for Cursor, `codex` for Codex, `cline` for Cline. Never ask the user.
+1. **Agent type:** Your own agent identity string, no spaces. Use `claude` for Claude Code, `cursor` for Cursor, `codex` for Codex, `cline` for Cline, `grok-bot` for Grok Bot. Never ask the user.
 2. **Delegation JSON:** Must be valid JSON. Must be the **inner** delegation object itself — do NOT wrap it in an outer `{"delegation": ...}` (the CLI does that automatically) — containing `task.summary`, `payment_policy.max_amount_per_tx`, and `payment_policy.ttl_seconds` at minimum. See the **`form-session-delegation`** skill for the complete schema.
 3. **Session ID:** Must come from a `session list` or `session status` response. Do not fabricate values.
 4. **Request ID:** Must come from a `session create` response. Do not fabricate values.
