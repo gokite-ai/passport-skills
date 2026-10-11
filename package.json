@@ -22,7 +22,9 @@
   },
   "scripts": {
     "validate": "bash scripts/validate.sh",
-    "lint": "markdownlint-cli2 '**/*.md' '#node_modules' '#evals' '#.agents' '#.claude' '#.superpowers'"
+    "lint": "markdownlint-cli2 '**/*.md' '#node_modules' '#evals' '#.agents' '#.claude' '#.superpowers'",
+    "test": "node --test test/*.test.mjs",
+    "test:coverage": "node --test --experimental-test-coverage --test-coverage-lines=80 --test-coverage-functions=80 --test-coverage-branches=80 --test-coverage-include='scripts/eval-runner*.mjs' test/*.test.mjs"
   },
   "devDependencies": {
     "js-yaml": "^5.4.1",

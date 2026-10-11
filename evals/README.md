@@ -1,8 +1,35 @@
 # Evals — Skills Regression Set
 
-`evals.json` is the master list of behavioral eval scenarios for this repo's skills: 138 cases, each `{id, prompt, expected_output, assertions}`. There is currently **no automated runner in this repo**. Grading is manual: dispatch a subagent (or run the skill interactively) against each `prompt`, capture its response, and check that the response's actual behavior matches `expected_output` and that every string in `assertions` appears in it. Treat a failing assertion as a real regression, not noise — assertions are kept short and literal (command names, flag names, key output markers) specifically so they can be eyeballed against a transcript without ambiguity.
+`evals.json` is the master list of behavioral eval scenarios for this repo's skills: 138 cases, each `{id, prompt, expected_output, assertions}`. The eval runner dispatches every prompt to an adapter process, captures its transcript, and checks that every literal string in `assertions` appears. Treat a failing assertion as a real regression, not noise — assertions are kept short and literal (command names, flag names, key output markers) so failures remain easy to audit.
 
-There used to be references here to a `functional-workspace/` transcript store, `grade_all.py`, `build_benchmark.py`, and a `RUNBOOK.md` describing an automated grading pipeline. None of that ever existed in this repo (checked against full git history) — it described tooling from a separate porting session that was never committed. This file now describes how grading actually happens today instead of pointing at nonexistent scripts.
+## Automated runner
+
+An adapter is any executable that reads one eval prompt from standard input and writes the agent transcript to standard output. It runs in a fresh process for every case. The runner exposes only `EVAL_ID` for log correlation; expected output and assertions remain private to the grader so the agent cannot read the answer key.
+
+Run the complete suite with an adapter that accepts prompts on standard input:
+
+```bash
+node scripts/eval-runner.mjs \
+  --adapter /path/to/agent-adapter \
+  --jobs 4 \
+  --timeout-ms 120000
+```
+
+Pass adapter arguments without a shell, or select cases while developing:
+
+```bash
+node scripts/eval-runner.mjs \
+  --adapter /path/to/agent-adapter \
+  --adapter-arg --non-interactive \
+  --case 4 \
+  --case 5
+```
+
+The default output directory is `eval-results/`. It contains `report.json` for automation and `report.md` for review. Each report records the environment, duration, raw response, adapter errors, and assertion-level results. Exit status `0` means all selected cases passed, `1` means at least one case failed, errored, or timed out, and `2` means the runner configuration or eval input was invalid.
+
+The adapter command is executed directly rather than through a shell, so prompts cannot be interpreted as shell syntax. Keep credentials inside the adapter's normal authentication mechanism; do not put secrets in adapter arguments because report metadata records those arguments.
+
+There used to be references here to a `functional-workspace/` transcript store, `grade_all.py`, `build_benchmark.py`, and a `RUNBOOK.md` describing a different automated grading pipeline. None of those files ever existed in this repo (checked against full git history); the Node.js runner above is the supported implementation.
 
 ## Coverage by skill
 
