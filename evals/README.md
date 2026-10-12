@@ -24,18 +24,16 @@ There used to be references here to a `functional-workspace/` transcript store, 
 
 ## 2026-08-28 correctness audit
 
-Every eval for `authenticate-user`, `request-session`, `manage-agents`, `kite-discovery`, `buyer-agent-setup`, `buyer-find-seller`, `buyer-purchase`, `seller-agent-setup`, and `seller-fulfill` was diffed against that skill's current `SKILL.md`/`references/*.md`. 19 evals had stale or wrong `expected_output`/`assertions` and were corrected in place (same ids, same structure) — the recurring bug patterns were:
+Every eval for `authenticate-user`, `request-session`, `manage-agents`, and `kite-discovery` was diffed against that skill's current `SKILL.md`/`references/*.md`. 19 evals had stale or wrong `expected_output`/`assertions` and were corrected in place (same ids, same structure) — the recurring bug patterns were:
 
 - **Retired/renamed CLI syntax**: `ksearch services list`/`get --service-id` (plural, retired flag) → `ksearch service list`/`get <positional-id>` (ids 9-11, 38-39, 49); wrong health subcommand for a catalog-scoped question (id 40).
-- **Default-flow drift**: `buyer-agent-setup`/`seller-agent-setup` moved their default bind path from direct `bind --wait` + passkey approval to mint-then-bind (`token create` → `bind --token`), which several evals still tested as the fallback path instead of the default (ids 58, 62).
 - **Backwards polling logic**: `request-session` eval 31 asserted `--wait` on a status check the docs explicitly say should be a single check *without* `--wait` once the user has signaled approval.
 - **Retired delegation field**: two evals (51, 52) asserted a `payment_policy.allowed_payment_approaches` field the skill's docs say must NOT be present — sessions are protocol-agnostic and the rail is detected automatically at execute time.
 - **Missing mandatory flag**: `authenticate-user` evals 4/5/25 omitted the required `--client agent` flag on `signup init`/`login init`.
-- **Skill misattribution after a new sibling skill shipped**: eval 76 tested `seller-fulfill`'s `kagent listen` as the default live-service loop, but `seller-serve` (added after this eval was written) made `kagent serve --handler` the default and demoted `listen` to an explicit-exception path — corrected in place to test `seller-serve`'s actual default.
 
 `manage-agents` evals 13 and 30 also had inconsistent filter behavior for near-identical "active sessions" phrasing (13 omitted `--status active`, 30 included it) — aligned to match.
 
-A follow-up review pass caught two more issues: eval 15 (moved here from x402-execute) described the pre-reuse-detection workflow -- `kpass session list` first, then payment -- when `request-session/SKILL.md` now says reuse is checked automatically inside `session create` and `list` is optional/diagnostic-only; and eval 76's skill-reassignment (seller-fulfill → seller-serve, see above) wasn't reflected in this table. Both are fixed now. A few new-eval assertions were also tightened from generic prose fragments (`"no permission"`, `"asks"`, a bare `"scope"`) to more literal, discriminating markers actually grounded in the skill docs.
+A follow-up review pass caught one more issue: eval 15 (moved here from x402-execute) described the pre-reuse-detection workflow -- `kpass session list` first, then payment -- when `request-session/SKILL.md` now says reuse is checked automatically inside `session create` and `list` is optional/diagnostic-only. A few new-eval assertions were also tightened from generic prose fragments (`"no permission"`, `"asks"`, a bare `"scope"`) to more literal, discriminating markers actually grounded in the skill docs.
 
 `activity`, `attach-session`, `wallet-send`, `x402-execute`, and `shopping` were **not** audited in this pass and may carry similar drift — treat their evals with proportionally less confidence until they get the same treatment.
 
