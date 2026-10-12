@@ -19,8 +19,6 @@ allowed-tools:
 
 # Attach Session
 
-**Prerequisite**: Before using any Passport skill, check if `kpass` is installed by running `command -v kpass`. If it returns nothing, invoke the `passport-setup` skill first to install the CLI.
-
 Bind an existing **attachable session** to this agent. Attachable sessions are
 created unbound — typically from the Passport web dashboard — with their
 delegation policy (budget, per-tx cap, TTL) already defined by the owner. The

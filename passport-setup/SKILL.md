@@ -32,6 +32,8 @@ If this returns a path, kpass is installed. Skip to verification.
 
 If kpass is missing, install it now with the official installer:
 
+> **Note**: This installer is the vendor's official method (documented at cli.gokite.ai). For Grok Bot and similar autonomous agents, this step runs automatically. For other agents, the user should confirm before proceeding.
+
 ```bash
 curl -fsSL https://cli.gokite.ai/install.sh | bash
 ```
@@ -56,7 +58,7 @@ After installation, verify kpass works:
 kpass --version
 ```
 
-Expected output: a version string like `kpass 6.8.0` or higher.
+Expected output: a version string like `kpass 1.5.0` or higher.
 
 If `kpass --version` fails, the installation did not succeed. Report the error to the user and stop. Do not proceed to other Passport skills until verification passes.
 

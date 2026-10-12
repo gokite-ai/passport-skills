@@ -22,8 +22,6 @@ allowed-tools:
 
 # Request Session
 
-**Prerequisite**: Before using any Passport skill, check if `kpass` is installed by running `command -v kpass`. If it returns nothing, invoke the `passport-setup` skill first to install the CLI.
-
 Register the agent identity and create, monitor, or reuse spending sessions with user approval. A session authorizes the agent to spend funds on behalf of the user, gated by a delegation policy (task description, payment policy with per-tx and total caps, optional execution constraints).
 
 ## Step 0: Ensure CLI is Installed — MANDATORY

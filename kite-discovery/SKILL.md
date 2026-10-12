@@ -24,8 +24,6 @@ allowed-tools:
 
 # Kite Discovery
 
-**Prerequisite**: Before using any Passport skill, check if `kpass` is installed by running `command -v kpass`. If it returns nothing, invoke the `passport-setup` skill first to install the CLI.
-
 Browse, search, and inspect paid services in the Kite service catalog using the `ksearch` CLI. This skill is the discovery half of the Kite workflow -- `ksearch` finds and explains services, then Passport skills handle auth, session approval, and paid execution.
 
 > **The binary is consolidated.** `ksearch` ships from passport-cli alongside `kpass` and

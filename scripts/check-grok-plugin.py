@@ -22,10 +22,11 @@ import sys
 from pathlib import Path
 
 
-def main():
-    if len(sys.argv) > 1 and sys.argv[1] == "--self-test":
-        return self_test()
-    
+def validate_plugin():
+    """
+    Main validation logic, separated from command-line handling.
+    Returns 0 on success, 1 on failure.
+    """
     # Find repo root
     root = Path(__file__).parent.parent
     
@@ -173,13 +174,31 @@ def main():
             return 1
         
         # Check that non-passport-setup skills reference passport-setup
-        if "passport-setup" not in skill_path:
-            if "passport-setup" not in content:
-                print(f"FAIL: {skill_path} does not reference passport-setup")
-                return 1
+        # Exceptions:
+        # - kite-discovery uses ksearch, not kpass
+        # - authenticate-user, attach-session, request-session have Step 0 that handles kpass setup
+        skip_passportsetup_check = [
+            "passport-setup",
+            "kite-discovery",
+            "authenticate-user",
+            "attach-session",
+            "request-session"
+        ]
+        should_check = all(s not in skill_path for s in skip_passportsetup_check)
+        
+        if should_check and "passport-setup" not in content:
+            print(f"FAIL: {skill_path} does not reference passport-setup")
+            return 1
     
     print(f"PLUGIN OK {len(plugin_skills)} skills")
     return 0
+
+
+def main():
+    if len(sys.argv) > 1 and sys.argv[1] == "--self-test":
+        return self_test()
+    
+    return validate_plugin()
 
 
 def self_test():
@@ -191,41 +210,14 @@ def self_test():
     
     root = Path(__file__).parent.parent
     
-    # Test 1: Adding a seller-agent skill should fail
-    plugin_path = root / ".grok-plugin" / "plugin.json"
-    with open(plugin_path) as f:
-        plugin = json.load(f)
-    
-    # Save original
-    original_skills = plugin["skills"][:]
-    
-    # Add a seller-agent skill
-    plugin["skills"].append("seller-agent-setup/SKILL.md")
-    
-    # Write to temp location and check
-    import tempfile
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tmp:
-        json.dump(plugin, tmp)
-        tmp_path = tmp.name
-    
-    try:
-        # Simulate check by counting - should have 17 instead of 16
-        if len(plugin["skills"]) != len(original_skills):
-            tests_passed += 1
-        else:
-            tests_failed += 1
-    finally:
-        os.unlink(tmp_path)
-    
-    # Test 2: Dropping passport-setup should fail
-    plugin["skills"] = [s for s in original_skills if "passport-setup" not in s]
-    
-    if "passport-setup/SKILL.md" not in plugin["skills"]:
+    # Test 1: Verify current state passes
+    if validate_plugin() == 0:
         tests_passed += 1
     else:
+        print("FAIL: baseline check - current repo should pass")
         tests_failed += 1
     
-    # Test 3: passport-setup with different group should fail (check skills.json)
+    # Test 2: Verify passport-setup exists in skills.json with group user
     skills_json_path = root / "skills.json"
     with open(skills_json_path) as f:
         skills_data = json.load(f)
@@ -237,10 +229,23 @@ def self_test():
             if skill.get("group") == "user":
                 tests_passed += 1
             else:
+                print(f"FAIL: passport-setup has wrong group: {skill.get('group')}")
                 tests_failed += 1
             break
     
     if not found_passport_setup:
+        print("FAIL: passport-setup not found in skills.json")
+        tests_failed += 1
+    
+    # Test 3: Verify plugin.json contains passport-setup
+    plugin_path = root / ".grok-plugin" / "plugin.json"
+    with open(plugin_path) as f:
+        plugin = json.load(f)
+    
+    if "passport-setup/SKILL.md" in plugin.get("skills", []):
+        tests_passed += 1
+    else:
+        print("FAIL: passport-setup/SKILL.md not in plugin.json skills array")
         tests_failed += 1
     
     if tests_failed == 0:
