@@ -184,14 +184,16 @@ def validate_plugin():
         # Exceptions:
         # - kite-discovery uses ksearch, not kpass
         # - authenticate-user, attach-session, request-session have Step 0 that handles kpass setup
-        skip_passportsetup_check = [
+        skip_passportsetup_check = {
             "passport-setup",
             "kite-discovery",
             "authenticate-user",
             "attach-session",
             "request-session"
-        ]
-        should_check = all(s not in skill_path for s in skip_passportsetup_check)
+        }
+        # Check first path segment, not substring match
+        first_segment = Path(skill_path).parts[0] if Path(skill_path).parts else skill_path
+        should_check = first_segment not in skip_passportsetup_check
         
         if should_check and "passport-setup" not in content:
             print(f"FAIL: {skill_path} does not reference passport-setup")

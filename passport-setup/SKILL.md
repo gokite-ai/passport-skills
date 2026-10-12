@@ -46,13 +46,13 @@ curl -fsSL https://cli.gokite.ai/install.sh | bash
 
 This installer:
 - Downloads the latest kpass CLI binary for your platform
-- Installs it to `~/.local/bin/kpass` (or another standard location)
+- Installs it to `~/.kpass/bin` (or `$KPASS_INSTALL_DIR/bin`), with `~/.local/bin` as a fallback
 - Updates your shell's PATH if needed
 
 After the installer completes, reload your shell environment:
 
 ```bash
-export PATH="$HOME/.local/bin:$PATH"
+export PATH="${KPASS_INSTALL_DIR:-$HOME/.kpass}/bin:$HOME/.local/bin:$PATH"
 hash -r
 ```
 
@@ -64,7 +64,7 @@ After installation, verify kpass works:
 kpass --version
 ```
 
-Expected output: a version string like `kpass 1.5.0` or higher.
+Expected output: a version at or above `min_kpass_version` in `skills.json` (currently 6.8.0 or later).
 
 If `kpass --version` fails, the installation did not succeed. Report the error to the user and stop. Do not proceed to other Passport skills until verification passes.
 
