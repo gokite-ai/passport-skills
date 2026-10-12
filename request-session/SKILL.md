@@ -51,56 +51,7 @@ Do NOT use this skill when the user already has an **attachable session ID**
 one approval; creating here would mint a redundant session and burn a second
 approval on a policy the owner already defined.
 
-### `session create` vs `session request` -- route on what the money pays for
-
-Two session verbs read almost identically. They are not interchangeable, and
-the wrong one costs an owner approval on a session that can never be used.
-
-| The money will pay for | Command | This skill? |
-|---|---|---|
-| A paid HTTP endpoint (x402), a shopping checkout, any priced API call | **`kpass session create`** | **yes -- this skill** |
-| An escrowed agreement (`kpass agent agreement propose/fund ...`) | **`kpass agent session request --agreement-id ...`** | no -- **`buyer-purchase`** |
-
-The difference is not "which lane you are on", which nothing observable tells
-you. It is **what the session will be spent on**, which the task always says.
-
-The prefix is what tells them apart. `kpass session create` is the **legacy
-spending-agent lane**: it authenticates with the agent token minted at
-`agent:register` (so `kpass login` and registration first), the OWNER approves
-with their passkey, and `session execute` spends with the per-session key.
-`kpass agent session request` is the **runtime-key lane**: the agent signs
-with **its own bound key**, and the request carries a v2 **scope** -- an
-agreement id, a seller allowlist, or a template -- which `create` has no way
-to express. (The legacy verbs used to live at `kpass agent session <verb>`,
-where the two lanes shared a prefix; those spellings are now tombstones that
-name the move.)
-
-**A `create` session cannot fund an agreement, at all.** The legacy
-`fund-agreement` verb and its backend route are deleted; the only funding
-lane is the buyer runtime's, and its `kpass agent fund` is fail-closed on
-the v2 scope, so a `create` session is refused with
-`error_code: session_scope_forbidden` and
-
-> `agreement funding requires a session-request v2 session carrying a scope`
-
-If you see that, the session was minted on this lane and the deal needs one
-from `buyer-purchase` instead. Do not retry, and do not widen the budget --
-neither is the problem. (`kpass session fund-agreement`, the legacy lane's
-old compatibility path onto the escrow, is REMOVED together with its backend
-route -- it answers with a tombstone naming the runtime-key lane.)
-
-**Never reach Passport over MCP, for either lane.** Passport has no MCP
-surface: the hosted connector and the `passport-mcp` stdio server are both
-deleted, and the CLI (`kpass` for a person, `kagent` for a seller runtime) plus
-A2A between agents is the whole access path. An `mcp__kite-passport__*` tool
-still listed in this session is a stale local build of a server that no longer
-exists -- do not call any of them. Its session and funding tools now hit routes
-that 404, but its registry and binding tools still work against live APIs,
-which is why the rule is the whole family rather than the broken half. The one
-that caused real harm was `request_session`, whose description ("request a Kite
-spending session for this agent") read like this skill's own: it bound the
-session to a different agent identity than the CLI runtime, so what it minted
-could not fund CLI-lane work, and it took no scope for the owner to review.
+**Never reach Passport over MCP.** Passport has no MCP surface: the hosted connector and the `passport-mcp` stdio server are both deleted, and the CLI (`kpass`) is the whole access path. An `mcp__kite-passport__*` tool still listed in this session is a stale local build of a server that no longer exists -- do not call any of them. Its session and funding tools now hit routes that 404, but its registry and binding tools still work against live APIs, which is why the rule is the whole family rather than the broken half.
 
 ## Shared account allowance (matching POC release)
 

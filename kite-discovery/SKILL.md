@@ -26,12 +26,10 @@ allowed-tools:
 
 Browse, search, and inspect paid services in the Kite service catalog using the `ksearch` CLI. This skill is the discovery half of the Kite workflow -- `ksearch` finds and explains services, then Passport skills handle auth, session approval, and paid execution.
 
-> **The binary is consolidated.** `ksearch` ships from passport-cli alongside `kpass` and
-> `kagent`, and fronts two backends: `ksearch service …` (this skill's catalog) and
-> `ksearch agent …` (the Passport agent directory — the `buyer-find-seller` skill's domain).
-> Root `ksearch health` reports BOTH backends and fails when either is down; this skill's
-> backend check is `ksearch service health`. The service backend resolves from
-> `--service-base-url`, then `KSEARCH_SERVICE_BASE_URL`, then `DISCOVERY_BASE_URL`.
+> **The binary is consolidated.** `ksearch` ships from passport-cli alongside `kpass`.
+> Root `ksearch health` reports backend health; this skill's backend check is
+> `ksearch service health`. The service backend resolves from `--service-base-url`,
+> then `KSEARCH_SERVICE_BASE_URL`, then `DISCOVERY_BASE_URL`.
 
 ## Step 0: Ensure CLI is Installed
 

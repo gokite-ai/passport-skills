@@ -59,7 +59,7 @@ Then summarize: "You hold **1075.00 USDC** (600 on base, 50 on Polygon, 25 on Av
 
 ## Send Tokens (with passkey approval)
 
-> **Mainnet/staging example.** Direct sends exist only where the environment serves sendable chains. On **dev** the only chain is `arc` and direct sends are **unavailable** — a2a escrow funding goes through the buyer runtime's `kpass agent fund` instead (see the dev note after the variations below).
+> **Mainnet/staging example.** Direct sends exist only where the environment serves sendable chains. On **dev** the only chain is `arc` and direct sends are **available**.
 
 **Context:** The user says "Send 25 USDC to `0x9876fedc5432ba10...` on base."
 
@@ -145,7 +145,7 @@ Display the Transfer Complete card:
 
 **Arc variation:** first confirm the user has USDC on `arc`, then use `kpass wallet send --chain arc --to 0x... --amount <N> --asset USDC --output json`. Do not ask the user to fund a separate gas token: Arc gas is paid in the same USDC, and the server keeps ~0.02 USDC back for fees, so the sendable amount is the `amount` that `wallet balance` reports (already net of the reserve). If the requested amount would eat into that reserve, the send fails as insufficient — offer to send the reported `amount` (or less) instead.
 
-**Dev environment (arc):** the dev backend serves only Arc testnet — do not offer the mainnet chains there. a2a escrow funding still flows through the buyer runtime's `kpass agent fund`, not `wallet send`.
+**Dev environment (arc):** the dev backend serves only Arc testnet — do not offer the mainnet chains there.
 
 ---
 
