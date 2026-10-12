@@ -89,7 +89,7 @@
     {
       "slug": "request-session",
       "name": "Request Session",
-      "description": "Authorize this agent to spend on behalf of the user by creating a spending session. Invoke before any payment, paid API call (x402-execute), or shopping checkout. Handles agent registration, merchant preflight, delegation construction, and user approval via passkey. For card-only merchants (no x402/wallet support), it also creates session-bound scoped-card (virtual card) sessions via `--use-card`, gated on backend cards support and user card KYC. If a task requires a spending session -- payments, paid API calls, or shopping checkout -- this skill must run first. Wallet transfers (wallet-send) and cloud deployments (cloud-deploy) use their own flows and don't need a session.",
+      "description": "Authorize this agent to spend on behalf of the user by creating a spending session. Invoke before any payment, paid API call (x402-execute), or shopping checkout. Handles agent registration, merchant preflight, delegation construction, and user approval via passkey. For card-only merchants (no x402/wallet support), it also creates session-bound scoped-card (virtual card) sessions via `--use-card`, gated on backend cards support and user card KYC. If a task requires a spending session -- payments, paid API calls, or shopping checkout -- this skill must run first. Wallet transfers (wallet-send) use their own flow and don't need a session.",
       "path": "request-session/SKILL.md",
       "group": "user",
       "tags": [
@@ -276,28 +276,6 @@
         "session",
         "diagnostics",
         "support"
-      ],
-      "dependencies": [
-        "authenticate-user"
-      ]
-    },
-    {
-      "slug": "cloud-deploy",
-      "name": "Cloud Deploy",
-      "description": "Deploy a local project to its own Google Cloud (Cloud Run + friends) using Kite's `kpass cloud` feature. Proactively invoke when the user wants to \"deploy to the cloud / GCP / Cloud Run\", \"ship this app\", \"host my backend\", or \"get my project running in Kite cloud\". Provisions a per-customer GCP project via kpass (create -> fund -> provision -> credentials -> deploy-info), then figures out which GCP components the project needs (Cloud Run services, Cloud SQL, env, ports) and deploys them with gcloud using the minted key.",
-      "path": "cloud-deploy/SKILL.md",
-      "group": "user",
-      "tags": [
-        "deploy",
-        "cloud",
-        "gcp",
-        "cloud-run",
-        "cloud-sql",
-        "hosting",
-        "provision",
-        "kpass",
-        "devops",
-        "ship"
       ],
       "dependencies": [
         "authenticate-user"
