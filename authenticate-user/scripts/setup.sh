@@ -78,7 +78,7 @@ if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
 fi
 
 # version_at_least A B — succeeds when A >= B, by SemVer precedence
-# (same comparison as setup-kagent.sh).
+# (shared across all setup.sh copies).
 #
 # Pre-release tags are COMPARED, not discarded. Stripping them made
 # 6.0.0-rc.1 satisfy a 6.0.0 floor, which is backwards: a release candidate

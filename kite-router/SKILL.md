@@ -16,6 +16,20 @@ Use the Passport CLI for both authentication and inference. Do not install or in
 
 ## Prerequisites
 
+0. If there is no agent record yet, create one:
+
+   First, authenticate the user:
+   ```bash
+   kpass login
+   ```
+
+   Then create the agent:
+   ```bash
+   kpass agent create --uid <slug> --kind buyer --output json
+   ```
+
+   Use the returned DID for the binding steps below.
+
 1. Confirm the installed CLI exposes the Router client:
 
    ```bash
@@ -42,7 +56,7 @@ Use the Passport CLI for both authentication and inference. Do not install or in
 
    **b) Bind the runtime key to an agent record:**
 
-   First, try the streamlined mint-then-bind path (creates and immediately consumes a one-time token):
+   First, try the streamlined mint-then-bind path. `kpass agent token create` mints a one-time token, and `kpass agent bind` consumes it:
    ```bash
    kpass agent token create --agent <did:kite:agent-id> --output json
    ```

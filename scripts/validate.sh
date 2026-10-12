@@ -97,12 +97,11 @@ fi
 
 # ---- Check 6: skill groups are consistent ----
 # skills.json's top-level "groups" map declares the known skill groups
-# (user, buyer-agent, seller-agent, ...). Every skill's "group" field
-# (skills predating this field default to "user") must reference a group
-# that actually exists, and every non-"user" group must have a backing
-# directory -- the group's README.md lives there even before any skill
-# does, so an agent researching "what does the buyer-agent group drive"
-# always finds real documentation, not a 404.
+# (currently only "user"). Every skill's "group" field (skills predating
+# this field default to "user") must reference a group that actually exists,
+# and every non-"user" group must have a backing directory -- the group's
+# README.md lives there even before any skill does, so an agent researching
+# what that group drives always finds real documentation, not a 404.
 GROUP_ERRORS=$(node -e "
   const s = JSON.parse(require('fs').readFileSync('$SKILLS_JSON', 'utf8'));
   const groups = s.groups || {};

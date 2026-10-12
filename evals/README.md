@@ -17,16 +17,8 @@ There used to be references here to a `functional-workspace/` transcript store, 
 | 20-21, 27-28, 56 | wallet-send | user |
 | 22-23, 41-43, 47 | x402-execute | user (15 moved out to request-session -- it tests session reuse, not payment execution) |
 | 53-55 | attach-session | user |
-| 57-60 | buyer-agent-setup | buyer-agent |
-| 67-71 | buyer-find-seller | buyer-agent |
-| 78-83 | buyer-purchase | buyer-agent |
-| 61-64, 66 | seller-agent-setup | seller-agent |
-| 65, 72-75, 77 | seller-fulfill | seller-agent |
 | 84-88 | upgrade-passport | user |
 | 89-92 | kite-passport (gateway routing) | user |
-| 76, 93-97 | seller-serve | seller-agent |
-| 98-101, 109-110 | kite-seller | seller-agent |
-| 102-108, 111-138 | seller-onboarding | seller-agent |
 
 `form-session-delegation`, `cloud-deploy`, and `report-feedback` have no evals and were explicitly out of scope for the 2026-08-28 correctness pass below.
 

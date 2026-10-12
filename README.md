@@ -202,22 +202,8 @@ passport-skills/
     SKILL.md                     File issue reports / bugs / freeform feedback from the agent session
   cloud-deploy/
     SKILL.md                     Deploy a local project to its own GCP project via kpass cloud + gcloud
-  buyer-agent/
-    README.md                    Buyer-agent group: purpose, kpass agent CLI surface, permission glob, envelope + exit codes
-  buyer-agent-setup/
-    SKILL.md                     Buyer runtime identity: init, bind (owner passkey), status
   kite-router/
     SKILL.md                     Passport-authenticated Router catalog and synchronous chat
-  buyer-find-seller/
-    SKILL.md                     Buyer discovery: agent directory reads + coordination persona pin
-  buyer-purchase/
-    SKILL.md                     Buyer agreement lane: propose, session, fund, verify, confirm/reject, review
-  seller-agent/
-    README.md                    Seller-agent group: purpose, kagent CLI surface, permission glob, envelope + exit codes
-  seller-agent-setup/
-    SKILL.md                     Seller runtime identity + card and terms/rate-card publishing
-  seller-fulfill/
-    SKILL.md                     Seller fulfilment: accept, escalate, funding sign, deliver, evidence, messages
   scripts/
     setup.sh                     Bootstrap: verify Node.js >= 18, verify kpass CLI
     setup-ksearch.sh             Bootstrap: locate and verify bundled ksearch CLI

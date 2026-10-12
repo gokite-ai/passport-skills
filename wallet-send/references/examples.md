@@ -59,7 +59,7 @@ Then summarize: "You hold **1075.00 USDC** (600 on base, 50 on Polygon, 25 on Av
 
 ## Send Tokens (with passkey approval)
 
-> **Mainnet/staging example.** Direct sends exist only where the environment serves sendable chains. On **dev** the only chain is `arc` and direct sends are **available**.
+> **Mainnet/staging example.** Direct sends exist only where the environment serves sendable chains. On **dev** the only chain is `arc` and direct sends are **unavailable**.
 
 **Context:** The user says "Send 25 USDC to `0x9876fedc5432ba10...` on base."
 

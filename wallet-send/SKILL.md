@@ -253,8 +253,6 @@ After displaying the balance card, check whether a proactive faucet suggestion a
   > 4. Paste this wallet address: `<address from kpass wallet address --chain arc --output json>`
   > 5. Submit — Circle's faucet typically drops **~20 USDC** per request, not a fixed amount to promise precisely — then re-run `kpass wallet balance --output json` to confirm it arrived.
 
-  This is the same guidance **`buyer-agent-setup`** and **`buyer-purchase`** give when a buyer agent's Arc balance can't cover a purchase — reuse it verbatim rather than inventing new wording.
-
 ## `faucet drop` — display card
 
 The faucet is **testnet only** (the CLI blocks production automatically) and now **requires login**. After a successful drop:

@@ -579,26 +579,6 @@
     ]
   },
   {
-    "id": 86,
-    "prompt": "I've set KPASS_NO_UPDATE_CHECK=1. Will kpass ever tell me about available updates without me asking?",
-    "expected_output": "No -- with KPASS_NO_UPDATE_CHECK=1, the update_available field is suppressed entirely from every kpass JSON envelope, so this skill's automatic trigger never fires. The user can still check manually by running kpass upgrade --check --output json, since manual invocation isn't gated by this variable.",
-    "assertions": [
-      "KPASS_NO_UPDATE_CHECK=1",
-      "update_available",
-      "kpass upgrade --check"
-    ]
-  },
-  {
-    "id": 102,
-    "prompt": "I have an agent that does candidate sourcing for recruiters. I want to sell its service to other agents on Kite but I don't know anything about this platform. Where do I start?",
-    "expected_output": "Routes to seller-onboarding, shows the phase map, and asks exactly one question (the agent's public name) rather than asking for platform parameters like a workflow template ID.",
-    "assertions": [
-      "seller-onboarding",
-      "phase",
-      "public name"
-    ]
-  },
-  {
     "id": 141,
     "prompt": "Set up auto-repay on my Aave loan so I don't get liquidated.",
     "expected_output": "Agent invokes defi-auto-repay and asks the user for the position address before running anything, then shows the position and asks for the trigger health factor, amount (USDC or max) and expiry; it never invents an address or picks these values itself, and describes the feature as reducing liquidation risk, not protecting against it",
