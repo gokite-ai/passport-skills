@@ -30,9 +30,15 @@ If this returns a path, kpass is installed. Skip to verification.
 
 ### Install on This Computer
 
-If kpass is missing, install it now with the official installer:
+If kpass is missing, install it with the official installer.
 
-> **Note**: This installer is the vendor's official method (documented at cli.gokite.ai). For Grok Bot and similar autonomous agents, this step runs automatically. For other agents, the user should confirm before proceeding.
+> **Security Note**: This installer executes a remote script. For Grok Bot and similar autonomous agents running in isolated environments, this step may run automatically per the bot's security model. For interactive agent environments (Claude Code, Cursor, Cline), **you must obtain explicit user approval before running this command**. Show the user this exact command and wait for their confirmation:
+
+```bash
+curl -fsSL https://cli.gokite.ai/install.sh | bash
+```
+
+After receiving user approval, run the installer:
 
 ```bash
 curl -fsSL https://cli.gokite.ai/install.sh | bash

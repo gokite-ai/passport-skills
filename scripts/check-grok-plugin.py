@@ -49,7 +49,7 @@ def validate_plugin():
         return 1
     
     name = plugin["name"]
-    if not re.match(r'^[a-z0-9-]{1,64}$', name):
+    if not re.fullmatch(r'[a-z0-9-]{1,64}', name):
         print(f"FAIL: plugin name '{name}' is not kebab-case 1-64 chars")
         return 1
     
@@ -62,6 +62,12 @@ def validate_plugin():
         return 1
     
     plugin_skills = plugin["skills"]
+    
+    # Check for duplicate paths
+    if len(plugin_skills) != len(set(plugin_skills)):
+        duplicates = [p for p in plugin_skills if plugin_skills.count(p) > 1]
+        print(f"FAIL: plugin.json has duplicate skill paths: {set(duplicates)}")
+        return 1
     
     # Check 2: skills.json has passport-setup with group user
     skills_json_path = root / "skills.json"
@@ -165,12 +171,13 @@ def validate_plugin():
         
         frontmatter = parts[1]
         
-        if "name:" not in frontmatter and "name :" not in frontmatter:
-            print(f"FAIL: {skill_path} frontmatter missing 'name'")
+        # Check for name and description as YAML keys (not just substrings)
+        if not re.search(r'^\s*name\s*:', frontmatter, re.MULTILINE):
+            print(f"FAIL: {skill_path} frontmatter missing 'name' key")
             return 1
         
-        if "description:" not in frontmatter and "description :" not in frontmatter:
-            print(f"FAIL: {skill_path} frontmatter missing 'description'")
+        if not re.search(r'^\s*description\s*:', frontmatter, re.MULTILINE):
+            print(f"FAIL: {skill_path} frontmatter missing 'description' key")
             return 1
         
         # Check that non-passport-setup skills reference passport-setup
