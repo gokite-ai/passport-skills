@@ -14,6 +14,8 @@ allowed-tools:
 
 # Activity Feed
 
+**Prerequisite**: Before using any Passport skill, check if `kpass` is installed by running `command -v kpass`. If it returns nothing, invoke the `passport-setup` skill first to install the CLI.
+
 View recent account activity for the authenticated user. Returns a paginated list of activity events including wallet transfers, faucet drops, x402 API payments, agent registrations, session approvals, passkey registrations, and shopping checkouts.
 
 > **Reference files** (read when you need exact detail):

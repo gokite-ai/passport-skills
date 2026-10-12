@@ -19,6 +19,8 @@ allowed-tools:
 
 # Authenticate User
 
+**Prerequisite**: Before using any Passport skill, check if `kpass` is installed by running `command -v kpass`. If it returns nothing, invoke the `passport-setup` skill first to install the CLI.
+
 Sign up a new user or log in a returning user to Kite Passport. This skill is a prerequisite for all other Passport skills (`request-session`, `x402-execute`, `wallet-send`).
 
 > **Reference files** (read when you need exact detail):

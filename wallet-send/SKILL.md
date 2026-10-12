@@ -18,6 +18,8 @@ allowed-tools:
 
 # Wallet Send
 
+**Prerequisite**: Before using any Passport skill, check if `kpass` is installed by running `command -v kpass`. If it returns nothing, invoke the `passport-setup` skill first to install the CLI.
+
 Check a wallet balance across chains, send tokens **on a specific chain**, list per-chain wallet addresses, and request test tokens from the faucet. These commands use the user's own JWT (not an agent session) and do NOT require a spending session.
 
 Kite is **multichain**. Every send targets one chain — on mainnet one of **`base`**, **`polygon`**, **`avalanche`**, **`tempo`**, **`solana`**, **`robinhood`**, or **`arc`** (Arc mainnet, chainId 5042) — and `--chain` is **required** (there is no default; `kite` is rejected). Balances are aggregated across all chains the environment serves. **The chain set is environment-specific**: the backend only serves the chains in its asset registry, and the **dev environment serves `arc` as Arc testnet (chainId 5042002, Circle USDC) and nothing else** — no cross-chain routing on dev, and Kite's faucet cannot fund arc (Passport-deployment restrictions, not Arc limitations). A wallet send normally requires a **passkey approval in the browser** (step-up), so `wallet send` hands you an approval URL and you poll the result with `wallet send-status`.

@@ -130,7 +130,24 @@ instructions helps the agent reach for Kite Passport first instead of web search
 
 ## Grok Bot
 
-Grok Bot runs kpass in its own computer's shell. Install kpass, then load the skills where Grok Bot reads them:
+Grok Bot can load Passport skills in two ways:
+
+### Option 1: Install the Plugin (Recommended)
+
+Install the Passport plugin from this public repository. Grok Bot will automatically list the 16 user-group skills (including the new `passport-setup` skill that installs kpass on the bot's computer):
+
+```bash
+# In Grok Bot, install the plugin:
+grok plugin install https://github.com/gokite-ai/passport-skills
+```
+
+The plugin includes: `kite-passport`, `upgrade-passport`, `kite-discovery`, `authenticate-user`, `request-session`, `attach-session`, `form-session-delegation`, `x402-execute`, `wallet-send`, `defi-auto-repay`, `manage-agents`, `shopping`, `activity`, `report-feedback`, `cloud-deploy`, and `passport-setup`.
+
+When Grok Bot needs to use a Passport skill, it will automatically invoke `passport-setup` first if kpass is not installed.
+
+### Option 2: Manual CLI Installation
+
+Alternatively, install kpass manually, then load the skills where Grok Bot reads them:
 
 ```bash
 curl -fsSL https://cli.gokite.ai/install.sh | bash

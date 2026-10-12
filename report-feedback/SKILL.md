@@ -15,6 +15,8 @@ allowed-tools:
 
 # Report Feedback
 
+**Prerequisite**: Before using any Passport skill, check if `kpass` is installed by running `command -v kpass`. If it returns nothing, invoke the `passport-setup` skill first to install the CLI.
+
 Submit free-form textual feedback or issue reports from the current Claude agent session to the Passport backend. Useful for filing bugs, capturing failures, recording successes, or attaching session context that humans on the Passport team can review later.
 
 Feedback is written under the **agent's owner** (the authenticated user) using the agent's JWT. Each submission stores a body (up to 1 MiB), an optional category, an optional session ID, and a JSON metadata object queryable in Postgres.

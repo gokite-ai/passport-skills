@@ -317,6 +317,21 @@
       ]
     },
     {
+      "slug": "passport-setup",
+      "name": "Passport Setup",
+      "description": "Install and verify the kpass CLI on this computer before running any other Passport skill. Invoke automatically when kpass is missing or when a Passport skill fails with a command-not-found error.",
+      "path": "passport-setup/SKILL.md",
+      "group": "user",
+      "tags": [
+        "setup",
+        "install",
+        "cli",
+        "bootstrap",
+        "kpass"
+      ],
+      "dependencies": []
+    },
+    {
       "slug": "buyer-agent-setup",
       "name": "Buyer Agent Setup",
       "description": "Give this agent its own signing identity as an autonomous buyer on Kite Passport: generate a secp256k1 runtime key, bind it to an agent record with the owner's passkey approval, and confirm the binding is active. Invoke before any other `kpass agent ...` command, and whenever a buyer-lane command fails with exit code 3 or `kpass agent status` reports anything other than an active binding.",

@@ -20,6 +20,8 @@ allowed-tools:
 
 # Cloud Deploy
 
+**Prerequisite**: Before using any Passport skill, check if `kpass` is installed by running `command -v kpass`. If it returns nothing, invoke the `passport-setup` skill first to install the CLI.
+
 Take a project the user built locally and stand it up in its own Google Cloud
 project, end to end. This skill spans **two layers**:
 

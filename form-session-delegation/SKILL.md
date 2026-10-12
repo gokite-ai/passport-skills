@@ -9,6 +9,8 @@ allowed-tools:
 
 # Form Session Delegation
 
+**Prerequisite**: Before using any Passport skill, check if `kpass` is installed by running `command -v kpass`. If it returns nothing, invoke the `passport-setup` skill first to install the CLI.
+
 Use this skill when you need to create an agent session in Passport and must construct the `delegation` object correctly. This skill is a helper -- it is called by the **`request-session`** skill, not triggered directly by the user.
 
 ## Goal
