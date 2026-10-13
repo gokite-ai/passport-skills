@@ -148,7 +148,7 @@ INSTALLER_BASE="$(get_installer_base)"
 echo "Installing kpass via the official installer (${INSTALLER_BASE}/install.sh)..." >&2
 INSTALL_SCRIPT="$(mktemp)"
 trap 'rm -f "$INSTALL_SCRIPT"' EXIT
-if curl -fsSL "${INSTALLER_BASE}/install.sh" -o "$INSTALL_SCRIPT" && \
+if curl -fsSL --proto '=https' --proto-redir '=https' --max-redirs 0 "${INSTALLER_BASE}/install.sh" -o "$INSTALL_SCRIPT" && \
    [[ -s "$INSTALL_SCRIPT" ]] && \
    [[ "$(head -1 "$INSTALL_SCRIPT")" == '#!'* ]]; then
   if bash "$INSTALL_SCRIPT" >&2; then
