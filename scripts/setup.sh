@@ -183,7 +183,10 @@ echo "Installer did not produce a kpass >= ${MIN_KPASS_VERSION} on PATH." >&2
 # ---------------------------------------------------------------------------
 # Step 3: Nothing worked
 # ---------------------------------------------------------------------------
+# Escape INSTALLER_BASE for JSON (replace \ with \\, " with \")
+INSTALLER_BASE_ESC="${INSTALLER_BASE//\\/\\\\}"
+INSTALLER_BASE_ESC="${INSTALLER_BASE_ESC//\"/\\\"}"
 cat <<EOF
-{"status":"error","error":"Could not install kpass >= ${MIN_KPASS_VERSION}. Install manually:\n\n  macOS / Linux:  curl -fsSL ${INSTALLER_BASE}/install.sh | bash\n  Windows:        irm ${INSTALLER_BASE}/install.ps1 | iex\n\nThen ensure the binary is on your PATH (before any older kpass)."}
+{"status":"error","error":"Could not install kpass >= ${MIN_KPASS_VERSION}. Install manually:\n\n  macOS / Linux:  curl -fsSL ${INSTALLER_BASE_ESC}/install.sh | bash\n  Windows:        irm ${INSTALLER_BASE_ESC}/install.ps1 | iex\n\nThen ensure the binary is on your PATH (before any older kpass)."}
 EOF
 exit 1

@@ -133,6 +133,9 @@ echo "Installer did not produce a ksearch binary in any known location." >&2
 # ---------------------------------------------------------------------------
 # Step 3: Nothing worked
 # ---------------------------------------------------------------------------
+# Escape INSTALLER_BASE for JSON (replace \ with \\, " with \")
+INSTALLER_BASE_ESC="${INSTALLER_BASE//\\/\\\\}"
+INSTALLER_BASE_ESC="${INSTALLER_BASE_ESC//\"/\\\"}"
 # shellcheck disable=SC2016 # single-quoted on purpose: \n and $HOME must stay literal in this JSON string, not expand
-printf '%s\n' '{"status":"error","error":"Could not find or install a consolidated ksearch (the standalone binary, if present, is incompatible with this skill). Install manually:\n\n  macOS / Linux:  curl -fsSL '"${INSTALLER_BASE}"'/install.sh | bash\n  Windows:        irm '"${INSTALLER_BASE}"'/install.ps1 | iex\n\nThen restart your shell or add $HOME/.local/bin to PATH."}'
+printf '%s\n' '{"status":"error","error":"Could not find or install a consolidated ksearch (the standalone binary, if present, is incompatible with this skill). Install manually:\n\n  macOS / Linux:  curl -fsSL '"${INSTALLER_BASE_ESC}"'/install.sh | bash\n  Windows:        irm '"${INSTALLER_BASE_ESC}"'/install.ps1 | iex\n\nThen restart your shell or add $HOME/.local/bin to PATH."}'
 exit 1
