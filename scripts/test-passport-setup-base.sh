@@ -69,6 +69,7 @@ echo "PASS (b): SKILL.md fallback base is '$fallback_base'"
 
 # (c) Fallback with .installer-base removed gives https://cli.gokite.ai
 rm -f "$WORK/repo/.installer-base"
+unset KPASS_BASE_URL
 cd /tmp
 : > "$CURL_LOG"
 bash "$WORK/fallback.sh" > /dev/null 2>&1 || true
@@ -88,7 +89,7 @@ echo "PASS (d): fallback with KPASS_BASE_URL=https://evil.example exits non-zero
 
 # (e) grep finds no bare 'cat .installer-base' in passport-setup/SKILL.md or GETTING_STARTED.md
 cd "$REPO_ROOT"
-match_count="$(grep -c 'cat .installer-base' passport-setup/SKILL.md GETTING_STARTED.md 2>/dev/null | awk -F: '{s+=$2} END {print s+0}')"
+match_count="$({ grep -c 'cat .installer-base' passport-setup/SKILL.md GETTING_STARTED.md 2>/dev/null || true; } | awk -F: '{s+=$2} END {print s+0}')"
 [[ "$match_count" -eq 0 ]] || fail "(e) found $match_count instances of 'cat .installer-base' in passport-setup/SKILL.md or GETTING_STARTED.md"
 echo "PASS (e): no bare 'cat .installer-base' in passport-setup/SKILL.md or GETTING_STARTED.md"
 
