@@ -35,13 +35,36 @@ If kpass is missing, install it with the official installer.
 > **Security Note**: This installer executes a remote script. For Grok Bot and similar autonomous agents running in isolated environments, this step may run automatically per the bot's security model. For interactive agent environments (Claude Code, Cursor, Cline), **you must obtain explicit user approval before running this command**. Show the user this exact command and wait for their confirmation:
 
 ```bash
-curl -fsSL "$(cat .installer-base)/install.sh" | bash
+bash <skill-directory>/../scripts/setup.sh
 ```
 
 After receiving user approval, run the installer:
 
 ```bash
-curl -fsSL "$(cat .installer-base)/install.sh" | bash
+bash <skill-directory>/../scripts/setup.sh
+```
+
+If `scripts/setup.sh` is not available (single-folder skill install), use this fallback:
+
+```bash
+get_installer_base() {
+  local base=""
+  if [[ -n "${KPASS_BASE_URL:-}" ]]; then
+    base="$KPASS_BASE_URL"
+  else
+    local base_file="<skill-directory>/../.installer-base"
+    if [[ -f "$base_file" ]]; then
+      base="$(cat "$base_file" 2>/dev/null | tr -d '[:space:]')"
+    fi
+  fi
+  if [[ -z "$base" ]]; then
+    base="https://cli.gokite.ai"
+  fi
+  [[ $base =~ ^https://cli(\.staging)?\.gokite\.ai$ ]] || { echo "bad installer base: $base" >&2; return 1; }
+  printf '%s' "$base"
+}
+INSTALLER_BASE="$(get_installer_base)" || exit 1
+curl -fsSL --proto '=https' --proto-redir '=https' --max-redirs 0 "$INSTALLER_BASE/install.sh" | bash
 ```
 
 This installer:
