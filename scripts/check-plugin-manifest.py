@@ -66,6 +66,44 @@ def main():
     
     # Success
     print(f"plugin skills ok: {len(plugin_skills)}")
+    
+    # Check .cursor-plugin/plugin.json
+    cursor_plugin_json_path = repo_root / ".cursor-plugin" / "plugin.json"
+    
+    # Read cursor plugin.json
+    with open(cursor_plugin_json_path) as f:
+        cursor_plugin_data = json.load(f)
+    
+    # Check name
+    if cursor_plugin_data.get("name") != "kite-passport":
+        print(f"Error: .cursor-plugin/plugin.json name must be 'kite-passport', got '{cursor_plugin_data.get('name')}'", file=sys.stderr)
+        sys.exit(1)
+    
+    # Check version matches skills.json
+    if cursor_plugin_data.get("version") != skills_data.get("version"):
+        print(f"Error: .cursor-plugin/plugin.json version must match skills.json version '{skills_data.get('version')}', got '{cursor_plugin_data.get('version')}'", file=sys.stderr)
+        sys.exit(1)
+    
+    # Check skills set equals .grok-plugin skill paths with "/SKILL.md" removed
+    cursor_skills_list = cursor_plugin_data.get("skills", [])
+    cursor_skills = set(cursor_skills_list)
+    
+    # Build expected set from .grok-plugin skills (paths with "/SKILL.md" removed)
+    expected_cursor_skills = set(
+        skill[:-9] if skill.endswith("/SKILL.md") else skill 
+        for skill in plugin_skills_list
+    )
+    
+    if cursor_skills != expected_cursor_skills:
+        missing = expected_cursor_skills - cursor_skills
+        extra = cursor_skills - expected_cursor_skills
+        if missing:
+            print(f"Error: .cursor-plugin/plugin.json is missing expected skills: {sorted(missing)}", file=sys.stderr)
+        if extra:
+            print(f"Error: .cursor-plugin/plugin.json has unexpected skills: {sorted(extra)}", file=sys.stderr)
+        sys.exit(1)
+    
+    print(f"cursor plugin ok: {len(cursor_skills)}")
     return 0
 
 if __name__ == "__main__":
