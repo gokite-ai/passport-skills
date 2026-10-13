@@ -6,22 +6,22 @@ Agent Passport gives an AI agent a limited, user-approved budget to move funds o
 
 ## Prerequisites
 
+### Clone the skills
+
+```bash
+git clone https://github.com/gokite-ai/passport-skills
+```
+
 ### Install the CLI
 
 ```bash
-curl -fsSL "$(cat .installer-base)/install.sh" | bash
+bash passport-skills/scripts/setup.sh
 ```
 
 > Windows (PowerShell): `irm https://cli.gokite.ai/install.ps1 | iex`
 
 ```bash
 kpass --version  # should print kpass v1.5.0 or higher
-```
-
-### Clone the skills
-
-```bash
-git clone https://github.com/gokite-ai/passport-skills
 ```
 
 ---
@@ -150,7 +150,7 @@ When Grok Bot needs to use a Passport skill, it will automatically invoke `passp
 Alternatively, install kpass manually, then load the skills where Grok Bot reads them:
 
 ```bash
-curl -fsSL "$(cat .installer-base)/install.sh" | bash
+bash passport-skills/scripts/setup.sh
 kpass skills setup --global --agent grok-bot --yes
 ```
 
