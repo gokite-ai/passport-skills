@@ -58,7 +58,26 @@ fi
 # ---------------------------------------------------------------------------
 # Help
 # ---------------------------------------------------------------------------
+# Read installer base URL with fallback chain: KPASS_BASE_URL env var > .installer-base file > hardcoded default
+get_installer_base() {
+  if [[ -n "${KPASS_BASE_URL:-}" ]]; then
+    printf '%s' "$KPASS_BASE_URL"
+    return
+  fi
+  local installer_base_file="$(cd "$SCRIPT_DIR/.." && pwd)/.installer-base"
+  if [[ -f "$installer_base_file" ]]; then
+    local content
+    content="$(cat "$installer_base_file" 2>/dev/null | tr -d '[:space:]')"
+    if [[ -n "$content" ]]; then
+      printf '%s' "$content"
+      return
+    fi
+  fi
+  printf 'https://cli.gokite.ai'
+}
+
 if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+  INSTALLER_BASE="$(get_installer_base)"
   echo "Kite Passport CLI Bootstrap"
   echo ""
   echo "Ensures kpass >= ${MIN_KPASS_VERSION} is installed and available on PATH."
@@ -66,8 +85,6 @@ if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
   echo ""
   echo "Usage: bash setup.sh"
   echo ""
-  INSTALLER_BASE_FILE="$(cd "$SCRIPT_DIR/.." && pwd)/.installer-base"
-  INSTALLER_BASE="${KPASS_BASE_URL:-$(cat "$INSTALLER_BASE_FILE" 2>/dev/null || echo "https://cli.gokite.ai")}"
   echo "Installation order:"
   echo "  1. Check if kpass >= ${MIN_KPASS_VERSION} is already on PATH"
   echo "  2. Try: curl -fsSL ${INSTALLER_BASE}/install.sh | bash"
@@ -166,9 +183,7 @@ fi
 # ---------------------------------------------------------------------------
 # Step 2: Install via the official bundle installer
 # ---------------------------------------------------------------------------
-# Installer base URL precedence: KPASS_BASE_URL env var > .installer-base file > hardcoded default
-INSTALLER_BASE_FILE="$(cd "$SCRIPT_DIR/.." && pwd)/.installer-base"
-INSTALLER_BASE="${KPASS_BASE_URL:-$(cat "$INSTALLER_BASE_FILE" 2>/dev/null || echo "https://cli.gokite.ai")}"
+INSTALLER_BASE="$(get_installer_base)"
 echo "Installing kpass via the official installer (${INSTALLER_BASE}/install.sh)..." >&2
 if curl -fsSL "${INSTALLER_BASE}/install.sh" | bash >&2; then
   # The installer typically only updates shell startup files (.bashrc/.zshrc),
@@ -183,9 +198,15 @@ echo "Installer did not produce a kpass >= ${MIN_KPASS_VERSION} on PATH." >&2
 # ---------------------------------------------------------------------------
 # Step 3: Nothing worked
 # ---------------------------------------------------------------------------
-# Escape INSTALLER_BASE for JSON (replace \ with \\, " with \")
-INSTALLER_BASE_ESC="${INSTALLER_BASE//\\/\\\\}"
-INSTALLER_BASE_ESC="${INSTALLER_BASE_ESC//\"/\\\"}"
+# Escape for JSON: replace \ with \\, " with \", and control chars with \uXXXX
+json_escape() {
+  local s="$1"
+  s="${s//\\/\\\\}"
+  s="${s//\"/\\\"}"
+  s="$(printf '%s' "$s" | LC_ALL=C sed 's/[\x00-\x1F\x7F]/\\u0000/g' 2>/dev/null || printf '%s' "$s")"
+  printf '%s' "$s"
+}
+INSTALLER_BASE_ESC="$(json_escape "$INSTALLER_BASE")"
 cat <<EOF
 {"status":"error","error":"Could not install kpass >= ${MIN_KPASS_VERSION}. Install manually:\n\n  macOS / Linux:  curl -fsSL ${INSTALLER_BASE_ESC}/install.sh | bash\n  Windows:        irm ${INSTALLER_BASE_ESC}/install.ps1 | iex\n\nThen ensure the binary is on your PATH (before any older kpass)."}
 EOF

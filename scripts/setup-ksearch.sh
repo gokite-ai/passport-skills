@@ -21,10 +21,29 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
+# Read installer base URL with fallback chain: KPASS_BASE_URL env var > .installer-base file > hardcoded default
+get_installer_base() {
+  if [[ -n "${KPASS_BASE_URL:-}" ]]; then
+    printf '%s' "$KPASS_BASE_URL"
+    return
+  fi
+  local installer_base_file="$(cd "$SCRIPT_DIR/.." && pwd)/.installer-base"
+  if [[ -f "$installer_base_file" ]]; then
+    local content
+    content="$(cat "$installer_base_file" 2>/dev/null | tr -d '[:space:]')"
+    if [[ -n "$content" ]]; then
+      printf '%s' "$content"
+      return
+    fi
+  fi
+  printf 'https://cli.gokite.ai'
+}
+
 # ---------------------------------------------------------------------------
 # Help
 # ---------------------------------------------------------------------------
 if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+  INSTALLER_BASE="$(get_installer_base)"
   echo "Kite Discovery CLI (ksearch) Bootstrap"
   echo ""
   echo "Ensures ksearch is installed and available on PATH."
@@ -37,8 +56,6 @@ if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
   echo "  1. Check if a CONSOLIDATED ksearch is on PATH (probed with: ksearch service list --help)"
   echo "  2. Check \${KPASS_INSTALL_DIR:-\$HOME/.kpass}/bin/ksearch"
   echo "  3. Check \$HOME/.local/bin/ksearch"
-  INSTALLER_BASE_FILE="$(cd "$SCRIPT_DIR/.." && pwd)/.installer-base"
-  INSTALLER_BASE="${KPASS_BASE_URL:-$(cat "$INSTALLER_BASE_FILE" 2>/dev/null || echo "https://cli.gokite.ai")}"
   echo "  4. Try: curl -fsSL ${INSTALLER_BASE}/install.sh | bash"
   echo "  5. Fail with installation instructions"
   echo ""
@@ -115,9 +132,7 @@ try_locate "passport-bundle" && exit 0
 # ---------------------------------------------------------------------------
 # Step 2: Install via the official bundle installer
 # ---------------------------------------------------------------------------
-# Installer base URL precedence: KPASS_BASE_URL env var > .installer-base file > hardcoded default
-INSTALLER_BASE_FILE="$(cd "$SCRIPT_DIR/.." && pwd)/.installer-base"
-INSTALLER_BASE="${KPASS_BASE_URL:-$(cat "$INSTALLER_BASE_FILE" 2>/dev/null || echo "https://cli.gokite.ai")}"
+INSTALLER_BASE="$(get_installer_base)"
 echo "ksearch not found. Installing the Kite Passport bundle (kpass + ksearch + skills) via the official installer (${INSTALLER_BASE}/install.sh)..." >&2
 if curl -fsSL "${INSTALLER_BASE}/install.sh" | bash >&2; then
   # try_locate's bundle-path checks are PATH-independent, so run it before
@@ -135,9 +150,15 @@ echo "Installer did not produce a ksearch binary in any known location." >&2
 # ---------------------------------------------------------------------------
 # Step 3: Nothing worked
 # ---------------------------------------------------------------------------
-# Escape INSTALLER_BASE for JSON (replace \ with \\, " with \")
-INSTALLER_BASE_ESC="${INSTALLER_BASE//\\/\\\\}"
-INSTALLER_BASE_ESC="${INSTALLER_BASE_ESC//\"/\\\"}"
+# Escape for JSON: replace \ with \\, " with \", and control chars with \uXXXX
+json_escape() {
+  local s="$1"
+  s="${s//\\/\\\\}"
+  s="${s//\"/\\\"}"
+  s="$(printf '%s' "$s" | LC_ALL=C sed 's/[\x00-\x1F\x7F]/\\u0000/g' 2>/dev/null || printf '%s' "$s")"
+  printf '%s' "$s"
+}
+INSTALLER_BASE_ESC="$(json_escape "$INSTALLER_BASE")"
 # shellcheck disable=SC2016 # single-quoted on purpose: \n and $HOME must stay literal in this JSON string, not expand
 printf '%s\n' '{"status":"error","error":"Could not find or install a consolidated ksearch (the standalone binary, if present, is incompatible with this skill). Install manually:\n\n  macOS / Linux:  curl -fsSL '"${INSTALLER_BASE_ESC}"'/install.sh | bash\n  Windows:        irm '"${INSTALLER_BASE_ESC}"'/install.ps1 | iex\n\nThen restart your shell or add $HOME/.local/bin to PATH."}'
 exit 1
