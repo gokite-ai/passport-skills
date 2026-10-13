@@ -75,3 +75,6 @@ jobs:
             echo "  ok  $s"
           done
 
+      - name: Test set-installer-base.sh
+        run: bash scripts/test-set-installer-base.sh
+
