@@ -112,7 +112,7 @@ End-to-end walkthroughs (browse then inspect a service; paginated catalog browsi
 | Exit Code | Meaning | Error Message Pattern | Recovery Action |
 |-----------|---------|----------------------|-----------------|
 | 0 | Success | `status: "success"` | Parse and present to user. |
-| 1 | Connection/timeout | `Could not reach discovery backend`, `Request timed out` | Check connectivity. Run `ksearch service health --output json`. Verify `DISCOVERY_BASE_URL` if set. Retry after a brief pause. |
+| 1 | Connection/timeout | `Could not reach discovery backend`, `Request timed out` | Check connectivity. Run `ksearch service health --output json`. Verify `KSEARCH_SERVICE_BASE_URL` or `DISCOVERY_BASE_URL` if set. Retry after a brief pause. |
 | 2 | Invalid arguments | `unknown command`, `Only --output json is supported` | Fix command syntax. Check required flags. |
 | 3 | Auth required | `Authentication required` | Unexpected for discovery (public API). Check if the backend requires auth. |
 | 4 | Not found | `Service not found` | Verify the `service_id` is correct. Run `service list` to discover valid IDs. |
