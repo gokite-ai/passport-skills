@@ -101,8 +101,12 @@ cd /tmp
 if KPASS_BASE_URL=https://evil.example bash "$WORK/fallback.sh" 2>/dev/null; then
   fail "(d) fallback with evil URL did not exit non-zero"
 fi
-# Count URLs in the log (not all arguments, just URLs)
-curl_url_calls="$(grep -c '^https://' "$CURL_LOG" 2>/dev/null || echo 0)"
+# Count URLs in the log (count matching lines)
+curl_url_calls="$(grep -c '^https://' "$CURL_LOG" 2>/dev/null || true)"
+# grep -c with no matches returns empty or "0" per file; we want a single number
+if [[ -z "$curl_url_calls" ]] || [[ "$curl_url_calls" == "0" ]]; then
+  curl_url_calls=0
+fi
 [[ "$curl_url_calls" -eq 0 ]] || fail "(d) fallback with evil URL called curl with $curl_url_calls URLs, expected 0"
 echo "PASS (d): fallback with KPASS_BASE_URL=https://evil.example exits non-zero and calls curl 0 times"
 
