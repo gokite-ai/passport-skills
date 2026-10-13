@@ -21,25 +21,29 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
-# Read installer base URL from .installer-base file, falling back to hardcoded default
+# Read installer base URL with fallback chain: KPASS_BASE_URL env var > .installer-base file > hardcoded default
 get_installer_base() {
-  local base_file="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/.installer-base"
-  if [[ -f "$base_file" ]]; then
-    local base
-    base="$(cat "$base_file" 2>/dev/null | tr -d '[:space:]')"
-    if [[ -n "$base" ]]; then
-      printf '%s' "$base"
-      return
+  local base=""
+  if [[ -n "${KPASS_BASE_URL:-}" ]]; then
+    base="$KPASS_BASE_URL"
+  else
+    local base_file="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/.installer-base"
+    if [[ -f "$base_file" ]]; then
+      base="$(cat "$base_file" 2>/dev/null | tr -d '[:space:]')"
     fi
   fi
-  printf 'https://cli.gokite.ai'
+  if [[ -z "$base" ]]; then
+    base="https://cli.gokite.ai"
+  fi
+  [[ $base =~ ^https://cli(\.staging)?\.gokite\.ai$ ]] || { echo "bad installer base: $base" >&2; exit 1; }
+  printf '%s' "$base"
 }
 
 # ---------------------------------------------------------------------------
 # Help
 # ---------------------------------------------------------------------------
 if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
-  INSTALLER_BASE="${KPASS_BASE_URL:-$(get_installer_base)}"
+  INSTALLER_BASE="$(get_installer_base)"
   echo "Kite Discovery CLI (ksearch) Bootstrap"
   echo ""
   echo "Ensures ksearch is installed and available on PATH."
@@ -128,8 +132,7 @@ try_locate "passport-bundle" && exit 0
 # ---------------------------------------------------------------------------
 # Step 2: Install via the official bundle installer
 # ---------------------------------------------------------------------------
-INSTALLER_BASE="${KPASS_BASE_URL:-$(get_installer_base)}"
-[[ $INSTALLER_BASE =~ ^https://cli(\.staging)?\.gokite\.ai$ ]] || { echo "bad installer base: $INSTALLER_BASE" >&2; exit 1; }
+INSTALLER_BASE="$(get_installer_base)"
 echo "ksearch not found. Installing the Kite Passport bundle (kpass + ksearch + skills) via the official installer (${INSTALLER_BASE}/install.sh)..." >&2
 INSTALL_SCRIPT="$(mktemp)"
 trap 'rm -f "$INSTALL_SCRIPT"' EXIT
