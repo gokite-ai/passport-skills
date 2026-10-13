@@ -138,8 +138,8 @@ def validate_plugin():
     with open(passport_setup_path) as f:
         passport_setup_content = f.read()
     
-    if "https://cli.gokite.ai/install.sh" not in passport_setup_content:
-        print("FAIL: passport-setup/SKILL.md missing 'https://cli.gokite.ai/install.sh'")
+    if ".installer-base" not in passport_setup_content:
+        print("FAIL: passport-setup/SKILL.md missing '.installer-base'")
         return 1
     
     if "kpass --version" not in passport_setup_content:

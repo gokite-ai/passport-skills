@@ -2,7 +2,7 @@
 # Kite Passport CLI Bootstrap Script
 #
 # Ensures the kpass CLI is installed, on PATH, and at least MIN_KPASS_VERSION.
-# Installs via the official bundle installer (https://cli.gokite.ai/install.sh)
+# Installs via the official bundle installer (KPASS_BASE_URL overrides .installer-base)
 # when missing or stale.
 #
 # Usage: bash setup.sh [--help]
@@ -66,9 +66,11 @@ if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
   echo ""
   echo "Usage: bash setup.sh"
   echo ""
+  INSTALLER_BASE_FILE="$SCRIPT_DIR/../.installer-base"
+  INSTALLER_BASE="${KPASS_BASE_URL:-$(cat "$INSTALLER_BASE_FILE" 2>/dev/null || echo "https://cli.gokite.ai")}"
   echo "Installation order:"
   echo "  1. Check if kpass >= ${MIN_KPASS_VERSION} is already on PATH"
-  echo "  2. Try: curl -fsSL https://cli.gokite.ai/install.sh | bash"
+  echo "  2. Try: curl -fsSL ${INSTALLER_BASE}/install.sh | bash"
   echo "  3. Fail with installation instructions"
   echo ""
   echo "Output: JSON to stdout"
@@ -164,8 +166,10 @@ fi
 # ---------------------------------------------------------------------------
 # Step 2: Install via the official bundle installer
 # ---------------------------------------------------------------------------
-echo "Installing kpass via the official installer (https://cli.gokite.ai/install.sh)..." >&2
-if curl -fsSL https://cli.gokite.ai/install.sh | bash >&2; then
+INSTALLER_BASE_FILE="$SCRIPT_DIR/../.installer-base"
+INSTALLER_BASE="${KPASS_BASE_URL:-$(cat "$INSTALLER_BASE_FILE" 2>/dev/null || echo "https://cli.gokite.ai")}"
+echo "Installing kpass via the official installer (${INSTALLER_BASE}/install.sh)..." >&2
+if curl -fsSL "${INSTALLER_BASE}/install.sh" | bash >&2; then
   # The installer typically only updates shell startup files (.bashrc/.zshrc),
   # which this non-interactive script never sources. Export the standard bundle
   # locations directly so the recheck below finds a fresh install even before
@@ -179,6 +183,6 @@ echo "Installer did not produce a kpass >= ${MIN_KPASS_VERSION} on PATH." >&2
 # Step 3: Nothing worked
 # ---------------------------------------------------------------------------
 cat <<EOF
-{"status":"error","error":"Could not install kpass >= ${MIN_KPASS_VERSION}. Install manually:\n\n  macOS / Linux:  curl -fsSL https://cli.gokite.ai/install.sh | bash\n  Windows:        irm https://cli.gokite.ai/install.ps1 | iex\n\nThen ensure the binary is on your PATH (before any older kpass)."}
+{"status":"error","error":"Could not install kpass >= ${MIN_KPASS_VERSION}. Install manually:\n\n  macOS / Linux:  curl -fsSL ${INSTALLER_BASE}/install.sh | bash\n  Windows:        irm ${INSTALLER_BASE}/install.ps1 | iex\n\nThen ensure the binary is on your PATH (before any older kpass)."}
 EOF
 exit 1

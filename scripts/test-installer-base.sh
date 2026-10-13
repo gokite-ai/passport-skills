@@ -2,7 +2,8 @@
 set -euo pipefail
 
 # Test that the installer fallback in authenticate-user, request-session,
-# attach-session, and kite-discovery honours KPASS_BASE_URL (production default).
+# attach-session, kite-discovery, scripts/setup.sh, and scripts/setup-ksearch.sh
+# honours KPASS_BASE_URL (production default).
 
 TESTDIR="$(mktemp -d)"
 trap 'rm -rf "$TESTDIR"' EXIT
@@ -19,14 +20,20 @@ exit 1
 STUB
 chmod +x "$TESTDIR/curl"
 
+# Stub .installer-base file
+echo "https://cli.gokite.ai" > "$TESTDIR/.installer-base"
+
 export PATH="$TESTDIR:$PATH"
 export CURL_LOG="$TESTDIR/curl.log"
+export HOME="$TESTDIR"
 
 SCRIPTS=(
   "authenticate-user/scripts/setup.sh"
   "request-session/scripts/setup.sh"
   "attach-session/scripts/setup.sh"
   "kite-discovery/scripts/setup-ksearch.sh"
+  "scripts/setup.sh"
+  "scripts/setup-ksearch.sh"
 )
 
 pass=0

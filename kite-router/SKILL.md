@@ -12,6 +12,8 @@ allowed-tools:
 
 # Kite Router
 
+**Prerequisite**: Before using any Passport skill, check if `kpass` is installed by running `command -v kpass`. If it returns nothing, invoke the `passport-setup` skill first to install the CLI.
+
 Use the Passport CLI for both authentication and inference. Do not install or invoke the legacy Marathon MCP bridge for this flow, and do not persist the short-lived capability token.
 
 ## Prerequisites

@@ -2,7 +2,7 @@
 # Kite Discovery CLI (ksearch) Bootstrap Script
 #
 # Ensures the ksearch CLI is installed and available. Installs via the
-# official bundle installer (https://cli.gokite.ai/install.sh) when missing --
+# official bundle installer (KPASS_BASE_URL overrides .installer-base) when missing --
 # that installer provisions kpass, ksearch, and passport-skills together, so
 # this mirrors scripts/setup.sh's auto-install behavior for consistency.
 #
@@ -35,7 +35,9 @@ if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
   echo "  1. Check if a CONSOLIDATED ksearch is on PATH (probed with: ksearch service list --help)"
   echo "  2. Check \${KPASS_INSTALL_DIR:-\$HOME/.kpass}/bin/ksearch"
   echo "  3. Check \$HOME/.local/bin/ksearch"
-  echo "  4. Try: curl -fsSL https://cli.gokite.ai/install.sh | bash"
+  INSTALLER_BASE_FILE="$(dirname "$0")/../.installer-base"
+  INSTALLER_BASE="${KPASS_BASE_URL:-$(cat "$INSTALLER_BASE_FILE" 2>/dev/null || echo "https://cli.gokite.ai")}"
+  echo "  4. Try: curl -fsSL ${INSTALLER_BASE}/install.sh | bash"
   echo "  5. Fail with installation instructions"
   echo ""
   echo "Output: JSON to stdout"
@@ -111,8 +113,10 @@ try_locate "passport-bundle" && exit 0
 # ---------------------------------------------------------------------------
 # Step 2: Install via the official bundle installer
 # ---------------------------------------------------------------------------
-echo "ksearch not found. Installing the Kite Passport bundle (kpass + ksearch + skills) via the official installer (https://cli.gokite.ai/install.sh)..." >&2
-if curl -fsSL https://cli.gokite.ai/install.sh | bash >&2; then
+INSTALLER_BASE_FILE="$(dirname "$0")/../.installer-base"
+INSTALLER_BASE="${KPASS_BASE_URL:-$(cat "$INSTALLER_BASE_FILE" 2>/dev/null || echo "https://cli.gokite.ai")}"
+echo "ksearch not found. Installing the Kite Passport bundle (kpass + ksearch + skills) via the official installer (${INSTALLER_BASE}/install.sh)..." >&2
+if curl -fsSL "${INSTALLER_BASE}/install.sh" | bash >&2; then
   # try_locate's bundle-path checks are PATH-independent, so run it before
   # exporting PATH. Otherwise the PATH-based "command -v" branch matches
   # first and mislabels the fresh install as "path" instead of "installer".
@@ -129,5 +133,5 @@ echo "Installer did not produce a ksearch binary in any known location." >&2
 # Step 3: Nothing worked
 # ---------------------------------------------------------------------------
 # shellcheck disable=SC2016 # single-quoted on purpose: \n and $HOME must stay literal in this JSON string, not expand
-printf '%s\n' '{"status":"error","error":"Could not find or install a consolidated ksearch (the standalone binary, if present, is incompatible with this skill). Install manually:\n\n  macOS / Linux:  curl -fsSL https://cli.gokite.ai/install.sh | bash\n  Windows:        irm https://cli.gokite.ai/install.ps1 | iex\n\nThen restart your shell or add $HOME/.local/bin to PATH."}'
+printf '%s\n' '{"status":"error","error":"Could not find or install a consolidated ksearch (the standalone binary, if present, is incompatible with this skill). Install manually:\n\n  macOS / Linux:  curl -fsSL '"${INSTALLER_BASE}"'/install.sh | bash\n  Windows:        irm '"${INSTALLER_BASE}"'/install.ps1 | iex\n\nThen restart your shell or add $HOME/.local/bin to PATH."}'
 exit 1
