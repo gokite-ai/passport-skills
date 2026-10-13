@@ -20,6 +20,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+INSTALLER_BASE_FILE="$(cd "$SCRIPT_DIR/.." && pwd)/.installer-base"
 
 # Read installer base URL with fallback chain: KPASS_BASE_URL env var > .installer-base file > hardcoded default
 get_installer_base() {
@@ -27,10 +28,9 @@ get_installer_base() {
     printf '%s' "$KPASS_BASE_URL"
     return
   fi
-  local installer_base_file="$(cd "$SCRIPT_DIR/.." && pwd)/.installer-base"
-  if [[ -f "$installer_base_file" ]]; then
+  if [[ -f "$INSTALLER_BASE_FILE" ]]; then
     local content
-    content="$(cat "$installer_base_file" 2>/dev/null | tr -d '[:space:]')"
+    content="$(cat "$INSTALLER_BASE_FILE" 2>/dev/null | tr -d '[:space:]')"
     if [[ -n "$content" ]]; then
       printf '%s' "$content"
       return
