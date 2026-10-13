@@ -29,8 +29,12 @@ echo "PASS (a): scripts/setup.sh --help base is '$base'"
 # (b) SKILL.md fallback with scripts/setup.sh absent: resolves base correctly
 rm "$WORK/repo/scripts/setup.sh"
 # Extract the fallback bash block from SKILL.md
-# Look for the get_installer_base function and extract everything until the end of the code block
-awk '/^```bash$/,/^```$/ {if (!/^```/) print}' "$WORK/repo/passport-setup/SKILL.md" | awk '/get_installer_base/,0' > "$WORK/fallback-raw.sh"
+# Find the bash block containing get_installer_base (skip the first bash block which is just the setup.sh call)
+awk '
+/^```bash$/ { in_block=1; content=""; next }
+/^```$/ && in_block { if (content ~ /get_installer_base/) { print content; exit } content=""; in_block=0; next }
+in_block { content = content $0 "\n" }
+' "$WORK/repo/passport-setup/SKILL.md" > "$WORK/fallback-raw.sh"
 if [[ ! -s "$WORK/fallback-raw.sh" ]]; then
   fail "(b) could not extract fallback from SKILL.md"
 fi
