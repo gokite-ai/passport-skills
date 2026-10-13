@@ -166,6 +166,7 @@ fi
 # ---------------------------------------------------------------------------
 # Step 2: Install via the official bundle installer
 # ---------------------------------------------------------------------------
+# Installer base URL precedence: KPASS_BASE_URL env var > .installer-base file > hardcoded default
 INSTALLER_BASE_FILE="$SCRIPT_DIR/../.installer-base"
 INSTALLER_BASE="${KPASS_BASE_URL:-$(cat "$INSTALLER_BASE_FILE" 2>/dev/null || echo "https://cli.gokite.ai")}"
 echo "Installing kpass via the official installer (${INSTALLER_BASE}/install.sh)..." >&2

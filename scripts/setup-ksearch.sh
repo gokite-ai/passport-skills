@@ -113,6 +113,7 @@ try_locate "passport-bundle" && exit 0
 # ---------------------------------------------------------------------------
 # Step 2: Install via the official bundle installer
 # ---------------------------------------------------------------------------
+# Installer base URL precedence: KPASS_BASE_URL env var > .installer-base file > hardcoded default
 INSTALLER_BASE_FILE="$(dirname "$0")/../.installer-base"
 INSTALLER_BASE="${KPASS_BASE_URL:-$(cat "$INSTALLER_BASE_FILE" 2>/dev/null || echo "https://cli.gokite.ai")}"
 echo "ksearch not found. Installing the Kite Passport bundle (kpass + ksearch + skills) via the official installer (${INSTALLER_BASE}/install.sh)..." >&2
