@@ -37,7 +37,7 @@ total=6
 # Test 1: INSTALLER_ENV unset gives prod, and setup.sh uses it
 unset INSTALLER_ENV
 : > "$CURL_LOG"
-if bash "$SCRIPT" "$TESTDIR" && \
+if bash "$SCRIPT" "" "$TESTDIR" && \
    [[ "$(cat "$BASE_FILE")" == "https://cli.gokite.ai" ]] && \
    PATH="$TESTDIR/scripts:$PATH" bash "$TESTDIR/scripts/setup.sh" 2>&1 | grep -q "https://cli.gokite.ai/install" && \
    grep -q "https://cli.gokite.ai/install.sh" "$CURL_LOG"; then
