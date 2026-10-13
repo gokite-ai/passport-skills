@@ -18,19 +18,15 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-INSTALLER_BASE_FILE="$(cd "$SCRIPT_DIR/.." && pwd)/.installer-base"
 
-# Read installer base URL with fallback chain: KPASS_BASE_URL env var > .installer-base file > hardcoded default
+# Read installer base URL from .installer-base file, falling back to hardcoded default
 get_installer_base() {
-  if [[ -n "${KPASS_BASE_URL:-}" ]]; then
-    printf '%s' "$KPASS_BASE_URL"
-    return
-  fi
-  if [[ -f "$INSTALLER_BASE_FILE" ]]; then
-    local content
-    content="$(cat "$INSTALLER_BASE_FILE" 2>/dev/null | tr -d '[:space:]')"
-    if [[ -n "$content" ]]; then
-      printf '%s' "$content"
+  local base_file="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/.installer-base"
+  if [[ -f "$base_file" ]]; then
+    local base
+    base="$(cat "$base_file" 2>/dev/null | tr -d '[:space:]')"
+    if [[ -n "$base" ]]; then
+      printf '%s' "$base"
       return
     fi
   fi
@@ -38,7 +34,7 @@ get_installer_base() {
 }
 
 if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
-  INSTALLER_BASE="$(get_installer_base)"
+  INSTALLER_BASE="${KPASS_BASE_URL:-$(get_installer_base)}"
   echo "Kite Passport CLI Bootstrap"
   echo ""
   echo "Ensures kpass >= ${MIN_KPASS_VERSION} is installed and available on PATH."

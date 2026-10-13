@@ -20,19 +20,15 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-INSTALLER_BASE_FILE="$(cd "$SCRIPT_DIR/.." && pwd)/.installer-base"
 
-# Read installer base URL with fallback chain: KPASS_BASE_URL env var > .installer-base file > hardcoded default
+# Read installer base URL from .installer-base file, falling back to hardcoded default
 get_installer_base() {
-  if [[ -n "${KPASS_BASE_URL:-}" ]]; then
-    printf '%s' "$KPASS_BASE_URL"
-    return
-  fi
-  if [[ -f "$INSTALLER_BASE_FILE" ]]; then
-    local content
-    content="$(cat "$INSTALLER_BASE_FILE" 2>/dev/null | tr -d '[:space:]')"
-    if [[ -n "$content" ]]; then
-      printf '%s' "$content"
+  local base_file="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/.installer-base"
+  if [[ -f "$base_file" ]]; then
+    local base
+    base="$(cat "$base_file" 2>/dev/null | tr -d '[:space:]')"
+    if [[ -n "$base" ]]; then
+      printf '%s' "$base"
       return
     fi
   fi
@@ -43,7 +39,7 @@ get_installer_base() {
 # Help
 # ---------------------------------------------------------------------------
 if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
-  INSTALLER_BASE="$(get_installer_base)"
+  INSTALLER_BASE="${KPASS_BASE_URL:-$(get_installer_base)}"
   echo "Kite Discovery CLI (ksearch) Bootstrap"
   echo ""
   echo "Ensures ksearch is installed and available on PATH."
@@ -132,9 +128,15 @@ try_locate "passport-bundle" && exit 0
 # ---------------------------------------------------------------------------
 # Step 2: Install via the official bundle installer
 # ---------------------------------------------------------------------------
-INSTALLER_BASE="$(get_installer_base)"
+INSTALLER_BASE="${KPASS_BASE_URL:-$(get_installer_base)}"
+[[ $INSTALLER_BASE =~ ^https://cli(\.staging)?\.gokite\.ai$ ]] || { echo "bad installer base: $INSTALLER_BASE" >&2; exit 1; }
 echo "ksearch not found. Installing the Kite Passport bundle (kpass + ksearch + skills) via the official installer (${INSTALLER_BASE}/install.sh)..." >&2
-if curl -fsSL "${INSTALLER_BASE}/install.sh" | bash >&2; then
+INSTALL_SCRIPT="$(mktemp)"
+trap 'rm -f "$INSTALL_SCRIPT"' EXIT
+if curl -fsSL "${INSTALLER_BASE}/install.sh" -o "$INSTALL_SCRIPT" && \
+   [[ -s "$INSTALL_SCRIPT" ]] && \
+   [[ "$(head -1 "$INSTALL_SCRIPT")" == '#!'* ]]; then
+  if bash "$INSTALL_SCRIPT" >&2; then
   # try_locate's bundle-path checks are PATH-independent, so run it before
   # exporting PATH. Otherwise the PATH-based "command -v" branch matches
   # first and mislabels the fresh install as "path" instead of "installer".
@@ -143,22 +145,14 @@ if curl -fsSL "${INSTALLER_BASE}/install.sh" | bash >&2; then
   # which this non-interactive script never sources. Export the standard
   # bundle locations directly in case anything downstream in this shell
   # needs ksearch on PATH.
-  export PATH="${KPASS_INSTALL_DIR:-$HOME/.kpass}/bin:$HOME/.local/bin:$PATH"
+    export PATH="${KPASS_INSTALL_DIR:-$HOME/.kpass}/bin:$HOME/.local/bin:$PATH"
+  fi
 fi
 echo "Installer did not produce a ksearch binary in any known location." >&2
 
 # ---------------------------------------------------------------------------
 # Step 3: Nothing worked
 # ---------------------------------------------------------------------------
-# Escape for JSON: replace \ with \\, " with \", and control chars with \uXXXX
-json_escape() {
-  local s="$1"
-  s="${s//\\/\\\\}"
-  s="${s//\"/\\\"}"
-  s="$(printf '%s' "$s" | LC_ALL=C sed 's/[\x00-\x1F\x7F]/\\u0000/g' 2>/dev/null || printf '%s' "$s")"
-  printf '%s' "$s"
-}
-INSTALLER_BASE_ESC="$(json_escape "$INSTALLER_BASE")"
 # shellcheck disable=SC2016 # single-quoted on purpose: \n and $HOME must stay literal in this JSON string, not expand
-printf '%s\n' '{"status":"error","error":"Could not find or install a consolidated ksearch (the standalone binary, if present, is incompatible with this skill). Install manually:\n\n  macOS / Linux:  curl -fsSL '"${INSTALLER_BASE_ESC}"'/install.sh | bash\n  Windows:        irm '"${INSTALLER_BASE_ESC}"'/install.ps1 | iex\n\nThen restart your shell or add $HOME/.local/bin to PATH."}'
+printf '%s\n' '{"status":"error","error":"Could not find or install a consolidated ksearch (the standalone binary, if present, is incompatible with this skill). Install manually:\n\n  macOS / Linux:  curl -fsSL '"${INSTALLER_BASE}"'/install.sh | bash\n  Windows:        irm '"${INSTALLER_BASE}"'/install.ps1 | iex\n\nThen restart your shell or add $HOME/.local/bin to PATH."}'
 exit 1
