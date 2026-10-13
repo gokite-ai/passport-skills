@@ -18,7 +18,7 @@ Use the Passport CLI for both authentication and inference. Do not install or in
 
 0. If there is no agent record yet, create one:
 
-   First, authenticate the user if not logged in. Use the authenticate-user skill (`kpass login init --email <email> --output json`, then `kpass login verify`).
+   First, authenticate the user if not logged in. Use the authenticate-user skill (`kpass login init --email <email> --client agent --output json`, then `kpass login verify`).
 
    Then create the agent:
    ```bash
