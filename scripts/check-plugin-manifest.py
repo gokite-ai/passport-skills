@@ -32,7 +32,15 @@ def main():
     expected_skills.add("kite-router/SKILL.md")  # Add kite-router
     
     # Get the skills from plugin.json
-    plugin_skills = set(plugin_data.get("skills", []))
+    plugin_skills_list = plugin_data.get("skills", [])
+    
+    # Check for duplicates in plugin.json
+    if len(plugin_skills_list) != len(set(plugin_skills_list)):
+        duplicates = [s for s in plugin_skills_list if plugin_skills_list.count(s) > 1]
+        print(f"Error: plugin.json contains duplicate skill entries: {set(duplicates)}", file=sys.stderr)
+        sys.exit(1)
+    
+    plugin_skills = set(plugin_skills_list)
     
     # Check if they match
     if plugin_skills != expected_skills:
