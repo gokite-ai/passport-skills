@@ -19,6 +19,8 @@ allowed-tools:
 
 # Upgrade Passport
 
+**Prerequisite**: Before using any Passport skill, check if `kpass` is installed by running `command -v kpass`. If it returns nothing, invoke the `passport-setup` skill first to install the CLI.
+
 Update the `kpass` CLI in place (POSIX) or surface the right manual-install command (Windows). Also the place to interpret the optional `update_available` field that may appear in any `kpass --output json` envelope.
 
 > **Reference files** (read when you need exact detail):

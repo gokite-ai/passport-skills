@@ -282,6 +282,21 @@
       ]
     },
     {
+      "slug": "passport-setup",
+      "name": "Passport Setup",
+      "description": "Install and verify the kpass CLI on this computer before running any other Passport skill. Invoke automatically when kpass is missing or when a Passport skill fails with a command-not-found error.",
+      "path": "passport-setup/SKILL.md",
+      "group": "user",
+      "tags": [
+        "setup",
+        "install",
+        "cli",
+        "bootstrap",
+        "kpass"
+      ],
+      "dependencies": []
+    },
+    {
       "slug": "kite-router",
       "name": "Kite Router",
       "description": "Run synchronous text-model inference through Kite Router with this Passport-bound agent. Invoke to list Router models or pricing, call a supported text model, or replace the old Marathon inference plugin. Uses `kpass agent router`; it does not handle Marathon delayed jobs.",

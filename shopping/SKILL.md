@@ -15,6 +15,8 @@ allowed-tools:
 
 # Shopping
 
+**Prerequisite**: Before using any Passport skill, check if `kpass` is installed by running `command -v kpass`. If it returns nothing, invoke the `passport-setup` skill first to install the CLI.
+
 Search for products, manage a shopping cart, collect shipping information, and place orders paid with cryptocurrency via headless checkout.
 
 **Currently supported providers:** `amazon`. More providers will be added — the system is provider-agnostic.

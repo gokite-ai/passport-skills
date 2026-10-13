@@ -13,6 +13,8 @@ allowed-tools:
 
 # Manage Agents
 
+**Prerequisite**: Before using any Passport skill, check if `kpass` is installed by running `command -v kpass`. If it returns nothing, invoke the `passport-setup` skill first to install the CLI.
+
 List and inspect registered agents and their spending sessions from the user's perspective. These commands use the user's JWT (not an agent token) and show data across all agents registered to the user's account.
 
 ## When to Use This Skill

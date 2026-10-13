@@ -17,6 +17,8 @@ allowed-tools:
 
 # DeFi Auto-Repay (Aave v3 on Base)
 
+**Prerequisite**: Before using any Passport skill, check if `kpass` is installed by running `command -v kpass`. If it returns nothing, invoke the `passport-setup` skill first to install the CLI.
+
 Arm a **one-shot** repay trigger on an Aave v3 position: when its health factor drops below the user's threshold, **Kite repays its USDC debt once** from the user's **Passport wallet**. The position can live in **any wallet** (MetaMask, a Safe, anything): Kite repays on its behalf, and never needs that wallet's keys. This **reduces liquidation risk**; never say it "protects" against or "guarantees" anything.
 
 > **Reference files** (read when you need exact detail):

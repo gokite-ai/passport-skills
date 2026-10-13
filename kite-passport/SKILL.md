@@ -24,6 +24,8 @@ allowed-tools: []
 
 # Kite Passport -- Agent Capability Guide
 
+**Prerequisite**: Before using any Passport skill, check if `kpass` is installed by running `command -v kpass`. If it returns nothing, invoke the `passport-setup` skill first to install the CLI.
+
 You have access to Kite Passport, a suite of skills that let you take real-world
 actions on behalf of the user: shop for and buy physical products, call paid APIs,
 transfer crypto tokens, and more. This guide helps you pick the right skill for

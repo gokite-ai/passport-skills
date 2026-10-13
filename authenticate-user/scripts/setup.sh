@@ -164,8 +164,9 @@ fi
 # ---------------------------------------------------------------------------
 # Step 2: Install via the official bundle installer
 # ---------------------------------------------------------------------------
-echo "Installing kpass via the official installer (https://cli.gokite.ai/install.sh)..." >&2
-if curl -fsSL https://cli.gokite.ai/install.sh | bash >&2; then
+INSTALLER_BASE="${KPASS_BASE_URL:-https://cli.gokite.ai}"
+echo "Installing kpass via the official installer (${INSTALLER_BASE}/install.sh)..." >&2
+if curl -fsSL "${INSTALLER_BASE}/install.sh" | bash >&2; then
   # The installer typically only updates shell startup files (.bashrc/.zshrc),
   # which this non-interactive script never sources. Export the standard bundle
   # locations directly so the recheck below finds a fresh install even before
@@ -179,6 +180,6 @@ echo "Installer did not produce a kpass >= ${MIN_KPASS_VERSION} on PATH." >&2
 # Step 3: Nothing worked
 # ---------------------------------------------------------------------------
 cat <<EOF
-{"status":"error","error":"Could not install kpass >= ${MIN_KPASS_VERSION}. Install manually:\n\n  macOS / Linux:  curl -fsSL https://cli.gokite.ai/install.sh | bash\n  Windows:        irm https://cli.gokite.ai/install.ps1 | iex\n\nThen ensure the binary is on your PATH (before any older kpass)."}
+{"status":"error","error":"Could not install kpass >= ${MIN_KPASS_VERSION}. Install manually:\n\n  macOS / Linux:  curl -fsSL ${INSTALLER_BASE}/install.sh | bash\n  Windows:        irm ${INSTALLER_BASE}/install.ps1 | iex\n\nThen ensure the binary is on your PATH (before any older kpass)."}
 EOF
 exit 1
