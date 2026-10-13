@@ -37,9 +37,10 @@ total=6
 # Test 1: INSTALLER_ENV unset gives prod, and setup.sh uses it
 unset INSTALLER_ENV
 : > "$CURL_LOG"
-if bash "$SCRIPT" "" "$TESTDIR" && \
-   [[ "$(cat "$BASE_FILE")" == "https://cli.gokite.ai" ]] && \
-   PATH="$TESTDIR/scripts:$PATH" bash "$TESTDIR/scripts/setup.sh" 2>&1 | grep -q "https://cli.gokite.ai/install" && \
+bash "$SCRIPT" "" "$TESTDIR"
+setup_output=$(PATH="$TESTDIR/scripts:$PATH" bash "$TESTDIR/scripts/setup.sh" 2>&1 || true)
+if [[ "$(cat "$BASE_FILE")" == "https://cli.gokite.ai" ]] && \
+   echo "$setup_output" | grep -q "https://cli.gokite.ai/install" && \
    grep -q "https://cli.gokite.ai/install.sh" "$CURL_LOG"; then
   echo "PASS 1: INSTALLER_ENV unset -> prod, setup.sh uses it"
   pass=$((pass + 1))
@@ -60,9 +61,10 @@ fi
 # Test 3: argument "staging" gives staging, and setup.sh uses it
 rm -f "$BASE_FILE"
 : > "$CURL_LOG"
-if bash "$SCRIPT" staging "$TESTDIR" && \
-   [[ "$(cat "$BASE_FILE")" == "https://cli.staging.gokite.ai" ]] && \
-   PATH="$TESTDIR/scripts:$PATH" bash "$TESTDIR/scripts/setup.sh" 2>&1 | grep -q "https://cli.staging.gokite.ai/install" && \
+bash "$SCRIPT" staging "$TESTDIR"
+setup_output=$(PATH="$TESTDIR/scripts:$PATH" bash "$TESTDIR/scripts/setup.sh" 2>&1 || true)
+if [[ "$(cat "$BASE_FILE")" == "https://cli.staging.gokite.ai" ]] && \
+   echo "$setup_output" | grep -q "https://cli.staging.gokite.ai/install" && \
    grep -q "https://cli.staging.gokite.ai/install.sh" "$CURL_LOG"; then
   echo "PASS 3: argument staging -> staging URL, setup.sh uses it"
   pass=$((pass + 1))
