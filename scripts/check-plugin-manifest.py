@@ -86,6 +86,13 @@ def main():
     
     # Check skills set equals .grok-plugin skill paths with "/SKILL.md" removed
     cursor_skills_list = cursor_plugin_data.get("skills", [])
+    
+    # Check for duplicates in cursor plugin.json
+    if len(cursor_skills_list) != len(set(cursor_skills_list)):
+        duplicates = [s for s in cursor_skills_list if cursor_skills_list.count(s) > 1]
+        print(f"Error: .cursor-plugin/plugin.json contains duplicate skill entries: {set(duplicates)}", file=sys.stderr)
+        sys.exit(1)
+    
     cursor_skills = set(cursor_skills_list)
     
     # Build expected set from .grok-plugin skills (paths with "/SKILL.md" removed)
