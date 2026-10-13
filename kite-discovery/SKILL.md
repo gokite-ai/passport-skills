@@ -70,7 +70,7 @@ If the setup script outputs `{"status":"ok",...}`, you may proceed. If it output
 | Tag filter | Omit | Only pass `--tag` if the user wants a category filter. Note: the CLI maps `--tag` to backend category filtering. |
 | Asset filter | Omit | Only pass `--asset` if the user cares about a specific payment asset (e.g., `USDC`). |
 | Payment approach | Omit | Only pass `--payment-approach` when the user requests a specific model: `x402`, `tempo`, or `paygate`. |
-| Base URL | Omit (uses `DISCOVERY_BASE_URL` env var or built-in default) | Only pass `--service-base-url` if the user explicitly provides a custom backend URL. |
+| Base URL | Omit (uses `KSEARCH_SERVICE_BASE_URL` or `DISCOVERY_BASE_URL` env var or built-in default) | Only pass `--service-base-url` if the user explicitly provides a custom backend URL. |
 
 ## Payment Rails Are Not a Decision Point
 
