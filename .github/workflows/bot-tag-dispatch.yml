@@ -1,0 +1,28 @@
+name: Bot Tag Dispatch
+
+on:
+  push:
+    tags:
+      - 'bot-release/prerelease/v*/*'
+      - 'bot-release/promote/v*/*'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: bot-tag-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  edit-release-flags:
+    name: Edit Release Flags
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Edit release flags
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+        run: bash scripts/bot-release-flags.sh
