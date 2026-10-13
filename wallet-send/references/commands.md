@@ -108,7 +108,7 @@ kpass wallet send --chain <base|polygon|avalanche|tempo|solana|robinhood|arc> --
 
 | Argument | Flag | Required | Source | Validation |
 |----------|------|----------|--------|------------|
-| Chain | `--chain` | **Yes** | Ask the user | One of `base`, `polygon`, `avalanche`, `tempo`, `solana`, `robinhood`, `arc`. No default. `kite` and anything else are rejected (exit 2). The backend additionally rejects chains its environment does not serve. **`arc`** is Arc mainnet on staging/prod and Arc testnet on dev: send `USDC` only, and ~0.02 USDC stays behind for Arc gas (USDC is Arc's gas token). a2a escrow funding still goes through the buyer runtime's `kpass agent fund` (see `buyer-purchase`), not `wallet send`. |
+| Chain | `--chain` | **Yes** | Ask the user | One of `base`, `polygon`, `avalanche`, `tempo`, `solana`, `robinhood`, `arc`. No default. `kite` and anything else are rejected (exit 2). The backend additionally rejects chains its environment does not serve. **`arc`** is Arc mainnet on staging/prod and Arc testnet on dev: send `USDC` only, and ~0.02 USDC stays behind for Arc gas (USDC is Arc's gas token). |
 | Recipient address | `--to` | Yes | Ask the user | Validated **for the chosen chain**: base/polygon/avalanche/tempo/robinhood/arc = EVM `0x` + 40 hex (EIP-55 checksum enforced when mixed-case); solana = base58 decoding to 32 bytes. Invalid → exit 2 before any network call. |
 | Amount | `--amount` | Yes | Ask the user | Positive decimal string (e.g. `"25"`, `"0.50"`). |
 | Asset symbol | `--asset` | Yes | Ask the user | Token symbol: `USDC` on base/polygon/avalanche/tempo/solana/arc, `PYUSD` on solana, `USDG` on robinhood. |

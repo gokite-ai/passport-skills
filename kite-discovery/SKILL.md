@@ -26,12 +26,10 @@ allowed-tools:
 
 Browse, search, and inspect paid services in the Kite service catalog using the `ksearch` CLI. This skill is the discovery half of the Kite workflow -- `ksearch` finds and explains services, then Passport skills handle auth, session approval, and paid execution.
 
-> **The binary is consolidated.** `ksearch` ships from passport-cli alongside `kpass` and
-> `kagent`, and fronts two backends: `ksearch service …` (this skill's catalog) and
-> `ksearch agent …` (the Passport agent directory — the `buyer-find-seller` skill's domain).
-> Root `ksearch health` reports BOTH backends and fails when either is down; this skill's
-> backend check is `ksearch service health`. The service backend resolves from
-> `--service-base-url`, then `KSEARCH_SERVICE_BASE_URL`, then `DISCOVERY_BASE_URL`.
+> **The binary is consolidated.** `ksearch` ships from passport-cli alongside `kpass`.
+> Root `ksearch health` reports backend health; this skill's backend check is
+> `ksearch service health`. The service backend resolves from `--service-base-url`,
+> then `KSEARCH_SERVICE_BASE_URL`, then `DISCOVERY_BASE_URL`.
 
 ## Step 0: Ensure CLI is Installed
 
@@ -72,7 +70,7 @@ If the setup script outputs `{"status":"ok",...}`, you may proceed. If it output
 | Tag filter | Omit | Only pass `--tag` if the user wants a category filter. Note: the CLI maps `--tag` to backend category filtering. |
 | Asset filter | Omit | Only pass `--asset` if the user cares about a specific payment asset (e.g., `USDC`). |
 | Payment approach | Omit | Only pass `--payment-approach` when the user requests a specific model: `x402`, `tempo`, or `paygate`. |
-| Base URL | Omit (uses `DISCOVERY_BASE_URL` env var or built-in default) | Only pass `--service-base-url` if the user explicitly provides a custom backend URL. |
+| Base URL | Omit (uses `KSEARCH_SERVICE_BASE_URL` or `DISCOVERY_BASE_URL` env var or built-in default) | Only pass `--service-base-url` if the user explicitly provides a custom backend URL. |
 
 ## Payment Rails Are Not a Decision Point
 
@@ -114,7 +112,7 @@ End-to-end walkthroughs (browse then inspect a service; paginated catalog browsi
 | Exit Code | Meaning | Error Message Pattern | Recovery Action |
 |-----------|---------|----------------------|-----------------|
 | 0 | Success | `status: "success"` | Parse and present to user. |
-| 1 | Connection/timeout | `Could not reach discovery backend`, `Request timed out` | Check connectivity. Run `ksearch service health --output json`. Verify `DISCOVERY_BASE_URL` if set. Retry after a brief pause. |
+| 1 | Connection/timeout | `Could not reach discovery backend`, `Request timed out` | Check connectivity. Run `ksearch service health --output json`. Verify `KSEARCH_SERVICE_BASE_URL` or `DISCOVERY_BASE_URL` if set. Retry after a brief pause. |
 | 2 | Invalid arguments | `unknown command`, `Only --output json is supported` | Fix command syntax. Check required flags. |
 | 3 | Auth required | `Authentication required` | Unexpected for discovery (public API). Check if the backend requires auth. |
 | 4 | Not found | `Service not found` | Verify the `service_id` is correct. Run `service list` to discover valid IDs. |

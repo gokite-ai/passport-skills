@@ -11,7 +11,7 @@ New here? Start with [GETTING_STARTED.md](GETTING_STARTED.md) for a full walkthr
 
 ## Disclaimer
 
-Several skills here (`request-session`, `x402-execute`, `wallet-send`, `shopping`, `cloud-deploy`) authorize an AI agent to spend real funds and provision billable cloud resources on the user's behalf. Every session is gated by a passkey-approved delegation with explicit limits (per-transaction cap, total budget, TTL, allowed assets) -- review those limits before approving a session. Treat any skill that moves money or provisions infrastructure as production-sensitive, not a sandboxed demo.
+Several skills here (`request-session`, `x402-execute`, `wallet-send`, `shopping`) authorize an AI agent to spend real funds on the user's behalf. Every session is gated by a passkey-approved delegation with explicit limits (per-transaction cap, total budget, TTL, allowed assets) -- review those limits before approving a session. Treat any skill that moves money or provisions infrastructure as production-sensitive, not a sandboxed demo.
 
 ## What Are Skills?
 
@@ -35,32 +35,15 @@ Each skill is a `SKILL.md` file that gets injected into an AI agent's context at
 | **shopping** | `shopping/` | Search and buy physical products, manage a shopping cart, collect shipping details, and checkout with crypto. |
 | **activity** | `activity/` | View recent account activity including wallet transfers, faucet drops, API payments, agent registrations, session approvals, and shopping checkouts. |
 | **report-feedback** | `report-feedback/` | File an issue report, bug, or freeform feedback from the current agent session. |
-| **cloud-deploy** | `cloud-deploy/` | Deploy a local project to its own Google Cloud (Cloud Run + Cloud SQL etc.) via `kpass cloud`: provision a per-customer GCP project, then detect the project's GCP components and deploy them with `gcloud`. |
-| **buyer-agent-setup** | `buyer-agent-setup/` | Buyer-agent runtime identity: generate the `kpass agent` runtime key, bind it with the owner's passkey approval, confirm the binding. |
 | **kite-router** | `kite-router/` | Passport-authenticated synchronous text-model inference through `kpass agent router`, with no MCP dependency. |
-| **buyer-find-seller** | `buyer-find-seller/` | Buyer-agent discovery: search the agent directory, verify a seller's card, keys and published terms, pin the coordination persona card. |
-| **buyer-purchase** | `buyer-purchase/` | Buyer-agent agreement lane: propose, owner-approved spending session, fund the escrow, verify the delivered artifact, confirm or reject, review. |
-| **seller-onboarding** | `seller-onboarding/` | The human entry point to selling: interview a seller with zero Kite vocabulary about their own business, derive every platform artifact (identity, offer, deal shape, mandate, standing orders, craft skill), and prepare/hand off one live verification deal (settlement blocked by GOK-1272). |
-| **seller-agent-setup** | `seller-agent-setup/` | Seller-agent runtime identity plus public face: `kagent` key, binding, pinned card, published agent card and terms/rate-card documents. |
-| **seller-serve** | `seller-serve/` | Seller-agent's default lane: run the seller as a work function under `kagent serve --config kite.config.yaml` — no platform code, just a config file and its own skills. |
-| **seller-fulfill** | `seller-fulfill/` | Seller-agent fulfilment, the CLI lane: notice proposals (stream or poll), accept with local verification, escalate policy refusals, sign the Activation, deliver, register evidence. |
 
 ## Skill Groups
 
-Skills are organized into groups by who drives the CLI surface they teach.
-Every skill declares a `group` in `skills.json` (existing skills default to
-`user`); `skills.json`'s top-level `groups` map records each group's CLI
-prefix and the permission glob a host should scope that group's skills to.
+All skills in this repository belong to the `user` group, which teaches AI agents how to drive the `kpass` CLI on behalf of a human operator.
 
 | Group | Drives | Permission glob |
 |-------|--------|------------------|
 | **user** | A human operator driving `kpass ...` directly (via Claude Code, Cursor, Cline, etc.). | `Bash(kpass *)` |
-| **buyer-agent** | An autonomous agent acting as a buyer, via `kpass agent ...`: `buyer-agent-setup`, `kite-router`, `buyer-find-seller`, `buyer-purchase`. See [`buyer-agent/README.md`](buyer-agent/README.md). | `Bash(kpass agent *)` |
-| **seller-agent** | An autonomous agent acting as a seller, via the `kagent` binary (a second executable shipped in the same passport-cli release bundle): `seller-onboarding`, `seller-agent-setup`, `seller-serve`, `seller-fulfill`. See [`seller-agent/README.md`](seller-agent/README.md). | `Bash(kagent *)` |
-
-Skills live in top-level directories named after their slug regardless of
-group -- group membership is recorded by the `group` field in `skills.json`,
-and each non-`user` group's directory holds that group's documentation.
 
 ## Skill Dependency Graph
 
@@ -80,7 +63,7 @@ authenticate-user  (always first for Passport payment flows)
        |
        +----> report-feedback (file feedback / bug reports from the session)
        |
-       +----> cloud-deploy    (provision + deploy a project to GCP via kpass cloud)
+       +----> kite-router    (synchronous Router inference; Router allowance)
        |
        v
 request-session  (register agent + preflight + create session with delegation)
@@ -99,30 +82,6 @@ attach-session   (bind an existing attachable session by ID -- e.g. created
        +----> shopping       (search + buy physical products)
 
 upgrade-passport  (standalone -- detect and apply kpass CLI updates; no auth, no deps)
-```
-
-The agent groups are separate graphs -- they bind a runtime key rather than
-logging a human in, so they do not depend on `authenticate-user`:
-
-```
-buyer-agent-setup   (kpass agent init + bind + status -- owner approves the binding)
-       |
-       +----> kite-router  (models + synchronous chat; Router allowance, no A2A)
-       |
-       v
-buyer-find-seller   (directory search/get/card/keys + card fetch --pin)
-       |
-       v
-buyer-purchase      (propose -> session request -> fund -> verify -> confirm/reject -> review)
-
-seller-onboarding   (human interview: intent answers -> every platform artifact -> hand off one live verification deal)
-       |
-       v
-seller-agent-setup  (kagent init + bind + card fetch --pin + card/docs publish)
-seller-serve        (serve --config kite.config.yaml: the default, no platform code)
-       |
-       v
-seller-fulfill      (listen or poll -> accept -> funding sign -> deliver -> evidence)
 ```
 
 ## Installation
@@ -158,19 +117,8 @@ npx skills add gokite-ai/passport-skills/shopping
 npx skills add gokite-ai/passport-skills/activity
 npx skills add gokite-ai/passport-skills/report-feedback
 
-# Cloud deployment (uses gcloud + kpass cloud):
-npx skills add gokite-ai/passport-skills/cloud-deploy
-
-# Autonomous buyer agent (uses kpass agent ... ):
-npx skills add gokite-ai/passport-skills/buyer-agent-setup
+# Router inference (uses kpass agent router):
 npx skills add gokite-ai/passport-skills/kite-router
-npx skills add gokite-ai/passport-skills/buyer-find-seller
-npx skills add gokite-ai/passport-skills/buyer-purchase
-
-# Autonomous seller agent (uses the kagent binary):
-npx skills add gokite-ai/passport-skills/seller-onboarding
-npx skills add gokite-ai/passport-skills/seller-agent-setup
-npx skills add gokite-ai/passport-skills/seller-fulfill
 ```
 
 ### Bootstrap Scripts
@@ -246,24 +194,8 @@ passport-skills/
     SKILL.md                     View recent account activity and transaction history
   report-feedback/
     SKILL.md                     File issue reports / bugs / freeform feedback from the agent session
-  cloud-deploy/
-    SKILL.md                     Deploy a local project to its own GCP project via kpass cloud + gcloud
-  buyer-agent/
-    README.md                    Buyer-agent group: purpose, kpass agent CLI surface, permission glob, envelope + exit codes
-  buyer-agent-setup/
-    SKILL.md                     Buyer runtime identity: init, bind (owner passkey), status
   kite-router/
     SKILL.md                     Passport-authenticated Router catalog and synchronous chat
-  buyer-find-seller/
-    SKILL.md                     Buyer discovery: agent directory reads + coordination persona pin
-  buyer-purchase/
-    SKILL.md                     Buyer agreement lane: propose, session, fund, verify, confirm/reject, review
-  seller-agent/
-    README.md                    Seller-agent group: purpose, kagent CLI surface, permission glob, envelope + exit codes
-  seller-agent-setup/
-    SKILL.md                     Seller runtime identity + card and terms/rate-card publishing
-  seller-fulfill/
-    SKILL.md                     Seller fulfilment: accept, escalate, funding sign, deliver, evidence, messages
   scripts/
     setup.sh                     Bootstrap: verify Node.js >= 18, verify kpass CLI
     setup-ksearch.sh             Bootstrap: locate and verify bundled ksearch CLI

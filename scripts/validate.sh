@@ -97,12 +97,11 @@ fi
 
 # ---- Check 6: skill groups are consistent ----
 # skills.json's top-level "groups" map declares the known skill groups
-# (user, buyer-agent, seller-agent, ...). Every skill's "group" field
-# (skills predating this field default to "user") must reference a group
-# that actually exists, and every non-"user" group must have a backing
-# directory -- the group's README.md lives there even before any skill
-# does, so an agent researching "what does the buyer-agent group drive"
-# always finds real documentation, not a 404.
+# (currently only "user"). Every skill's "group" field (skills predating
+# this field default to "user") must reference a group that actually exists,
+# and every non-"user" group must have a backing directory -- the group's
+# README.md lives there even before any skill does, so an agent researching
+# what that group drives always finds real documentation, not a 404.
 GROUP_ERRORS=$(node -e "
   const s = JSON.parse(require('fs').readFileSync('$SKILLS_JSON', 'utf8'));
   const groups = s.groups || {};
@@ -177,24 +176,7 @@ while IFS= read -r script; do
   fi
 done < <(find "$REPO_ROOT" -maxdepth 3 -name "setup.sh" -path "*/scripts/*" -not -path "*/node_modules/*" | grep -v "setup-ksearch")
 
-# The kagent pins were unchecked until a release moved both floors and only the
-# kpass side was caught by anything. Same duplication, same failure mode: a
-# drifted fallback installs a kagent the skills cannot drive.
-MIN_KAGENT=$(node -e "console.log(JSON.parse(require('fs').readFileSync('$SKILLS_JSON','utf8')).min_kagent_version.split('-')[0])")
-
-while IFS= read -r script; do
-  s_min=$(grep -oE '^DEFAULT_MIN_KAGENT_VERSION="[^"]*"' "$script" | cut -d'"' -f2 || true)
-  rel="${script#"$REPO_ROOT"/}"
-  if [[ -z "$s_min" ]]; then
-    echo "  FAIL: $rel — missing DEFAULT_MIN_KAGENT_VERSION pin"
-    ERRORS=$((ERRORS + 1))
-  elif [[ "$s_min" != "$MIN_KAGENT" ]]; then
-    echo "  FAIL: $rel — fallback floor ($s_min) drifted from skills.json ($MIN_KAGENT)"
-    ERRORS=$((ERRORS + 1))
-  else
-    echo "  [OK] $rel fallback floor matches skills.json"
-  fi
-done < <(find "$REPO_ROOT" -maxdepth 3 -name "setup-kagent.sh" -path "*/scripts/*" -not -path "*/node_modules/*")
+# kagent check removed: min_kagent_version and setup-kagent.sh scripts no longer exist
 
 # ---- Summary ----
 echo ""
