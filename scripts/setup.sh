@@ -61,9 +61,10 @@ get_installer_base() {
   if [[ -n "${KPASS_BASE_URL:-}" ]]; then
     base="$KPASS_BASE_URL"
   else
-    local base_file="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/.installer-base"
+    local base_file
+    base_file="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/.installer-base"
     if [[ -f "$base_file" ]]; then
-      base="$(cat "$base_file" 2>/dev/null | tr -d '[:space:]')"
+      base="$(tr -d '[:space:]' < "$base_file" 2>/dev/null)"
     fi
   fi
   if [[ -z "$base" ]]; then
