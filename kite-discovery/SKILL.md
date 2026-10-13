@@ -121,7 +121,7 @@ End-to-end walkthroughs (browse then inspect a service; paginated catalog browsi
 
 **Backend unreachable (exit code 1):**
 1. Run `ksearch service health --output json` to diagnose.
-2. If `DISCOVERY_BASE_URL` is set to a custom value, verify it points to a running backend.
+2. If `KSEARCH_SERVICE_BASE_URL` is set, verify it points to a running backend (it takes precedence). Otherwise, if `DISCOVERY_BASE_URL` is set to a custom value, verify that one.
 3. Show the error to the user and stop.
 
 **Service not found (exit code 4):**
