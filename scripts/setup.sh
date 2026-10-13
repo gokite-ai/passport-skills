@@ -74,7 +74,7 @@ get_installer_base() {
 }
 
 if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
-  INSTALLER_BASE="$(get_installer_base)"
+  INSTALLER_BASE="$(get_installer_base)" || exit 1
   echo "Kite Passport CLI Bootstrap"
   echo ""
   echo "Ensures kpass >= ${MIN_KPASS_VERSION} is installed and available on PATH."
@@ -180,7 +180,7 @@ fi
 # ---------------------------------------------------------------------------
 # Step 2: Install via the official bundle installer
 # ---------------------------------------------------------------------------
-INSTALLER_BASE="$(get_installer_base)"
+INSTALLER_BASE="$(get_installer_base)" || exit 1
 echo "Installing kpass via the official installer (${INSTALLER_BASE}/install.sh)..." >&2
 INSTALL_SCRIPT="$(mktemp)"
 trap 'rm -f "$INSTALL_SCRIPT"' EXIT
