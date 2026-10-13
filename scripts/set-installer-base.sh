@@ -41,6 +41,10 @@ if [[ -z "$ENV" || "$ENV" == "prod" ]]; then
 elif [[ "$ENV" == "staging" ]]; then
   printf '%s' "$STAGING_URL" > "$INSTALLER_BASE_FILE"
 else
-  echo "bad INSTALLER_ENV: $ENV" >&2
+  if [[ "$ENV" =~ [[:space:]] ]]; then
+    echo "bad INSTALLER_ENV: contains whitespace" >&2
+  else
+    echo "bad INSTALLER_ENV: $ENV" >&2
+  fi
   exit 1
 fi
