@@ -44,7 +44,7 @@ After receiving user approval, run the installer:
 bash <skill-directory>/../scripts/setup.sh
 ```
 
-If `scripts/setup.sh` is not available (single-folder skill install), use this fallback:
+If `scripts/setup.sh` is not available (single-folder skill install), obtain approval for this fallback command, then run it:
 
 ```bash
 get_installer_base() {
@@ -54,7 +54,7 @@ get_installer_base() {
   else
     local base_file="<skill-directory>/../.installer-base"
     if [[ -f "$base_file" ]]; then
-      base="$(cat "$base_file" 2>/dev/null | tr -d '[:space:]')"
+      base="$(tr -d '[:space:]' < "$base_file" 2>/dev/null)"
     fi
   fi
   if [[ -z "$base" ]]; then
@@ -64,7 +64,15 @@ get_installer_base() {
   printf '%s' "$base"
 }
 INSTALLER_BASE="$(get_installer_base)" || exit 1
-curl -fsSL --proto '=https' --proto-redir '=https' --max-redirs 0 "$INSTALLER_BASE/install.sh" | bash
+INSTALL_SCRIPT="$(mktemp)"
+trap 'rm -f "$INSTALL_SCRIPT"' EXIT
+if curl -fsSL --proto '=https' --proto-redir '=https' --max-redirs 0 "$INSTALLER_BASE/install.sh" -o "$INSTALL_SCRIPT" && \
+   [[ -s "$INSTALL_SCRIPT" ]] && \
+   [[ "$(head -1 "$INSTALL_SCRIPT")" == '#!'* ]]; then
+  bash "$INSTALL_SCRIPT"
+else
+  echo "Installer download failed or is not a shell script" >&2; exit 1
+fi
 ```
 
 This installer:
