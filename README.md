@@ -11,7 +11,7 @@ New here? Start with [GETTING_STARTED.md](GETTING_STARTED.md) for a full walkthr
 
 ## Disclaimer
 
-Several skills here (`request-session`, `x402-execute`, `wallet-send`, `shopping`, `cloud-deploy`) authorize an AI agent to spend real funds and provision billable cloud resources on the user's behalf. Every session is gated by a passkey-approved delegation with explicit limits (per-transaction cap, total budget, TTL, allowed assets) -- review those limits before approving a session. Treat any skill that moves money or provisions infrastructure as production-sensitive, not a sandboxed demo.
+Several skills here (`request-session`, `x402-execute`, `wallet-send`, `shopping`) authorize an AI agent to spend real funds on the user's behalf. Every session is gated by a passkey-approved delegation with explicit limits (per-transaction cap, total budget, TTL, allowed assets) -- review those limits before approving a session. Treat any skill that moves money or provisions infrastructure as production-sensitive, not a sandboxed demo.
 
 ## What Are Skills?
 
@@ -35,7 +35,6 @@ Each skill is a `SKILL.md` file that gets injected into an AI agent's context at
 | **shopping** | `shopping/` | Search and buy physical products, manage a shopping cart, collect shipping details, and checkout with crypto. |
 | **activity** | `activity/` | View recent account activity including wallet transfers, faucet drops, API payments, agent registrations, session approvals, and shopping checkouts. |
 | **report-feedback** | `report-feedback/` | File an issue report, bug, or freeform feedback from the current agent session. |
-| **cloud-deploy** | `cloud-deploy/` | Deploy a local project to its own Google Cloud (Cloud Run + Cloud SQL etc.) via `kpass cloud`: provision a per-customer GCP project, then detect the project's GCP components and deploy them with `gcloud`. |
 | **kite-router** | `kite-router/` | Passport-authenticated synchronous text-model inference through `kpass agent router`, with no MCP dependency. |
 
 ## Skill Groups
@@ -64,7 +63,7 @@ authenticate-user  (always first for Passport payment flows)
        |
        +----> report-feedback (file feedback / bug reports from the session)
        |
-       +----> cloud-deploy    (provision + deploy a project to GCP via kpass cloud)
+       +----> kite-router    (synchronous Router inference; Router allowance)
        |
        v
 request-session  (register agent + preflight + create session with delegation)
@@ -81,8 +80,6 @@ attach-session   (bind an existing attachable session by ID -- e.g. created
        +----> defi-auto-repay (Aave health-factor auto-repay, passkey-armed)
        |
        +----> shopping       (search + buy physical products)
-       |
-       +----> kite-router    (synchronous Router inference; Router allowance)
 
 upgrade-passport  (standalone -- detect and apply kpass CLI updates; no auth, no deps)
 ```
@@ -119,9 +116,6 @@ npx skills add gokite-ai/passport-skills/shopping
 # Diagnostics:
 npx skills add gokite-ai/passport-skills/activity
 npx skills add gokite-ai/passport-skills/report-feedback
-
-# Cloud deployment (uses gcloud + kpass cloud):
-npx skills add gokite-ai/passport-skills/cloud-deploy
 
 # Router inference (uses kpass agent router):
 npx skills add gokite-ai/passport-skills/kite-router
@@ -200,8 +194,6 @@ passport-skills/
     SKILL.md                     View recent account activity and transaction history
   report-feedback/
     SKILL.md                     File issue reports / bugs / freeform feedback from the agent session
-  cloud-deploy/
-    SKILL.md                     Deploy a local project to its own GCP project via kpass cloud + gcloud
   kite-router/
     SKILL.md                     Passport-authenticated Router catalog and synchronous chat
   scripts/

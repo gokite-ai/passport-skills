@@ -73,8 +73,6 @@ web search for product research when a direct product-search command exists.
 | See what agents or sessions exist | `manage-agents` |
 | View transaction history, verify a payment | `activity` |
 | Check if an order or payment went through | `activity` |
-| Deploy / host / ship a project to the cloud, GCP, or Cloud Run | `cloud-deploy` |
-| Provision a GCP project / cloud tenant, fund or provision cloud credit | `cloud-deploy` |
 | Update / upgrade kpass, check if the CLI is current | `upgrade-passport` |
 
 ## Common Task Patterns

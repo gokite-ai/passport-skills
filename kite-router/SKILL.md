@@ -68,7 +68,7 @@ Use the Passport CLI for both authentication and inference. Do not install or in
    kpass agent bind --agent <did:kite:agent-id> --wait --output json
    ```
 
-   This returns an `approval_url`. Surface it to the owner, who must approve with their passkey. The command waits for completion.
+   This returns an `approval_url`. Tell the owner to approve the pending runtime under Agents → agent detail → Runtimes in the Passport dashboard, or use the `approval_url` directly. The command waits for completion.
 
    **c) Confirm the binding is active:**
    ```bash
