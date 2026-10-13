@@ -29,8 +29,8 @@ echo "PASS (a): scripts/setup.sh --help base is '$base'"
 # (b) SKILL.md fallback with scripts/setup.sh absent: resolves base correctly
 rm "$WORK/repo/scripts/setup.sh"
 # Extract the fallback bash block from SKILL.md
-# Look for the get_installer_base function and extract it
-awk '/^```bash$/,/^```$/ {if (!/^```/) print}' "$WORK/repo/passport-setup/SKILL.md" | awk '/get_installer_base/,/^curl -fsSL/' > "$WORK/fallback-raw.sh"
+# Look for the get_installer_base function and extract everything until the end of the code block
+awk '/^```bash$/,/^```$/ {if (!/^```/) print}' "$WORK/repo/passport-setup/SKILL.md" | awk '/get_installer_base/,0' > "$WORK/fallback-raw.sh"
 if [[ ! -s "$WORK/fallback-raw.sh" ]]; then
   fail "(b) could not extract fallback from SKILL.md"
 fi
@@ -44,12 +44,26 @@ WRAPPER_EOF
 skill_path="$WORK/repo/passport-setup"
 sed "s|<skill-directory>|$skill_path|g" "$WORK/fallback-raw.sh" >> "$WORK/fallback.sh"
 
-# Create stub curl that logs its URL and doesn't actually download
+# Create stub curl that logs its URL and creates a fake install script
 cat > "$WORK/curl" << 'EOF'
 #!/usr/bin/env bash
+outfile=""
 for arg in "$@"; do
-  echo "$arg" >> "$CURL_LOG"
+  if [[ "$arg" == https://* ]]; then
+    echo "$arg" >> "$CURL_LOG"
+  fi
+  if [[ "$arg" == "-o" ]]; then
+    next_is_output=1
+  elif [[ -n "${next_is_output:-}" ]]; then
+    outfile="$arg"
+    unset next_is_output
+  fi
 done
+if [[ -n "$outfile" ]]; then
+  # Create a fake install script with a shebang
+  echo '#!/usr/bin/env bash' > "$outfile"
+  echo 'echo "fake installer"' >> "$outfile"
+fi
 exit 0
 EOF
 chmod +x "$WORK/curl"
@@ -58,7 +72,7 @@ export PATH="$WORK:$PATH"
 
 cd /tmp
 : > "$CURL_LOG"
-if ! bash "$WORK/fallback.sh" 2>&1 | tee "$WORK/fallback.out"; then
+if ! bash "$WORK/fallback.sh" > /dev/null 2>&1; then
   fail "(b) SKILL.md fallback exited non-zero"
 fi
 # Check the curl log for the URL
@@ -83,8 +97,9 @@ cd /tmp
 if KPASS_BASE_URL=https://evil.example bash "$WORK/fallback.sh" 2>/dev/null; then
   fail "(d) fallback with evil URL did not exit non-zero"
 fi
-curl_calls="$(wc -l < "$CURL_LOG" 2>/dev/null || echo 0)"
-[[ "$curl_calls" -eq 0 ]] || fail "(d) fallback with evil URL called curl $curl_calls times, expected 0"
+# Count URLs in the log (not all arguments, just URLs)
+curl_url_calls="$(grep -c '^https://' "$CURL_LOG" 2>/dev/null || echo 0)"
+[[ "$curl_url_calls" -eq 0 ]] || fail "(d) fallback with evil URL called curl with $curl_url_calls URLs, expected 0"
 echo "PASS (d): fallback with KPASS_BASE_URL=https://evil.example exits non-zero and calls curl 0 times"
 
 # (e) grep finds no bare 'cat .installer-base' in passport-setup/SKILL.md or GETTING_STARTED.md
