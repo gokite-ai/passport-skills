@@ -19,6 +19,42 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
+# Version pins. skills.json is the source of truth when present (repo root
+# layout: ../skills.json; skill-local layout: ../../skills.json). The constants
+# below are the fallback for standalone skill installs where skills.json does
+# not ship — scripts/validate.sh checks in CI that they stay in sync with
+# skills.json, because a drifted fallback silently installs a CLI the skills
+# cannot drive.
+DEFAULT_MIN_KPASS_VERSION="6.8.0"  # floor = skills.json min_kpass_version (pre-release tag dropped)
+
+SKILLS_JSON=""
+for candidate in "$SCRIPT_DIR/../skills.json" "$SCRIPT_DIR/../../skills.json"; do
+  if [[ -f "$candidate" ]]; then
+    SKILLS_JSON="$candidate"
+    break
+  fi
+done
+
+read_skills_json_field() {
+  local field="$1"
+  if command -v jq &>/dev/null; then
+    jq -r ".${field}" "$SKILLS_JSON"
+  elif command -v node &>/dev/null; then
+    node -e 'console.log(require(process.argv[1])[process.argv[2]])' "$SKILLS_JSON" "$field"
+  elif command -v python3 &>/dev/null; then
+    python3 -c "import json, sys; print(json.load(open(sys.argv[1]))[sys.argv[2]])" "$SKILLS_JSON" "$field"
+  else
+    return 1
+  fi
+}
+
+MIN_KPASS_VERSION="$DEFAULT_MIN_KPASS_VERSION"
+if [[ -n "$SKILLS_JSON" ]]; then
+  if PARSED=$(read_skills_json_field min_kpass_version 2>/dev/null) && [[ -n "$PARSED" && "$PARSED" != "null" ]]; then
+    MIN_KPASS_VERSION="$PARSED"   # kept whole, pre-release tag included
+  fi
+fi
+
 # Read installer base URL with fallback chain: KPASS_BASE_URL env var > .installer-base file > hardcoded default
 get_installer_base() {
   local base=""
