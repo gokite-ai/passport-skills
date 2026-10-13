@@ -37,7 +37,7 @@ if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
   echo "  1. Check if a CONSOLIDATED ksearch is on PATH (probed with: ksearch service list --help)"
   echo "  2. Check \${KPASS_INSTALL_DIR:-\$HOME/.kpass}/bin/ksearch"
   echo "  3. Check \$HOME/.local/bin/ksearch"
-  INSTALLER_BASE_FILE="$SCRIPT_DIR/../.installer-base"
+  INSTALLER_BASE_FILE="$(cd "$SCRIPT_DIR/.." && pwd)/.installer-base"
   INSTALLER_BASE="${KPASS_BASE_URL:-$(cat "$INSTALLER_BASE_FILE" 2>/dev/null || echo "https://cli.gokite.ai")}"
   echo "  4. Try: curl -fsSL ${INSTALLER_BASE}/install.sh | bash"
   echo "  5. Fail with installation instructions"
@@ -116,7 +116,7 @@ try_locate "passport-bundle" && exit 0
 # Step 2: Install via the official bundle installer
 # ---------------------------------------------------------------------------
 # Installer base URL precedence: KPASS_BASE_URL env var > .installer-base file > hardcoded default
-INSTALLER_BASE_FILE="$SCRIPT_DIR/../.installer-base"
+INSTALLER_BASE_FILE="$(cd "$SCRIPT_DIR/.." && pwd)/.installer-base"
 INSTALLER_BASE="${KPASS_BASE_URL:-$(cat "$INSTALLER_BASE_FILE" 2>/dev/null || echo "https://cli.gokite.ai")}"
 echo "ksearch not found. Installing the Kite Passport bundle (kpass + ksearch + skills) via the official installer (${INSTALLER_BASE}/install.sh)..." >&2
 if curl -fsSL "${INSTALLER_BASE}/install.sh" | bash >&2; then
