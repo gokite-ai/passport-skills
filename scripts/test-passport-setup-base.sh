@@ -90,7 +90,7 @@ rm -f "$WORK/repo/.installer-base"
 unset KPASS_BASE_URL
 cd /tmp
 : > "$CURL_LOG"
-bash "$WORK/fallback.sh" > /dev/null 2>&1 || true
+bash "$WORK/fallback.sh" > /dev/null 2>&1
 fallback_prod="$(grep -o 'https://[^/]*' "$CURL_LOG" | head -1)"
 [[ "$fallback_prod" == "https://cli.gokite.ai" ]] || fail "(c) fallback without .installer-base gave '$fallback_prod', expected https://cli.gokite.ai"
 echo "PASS (c): fallback without .installer-base gives https://cli.gokite.ai"
