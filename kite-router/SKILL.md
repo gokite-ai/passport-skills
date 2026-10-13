@@ -39,7 +39,7 @@ Use the Passport CLI for both authentication and inference. Do not install or in
 
    **Check binding status:**
    ```bash
-   kpass agent status --output json
+   kpass agent status --agent <did:kite:agent-id> --output json
    ```
 
    If the runtime key is missing or the binding is not active, complete these setup steps:
@@ -72,7 +72,7 @@ Use the Passport CLI for both authentication and inference. Do not install or in
 
    **c) Confirm the binding is active:**
    ```bash
-   kpass agent status --output json
+   kpass agent status --agent <did:kite:agent-id> --output json
    ```
 
    Verify `binding.status` is `"active"`.
