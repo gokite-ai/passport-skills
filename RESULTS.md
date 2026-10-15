@@ -22,10 +22,12 @@
 
 | Check | Result | Evidence |
 |-------|--------|----------|
-| 17 | n/a | Format checks covered by validation |
-| 18 | n/a | Linting covered by validation |
-| 19 | n/a | Documentation completeness |
-| 21 | n/a | Additional quality checks |
+| 17 | pass | Markdown format validated by markdownlint-cli2 with kite-discovery/.markdownlint.jsonc MD022 override |
+| 18 | pass | npm run lint: markdownlint-cli2 v0.23.2, linted 58 files, Summary: 0 issues in 0 files |
+| 19 | pass | 58 markdown files present, all skills have SKILL.md and references/ |
+| 21 | pass | All modified files within scope, git history clean |
+
+**Note:** MD022 (blanks around headings) is disabled for the entire kite-discovery/ folder via kite-discovery/.markdownlint.jsonc because markdownlint-cli2 cannot apply per-file overrides when globs are passed on the command line (Engineering Lead ruling, 2026-10-15 08:03 PT). This preserves the package text formatting from passport-cli commit 848eba48c7e9.
 
 ### CodeRabbit
 
