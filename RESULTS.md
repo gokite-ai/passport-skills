@@ -15,6 +15,7 @@
 | 7 | pass | BUILD-LOG.md has 1 new entry with 7 required bullets |
 | 8 | pass | Scope check: only Owns files changed |
 | 14 | pass | Diff shows only the four listed substitutions |
+| 15 | pass | CI on main: workflow CI pass at 4869f03a138a, https://github.com/gokite-ai/passport-skills/actions/runs/38758934037 |
 | 16 | pass | All BAF files match pinned sha256 |
 | 20 | pass | Skill text matches package specification |
 
