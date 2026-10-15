@@ -18,4 +18,4 @@ PR link: none (direct push to main)
 - What the user sees differently: The kite-discovery skill now uses the ksearch service search command instead of the node engine/search.mjs command. The skill description and behavior remain the same, but the command invocation has changed to use the consolidated ksearch CLI.
 - Delta to today's Passport: The kite-discovery skill file has been updated to reflect the new ksearch command structure, with Step 0 preserved for CLI setup. Reference documentation now includes service search examples.
 - Deviation from the package (none, or what and why): None. All files match the package specification at commit 848eba48c7e9 (tree 297a8d506133).
-- PR link: none (direct push to main)
+- PR link: none, direct push to main (CI pass at 4869f03a138a)
