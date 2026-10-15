@@ -66,6 +66,10 @@ This script ensures `kpass` is installed and available on PATH. It will attempt 
 
 If a command succeeds and has a display card template below, you MUST output that card before doing anything else. Do not proceed to the next step until the card is displayed.
 
+## Where the login is saved
+
+With a global install, kpass keeps one login in the home folder (`.kite-passport/` there) and uses it from every folder, so run `kpass me` before asking for a new code. With a local (project) install, each project keeps its own login in its `.kite-passport/` folder.
+
 ## Decision: Login vs Signup
 
 If the user says "sign in" or "authenticate" without specifying whether they have an existing account:
