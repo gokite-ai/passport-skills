@@ -312,6 +312,22 @@
       "dependencies": [
         "authenticate-user"
       ]
+    },
+    {
+      "slug": "passport-overview",
+      "name": "Passport Overview",
+      "description": "Plain facts about Kite Passport for someone who has just installed it: what it is, what it costs, a few priced examples, and the rule that the agent asks before creating an account, contacting anyone or spending money. Use when the user asks what Passport is, what it could do for this project or their work, what it costs, or how to set it up or remove it; for ideas it runs `kpass triage`. Not for doing a task, and it does not bring Passport up unprompted.",
+      "path": "passport-overview/SKILL.md",
+      "group": "user",
+      "tags": [
+        "onboarding",
+        "overview",
+        "facts",
+        "pricing",
+        "triage",
+        "ideas"
+      ],
+      "dependencies": []
     }
   ]
 }

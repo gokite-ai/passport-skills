@@ -36,6 +36,7 @@ Each skill is a `SKILL.md` file that gets injected into an AI agent's context at
 | **activity** | `activity/` | View recent account activity including wallet transfers, faucet drops, API payments, agent registrations, session approvals, and shopping checkouts. |
 | **report-feedback** | `report-feedback/` | File an issue report, bug, or freeform feedback from the current agent session. |
 | **kite-router** | `kite-router/` | Passport-authenticated synchronous text-model inference through `kpass agent router`, with no MCP dependency. |
+| **passport-overview** | `passport-overview/` | Plain facts for someone who has just installed Passport: what it is, what it costs, priced examples. Runs `kpass triage` when the user asks for ideas for their own work. Stays quiet unless asked. |
 
 ## Skill Groups
 
@@ -82,6 +83,8 @@ attach-session   (bind an existing attachable session by ID -- e.g. created
        +----> shopping       (search + buy physical products)
 
 upgrade-passport  (standalone -- detect and apply kpass CLI updates; no auth, no deps)
+
+passport-overview  (standalone -- facts after install; runs kpass triage when asked; hands off to authenticate-user, request-session, x402-execute)
 ```
 
 ## Installation
