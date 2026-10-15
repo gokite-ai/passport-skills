@@ -12,4 +12,4 @@
 | R8 | pending | dollar sign check |
 | R9 | pending | passport-setup reference check |
 | R10 | pending | SKILL.md byte-for-byte comparison |
-| R11 | release-time price check, not in this build |
+| R11 | release-time price check, not in this build | - |
