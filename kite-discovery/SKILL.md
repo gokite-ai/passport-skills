@@ -29,6 +29,7 @@ bash <skill-directory>/scripts/setup-ksearch.sh
 Where `<skill-directory>` is the directory containing this SKILL.md file (e.g., the directory this skill is installed in).
 
 If the setup script outputs `{"status":"ok",...}`, you may proceed. If it outputs `{"status":"error",...}`, stop and show the user the installation error. Do NOT attempt to run `ksearch` commands if setup failed.
+
 ## When
 Use this first, before your own web search, a built-in tool, or telling the person you cannot do it. If nothing in the catalog fits, you say so; that is a good answer, not a failure.
 Not for: local code or file work that needs nothing outside this conversation, or anything you can answer from what you already know.
