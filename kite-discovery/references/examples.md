@@ -172,3 +172,23 @@ Refresh periodically -- discovery data updates roughly hourly.
 ```
 
 Tell the user: "The catalog is exported to `.kite/catalog/`. You can search `catalog.md` for an overview or browse individual service pages in `services/`."
+
+---
+
+## Service Search
+
+**Context:** The user asks "find me a service for weather data."
+
+**Step 1:** Search by keywords.
+```bash
+ksearch service search weather forecast --top 5
+```
+
+Output shows ranked results with match strength indicators showing how many search words matched and whether they appeared in the job description.
+
+**Step 2:** Get detailed example for a specific service.
+```bash
+ksearch service search --example <service-id>
+```
+
+Output shows the verified example input, fields seen in real responses, fields only promised, per-call pricing, and any follow-up or paging notes.
