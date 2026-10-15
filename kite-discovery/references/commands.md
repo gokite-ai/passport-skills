@@ -343,6 +343,34 @@ When `--single-file` is used, `manifest.json` may not exist. Show `Manifest: N/A
 
 ---
 
+## `service search` -- Search the Service Catalog
+
+Search and inspect services in the Passport catalog. This command provides access to the service discovery functionality.
+
+```bash
+ksearch service search <word> [<word> ...] [--top N]
+```
+
+Get detailed example for a specific service:
+
+```bash
+ksearch service search --example <id>
+```
+
+### Arguments
+
+| Argument | Flag | Required | Source | Validation |
+|----------|------|----------|--------|------------|
+| Search words | positional `<word>` | Yes | User keywords or task description | One or more words or quoted phrases |
+| Result limit | `--top N` | No | Default returns up to 10 results | Positive integer |
+| Example detail | `--example <id>` | No | Service ID from search results | 24-character service identifier |
+
+### Success Output
+
+Search results show rank, id, host, job, summary, price, payment route, state, example availability, and match strength. Example detail view shows verified input, response fields, and endpoint-specific notes.
+
+---
+
 ## `service health` -- Backend Connectivity Check
 
 Quick diagnostic to verify the discovery backend is reachable.
