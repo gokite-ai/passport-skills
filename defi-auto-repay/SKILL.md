@@ -59,7 +59,7 @@ The user must be logged in. If a command exits **3** with "Not logged in", use *
 | `kpass defi repay-trigger create --address <addr> --hf <n> --amount <usdc\|max> --expires <7d\|24h\|RFC3339> --output json` | Create a pending trigger (needs passkey approval) |
 | `kpass defi repay-trigger get --id <id> --wait --output json` | Poll until armed |
 | `kpass defi repay-trigger list --output json` | Your triggers, newest first |
-| `kpass defi repay-trigger cancel --id <id> --output json` | Cancel a pending or armed trigger (no passkey) |
+| `kpass defi repay-trigger cancel --id <id> --output json` | Cancel a pending or armed trigger (an armed trigger may need passkey approval) |
 
 ## Display Cards — MANDATORY
 
@@ -127,6 +127,25 @@ kpass defi repay-trigger cancel --id {trigger_id}
 ```
 
 If `trigger_status` is `cancelled`, `expired` or `failed` (exit **3**), tell the user it will not fire and offer to create a new one.
+
+### Cancelling an armed trigger → may need a passkey
+
+`repay-trigger cancel` usually returns `trigger_status: "cancelled"` right away. But an **armed** trigger has set USDC aside, so releasing it can need the user's passkey: the response comes back as `status: "human_action_required"` (exit **0**, not an error) with `action: "approve_aave_repay_cancel"`, an `approval_url`, `approval_expires_at`, and `next_command`. The trigger **stays armed** until the user approves. Handle it exactly like the create approval.
+
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🛡️ Aave Auto-Repay — Confirm Cancel
+
+Cancelling releases the USDC this armed trigger set aside,
+so it needs your passkey. It stays armed until you approve.
+
+🌐 {approval_url}
+
+👆 Open the link and approve the cancel with your passkey.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+Optionally open the URL (`open`/`xdg-open`), then run `next_command` (`repay-trigger get --id <id>`) to confirm `trigger_status: "cancelled"`. A `pending_approval` trigger — and an armed trigger wherever the environment doesn't require the passkey — cancels immediately with no approval step.
 
 ## Error Handling
 

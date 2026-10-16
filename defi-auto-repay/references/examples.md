@@ -58,3 +58,7 @@ Then create the new one. Ask the user before cancelling their existing trigger.
 ## 6. Not available in this environment
 
 Any command returns `aave_repay_disabled` (exit 4): the feature is switched off in the environment `--base-url` points at. Tell the user it is not available there. Do not retry against another environment.
+
+## 7. Cancelling an armed trigger needs a passkey
+
+`cancel --id <armed-id>` returns `status: "human_action_required"` with `action: "approve_aave_repay_cancel"` and an `approval_url`, instead of `trigger_status: "cancelled"`. The armed trigger holds USDC aside, so releasing it needs the user's passkey. Show the Confirm Cancel card with the `approval_url` (the trigger stays armed until approved), then run the `next_command` (`repay-trigger get --id <id>`) to confirm it is `cancelled`.
