@@ -102,7 +102,8 @@ When the user asks what Passport could do for them, or asks for triage or sugges
   the account allowance covers it: go on to the x402-execute skill, and give `kpass session
   execute` an `--idempotency-key` (a new random ID for each payment, the same one on a retry),
   which allowance payments require. Exit 4 with `allowance_unavailable`, or exit 6 with
-  `allowance_disabled`, means there is no allowance here: use the request-session skill, which asks
+  `allowance_disabled`, means there is no allowance here (if the hint has a dashboard link, pass
+  it on once): use the request-session skill, which asks
   the user to approve one spending session with a passkey, then x402-execute. Exit 3 means sign in
   first (the authenticate-user skill), unless the message says to register this agent: then
   register it as above.

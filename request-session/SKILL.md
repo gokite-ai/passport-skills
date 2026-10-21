@@ -73,10 +73,15 @@ returned `session_id`; do not ask the user to choose between default and new.
 
 Only `allowance_unavailable` (no allowance or feature disabled) or
 `allowance_disabled` (owner opted this agent out) permits continuing to the
-ordinary session request flow below. An older CLI that explicitly reports an
+ordinary session request flow below. On `allowance_unavailable`, give the user
+the dashboard link from the `hint` once, so the owner can set up an allowance.
+An older CLI that explicitly reports an
 unknown `allowance` subcommand uses the ordinary flow. Authentication, network,
 expiry, exhaustion, and unknown-payment errors are not permission to switch
 budgets or request a replacement silently.
+`allowance_cancelled` is not permission either: the CLI binds once to the
+owner's current allowance by itself. If that retry still fails, stop and tell
+the user the owner cancelled the allowance.
 
 The configured network is **Base mainnet** (`eip155:8453`) on staging/prod
 and **Arc testnet** (`eip155:5042002`) on dev. Confirm the merchant advertises
@@ -327,6 +332,7 @@ End-to-end walkthroughs for new session creation and session reuse:
 | 4 | Not found | `not found` | Verify the request_id or session_id is correct. |
 | 5 | Rate limited | `rate limit` | Wait 30 seconds, then retry. |
 | 6 | Session policy / payment violation | `error_code: "session_asset_forbidden"`, `"session_rule_exceeded"`, `"session_total_exceeded"`, `"session_endpoint_forbidden"`, `"session_forbidden"`, `"session_owner_forbidden"`, `"payment_target_forbidden"`, `"payment_redirect_not_allowed"`, `"session_request_forbidden"` | Do NOT re-authenticate. Create a new session with corrected parameters. Check `error_code` and `hint` for the specific violation. |
+| 6 | Allowance cancelled | `error_code: "allowance_cancelled"` | The CLI already bound once to the owner's current allowance and retried. Stop and tell the user the owner cancelled the allowance. Do not request a broader session to get around it. |
 
 **Error envelope fields:** Error responses include `error` (raw backend message), `error_code` (machine-readable classification — prefer this for programmatic matching), and `hint` (recovery guidance).
 

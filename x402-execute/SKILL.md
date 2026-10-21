@@ -50,7 +50,9 @@ Keep that key and the exact request input for a transport retry. A genuinely
 new payment gets a new key; never change the key to work around a pending or
 unknown outcome.
 
-On `recurring_budget_exhausted`, stop and show the reset date. On
+On `recurring_budget_exhausted`, stop. Tell the user the reset date and the
+dashboard link where the owner can raise the allowance; both are in the `hint`
+(from `reset_at` and `dashboard_url` in the reply). On
 `recurring_payment_unknown` or `execute_in_progress`, stop and ask the owner to
 reconcile the original operation. On `recurring_request_conflict`, restore the
 original request rather than generating another key. Never switch agents or
@@ -59,8 +61,11 @@ only direct exact-scheme USDC x402 on the configured network: Base mainnet
 (`eip155:8453`) on staging/prod or Arc testnet (`eip155:5042002`) on dev.
 It does not authorize shopping, cards, A2A, Router top-ups, or bridges.
 On `allowance_disabled`, stop using this allowance; any separate session needs
-its own explicit owner approval. A generic `session_forbidden` error can also
-mean the owner disabled allowance access; do not assume a new session is the fix.
+its own explicit owner approval.
+On `allowance_cancelled`, the owner cancelled the allowance this agent was bound
+to. The CLI binds once to the owner's current allowance and retries the same
+payment with the same idempotency key. Do not run the bind yourself. If the
+retry still fails, stop and tell the user the owner cancelled the allowance.
 
 ## Defaults (Do Not Ask the User Unless They Specify Otherwise)
 
@@ -199,6 +204,7 @@ Generation services (video, image, audio, batch jobs) usually do NOT return the 
 | 4 | Not found | `not found` | Check that the URL is correct. |
 | 5 | Rate limited | `rate limit` | Wait 30 seconds, then retry. |
 | 6 | Session policy / payment violation | `error_code: "session_asset_forbidden"`, `"session_endpoint_forbidden"`, `"session_rule_exceeded"`, `"session_total_exceeded"`, `"insufficient_balance"`, `"payment_cap_exceeded"`, `"merchant_not_allowed"`, `"payment_redirect_not_allowed"` | Do NOT re-authenticate. Check `error_code` and `hint` for the specific violation. For session policy errors, create a new session with corrected parameters using the **`request-session`** skill. For `insufficient_balance`, fund the wallet. For `payment_cap_exceeded`, try a smaller request. |
+| 6 | Allowance cancelled | `error_code: "allowance_cancelled"` | The CLI already bound once to the owner's current allowance and retried. Stop and tell the user the owner cancelled the allowance. Do not request a broader session to get around it. |
 
 **Error envelope fields:** Error responses include `error` (raw backend message), `error_code` (machine-readable classification — prefer this for programmatic matching), and `hint` (recovery guidance). The `error` field is a passthrough of the backend's original message.
 
