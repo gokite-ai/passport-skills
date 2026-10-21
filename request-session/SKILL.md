@@ -55,8 +55,11 @@ approval on a policy the owner already defined.
 ## Shared account allowance (matching POC release)
 
 For a paid API confirmed to accept **direct exact-scheme USDC x402** on the
-configured settlement network, after agent registration,
-prefer the owner's existing account allowance when the user has not requested a
+configured settlement network, after agent registration, show the user the
+service, expected result, and price, and wait for explicit confirmation for
+that exact paid call. If the original request already explicitly confirms
+that service and price, do not ask again. This is confirmation of the paid
+call, not another passkey approval. Then prefer the owner's existing account allowance when the user has not requested a
 separate budget or a scoped session:
 
 ```bash
