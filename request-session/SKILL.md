@@ -213,10 +213,12 @@ kpass session create --delegation "$DELEGATION_JSON" --output json
 ```
 
 Two possible outcomes (see `@references/commands.md` `session create`):
-- **`status: "human_action_required"`** (a new request was created) → display the mandatory approval card and proceed to Step 8.
+- **`status: "human_action_required"`** (a new request was created) → put the mandatory approval card in your reply now, before you run any other command: the full `approval_url` exactly as kpass printed it, the per-transaction limit, the total budget and the validity you proposed. The person reads your reply, not the kpass output, so a link that is only in a tool result has not been shown. This holds in every kind of session, interactive or scripted. When the card is in your reply, go on to Step 8.
 - **`reuse_available: true`** (an existing active session already covers this request) → confirm the candidate's `task_summary` matches the current goal/merchant, then run the returned `next_command` (`session use …`) to reuse it — no new approval needed. If the goal does not match, re-run `create … --no-reuse` to force a new session.
 
 ### Step 8: Poll for Approval
+
+Run the wait only after the approval card with the link is in your reply (Step 7). The wait blocks for up to five minutes, and anything you have not written yet stays invisible for all of it.
 
 ```bash
 kpass session status --request-id <request_id> --wait --output json

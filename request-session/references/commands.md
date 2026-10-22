@@ -367,7 +367,7 @@ Recovery for each is in SKILL.md → Error Handling → "Scoped-card (`--use-car
    cmd.exe /c start "" "$APPROVAL_URL"         # Windows (via Bash, e.g. WSL/git-bash)
    ```
    The Windows form needs the empty `""` title argument — `start "$APPROVAL_URL"` alone makes `cmd.exe` treat the URL as the window title instead of the target, and nothing opens. Detect the OS and use the appropriate command. This saves the user from having to copy-paste the URL. If `open` fails, the URL is still in the card — the user can click or copy it manually.
-3. **Immediately start polling for approval** using `session status --request-id <request_id> --wait --output json`. Never skip this step. Never tell the user "let me know when done" without polling first.
+3. **Start polling for approval as soon as the approval card is in your reply** using `session status --request-id <request_id> --wait --output json`. Never poll before the card with the link is in your reply, and never skip the poll. Never tell the user "let me know when done" without polling first.
 
 **CRITICAL:** Do NOT attempt to execute any transactions until the session is approved. The session is not active until the user approves it.
 
@@ -424,7 +424,7 @@ kpass session status --request-id <request_id> --wait --output json
 
 ### Polling Strategy — MANDATORY
 
-**CRITICAL: After creating a session and showing the approval card, you MUST immediately start polling. Never skip polling. Never tell the user "let you know" without polling first.**
+**CRITICAL: After creating a session, first put the approval card in your reply, then start polling. Never poll before the card is in your reply, and never skip the poll.**
 
 Use the `--wait` flag with default settings:
 
@@ -456,7 +456,7 @@ The session still shows as pending. There might be an issue with the approval. P
 
 **The flow is always:**
 1. Create session → show approval card (MANDATORY)
-2. Start polling immediately with `--wait` (MANDATORY — never skip)
+2. Start polling with `--wait` right after the approval card is in your reply (mandatory, never skip)
 3. If timeout → ask user and wait for their signal
 4. On user signal → single check (without `--wait`)
 

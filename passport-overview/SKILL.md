@@ -100,8 +100,9 @@ When the user asks what Passport could do for them, or asks for triage or sugges
   as the request-session skill shows), then run `kpass session create --output json`. Exit 0 means
   the account allowance covers it: go on to the x402-execute skill, and give `kpass session
   execute` an `--idempotency-key` (a new random ID for each payment, the same one on a retry),
-  which allowance payments require. Exit 4 with `allowance_unavailable`, or exit 6 with
-  `allowance_disabled`, means there is no allowance here (if the hint has a dashboard link, pass
+  which allowance payments require. Any result other than exit 0 or exit 3, whatever the code or
+  message (for example exit 4 with `allowance_unavailable`, exit 6 with `allowance_disabled`, or
+  a bare not found), means the allowance can't pay here (if the hint has a dashboard link, pass
   it on once): load the request-session skill and follow it. It checks the price for free, shows
   the user a session limited to this one service, with a per-call and a total limit, and asks
   before it requests the passkey approval. Then use x402-execute. Don't run the flags-only
