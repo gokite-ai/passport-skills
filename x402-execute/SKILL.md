@@ -176,6 +176,7 @@ Generation services (video, image, audio, batch jobs) usually do NOT return the 
 | 4 | Not found | `not found` | Check that the URL is correct. |
 | 5 | Rate limited | `rate limit` | Wait 30 seconds, then retry. |
 | 6 | Session policy / payment violation | `error_code: "session_asset_forbidden"`, `"session_endpoint_forbidden"`, `"session_rule_exceeded"`, `"session_total_exceeded"`, `"insufficient_balance"`, `"payment_cap_exceeded"`, `"merchant_not_allowed"`, `"payment_redirect_not_allowed"` | Do NOT re-authenticate. Check `error_code` and `hint` for the specific violation. For session policy errors, create a new session with corrected parameters using the **`request-session`** skill. For `insufficient_balance`, fund the wallet. For `payment_cap_exceeded`, try a smaller request. |
+| 6 | Allowance cancelled | `error_code: "allowance_cancelled"` | The CLI already bound once to the owner's current allowance and retried. Stop and tell the user the owner cancelled the allowance. Do not request a broader session to get around it. |
 
 **Error envelope fields:** Error responses include `error` (raw backend message), `error_code` (machine-readable classification — prefer this for programmatic matching), and `hint` (recovery guidance). The `error` field is a passthrough of the backend's original message.
 

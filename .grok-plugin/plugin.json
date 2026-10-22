@@ -1,7 +1,7 @@
 {
   "name": "passport-skills",
   "version": "3.5.0",
-  "description": "Kite Passport skills for user-facing agent hosts (Claude Code, Cursor, Cline): authentication, spending sessions, payments, wallet transfers, shopping, and diagnostics. Install this plugin to load the 16 user-group skills that work on the bot's own computer via the kpass CLI. Buyer-agent and seller-agent skills are not included.",
+  "description": "Kite Passport skills for user-facing agent hosts (Claude Code, Cursor, Cline): authentication, spending sessions, payments, wallet transfers, shopping, and diagnostics. Install this plugin to load the 17 user-group skills that work on the bot's own computer via the kpass CLI. Buyer-agent and seller-agent skills are not included.",
   "author": "gokite-ai",
   "homepage": "https://github.com/gokite-ai/passport-skills",
   "repository": "https://github.com/gokite-ai/passport-skills",
@@ -33,6 +33,7 @@
     "activity/SKILL.md",
     "report-feedback/SKILL.md",
     "kite-router/SKILL.md",
-    "passport-setup/SKILL.md"
+    "passport-setup/SKILL.md",
+    "passport-overview/SKILL.md"
   ]
 }
