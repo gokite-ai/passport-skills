@@ -121,9 +121,9 @@ Ready to hand off into Passport approval and execution.
 
 **Step 3:** Hand off to Passport skills.
 
-Tell the user: "Stable Search looks like a good fit. To use it, I'll set up a spending session. The search endpoint is `POST https://search.example.com/v1/search` at 0.01 USDC per request."
+Tell the user: "Stable Search looks like a good fit. The search endpoint is `POST https://search.example.com/v1/search` at 0.01 USDC per request."
 
-Then use the **`request-session`** skill to create a session with delegation targeting `search.example.com`, and **`x402-execute`** to make the paid call.
+Then use **`x402-execute`** to make the paid call; it pays from the account allowance. Use the **`request-session`** skill only if the CLI says the allowance can't pay (or the user asks for a separate spending session).
 
 ---
 

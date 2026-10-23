@@ -64,11 +64,12 @@
   {
     "id": 7,
     "prompt": "Create an agent session to access api.example.com",
-    "expected_output": "Agent preflights api.example.com to discover 402 payment requirements, then constructs a delegation JSON with task.summary, payment_policy (max_amount_per_tx and max_total_amount), and optional execution_constraints, then passes it to kpass session create --delegation '<INNER-JSON>' --output json",
+    "expected_output": "Agent preflights api.example.com to discover 402 payment requirements, then constructs a delegation JSON with task.summary, payment_policy (max_amount_per_tx and max_total_amount), and optional execution_constraints, then runs kpass session create --delegation '<INNER-JSON>' --separate --preview --output json (the user asked for a separate session), puts its user_message in the reply, and runs the --separate form (no --preview) after the yes",
     "assertions": [
       "delegation",
       "payment_policy",
       "kpass session create",
+      "--separate",
       "--output json"
     ]
   },
@@ -143,10 +144,10 @@
   {
     "id": 15,
     "prompt": "Use my existing session to make a payment",
-    "expected_output": "Agent calls kpass session create --delegation '<INNER-JSON>' --output json for the payment; reuse is detected automatically at create time -- the CLI mechanically checks existing active sessions (asset, per-tx, budget, TTL, scope) and returns a reuse_available result with candidates if one already covers the request. The agent does not need to run kpass session list first -- that command is optional, useful only for diagnostics or manual inspection. On reuse_available, the agent confirms the goal/merchant genuinely matches, then runs the returned next_command (session use --session-id <id>) to reuse it before proceeding with payment execution.",
+    "expected_output": "Agent pays with kpass session execute --idempotency-key <new key> --output json: the current separate session the user approved pays while it is active, and the CLI never moves payment off it on its own. It does not create a new session (a plain kpass session create would answer source: separate). If no separate session is current and usable, the CLI pays from the account allowance. kpass session list is optional, for diagnostics only.",
     "assertions": [
-      "session create",
-      "reuse_available",
+      "session execute",
+      "--idempotency-key",
       "--output json"
     ]
   },
@@ -510,10 +511,11 @@
   {
     "id": 51,
     "prompt": "Set up a session for fal.ai with $0.03 per-tx and $3 total budget",
-    "expected_output": "Agent preflights fal.ai to discover payment requirements, then calls kpass session create --delegation '<INNER-JSON>' --output json. The inner JSON must contain payment_policy.max_amount_per_tx (\"0.03\") and payment_policy.max_total_amount (\"3\") -- sessions are protocol-agnostic, so the delegation must NOT include payment_policy.allowed_payment_approaches or any protocol/approach field; that is detected automatically at execute time. Amount strings must be clean decimals (e.g. 0.03, not 0.029999999999999998) so the USDC 6-decimal check does not reject the value at execute time.",
+    "expected_output": "Agent preflights fal.ai to discover payment requirements, then calls kpass session create --delegation '<INNER-JSON>' --separate --preview --output json, puts its user_message in the reply, and after the yes runs the same command with --separate and no --preview (the user asked for a separate session). The inner JSON must contain payment_policy.max_amount_per_tx (\"0.03\") and payment_policy.max_total_amount (\"3\") -- sessions are protocol-agnostic, so the delegation must NOT include payment_policy.allowed_payment_approaches or any protocol/approach field; that is detected automatically at execute time. Amount strings must be clean decimals (e.g. 0.03, not 0.029999999999999998) so the USDC 6-decimal check does not reject the value at execute time.",
     "assertions": [
       "kpass session create",
       "--delegation",
+      "--separate",
       "max_amount_per_tx",
       "max_total_amount",
       "--output json"
@@ -522,10 +524,11 @@
   {
     "id": 52,
     "prompt": "Create a session for a service that uses tempo payment protocol",
-    "expected_output": "Agent preflights the merchant to discover payment requirements, then constructs a delegation containing only payment_policy.max_amount_per_tx, payment_policy.max_total_amount (and optional ttl_seconds / execution_constraints), and calls kpass session create --delegation '<INNER-JSON>' --output json. Sessions are protocol-agnostic: the delegation must NOT include a payment_policy.allowed_payment_approaches field or any protocol/approach field -- legacy and silently ignored by the backend. Tempo settlement is detected automatically at execute time from the merchant's preflight response, not declared by the agent.",
+    "expected_output": "Agent preflights the merchant to discover payment requirements, then constructs a delegation containing only payment_policy.max_amount_per_tx, payment_policy.max_total_amount (and optional ttl_seconds / execution_constraints), and calls kpass session create --delegation '<INNER-JSON>' --separate --preview --output json, then (after the yes) the same with --separate only. Sessions are protocol-agnostic: the delegation must NOT include a payment_policy.allowed_payment_approaches field or any protocol/approach field -- legacy and silently ignored by the backend. Tempo settlement is detected automatically at execute time from the merchant's preflight response, not declared by the agent.",
     "assertions": [
       "kpass session create",
       "--delegation",
+      "--separate",
       "max_amount_per_tx",
       "max_total_amount",
       "--output json"

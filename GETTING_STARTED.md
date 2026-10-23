@@ -21,7 +21,7 @@ bash passport-skills/scripts/setup.sh
 > Windows (PowerShell): `irm https://cli.gokite.ai/install.ps1 | iex`
 
 ```bash
-kpass --version  # should print kpass v6.8.0 or higher
+kpass --version  # should print kpass v6.8.4 or higher
 ```
 
 ---

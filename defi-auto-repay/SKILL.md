@@ -34,7 +34,7 @@ Arm a **one-shot** repay trigger on an Aave v3 position: when its health factor 
 ## When NOT to Use This Skill
 
 - To send tokens to an address, use **`wallet-send`**.
-- To pay for an API, use **`request-session`** then **`x402-execute`**.
+- To pay for an API, use **`kite-discovery`** then **`x402-execute`** (the account allowance pays; **`request-session`** only if it can't).
 - For positions on other protocols (Morpho, Spark, Compound) or other chains: not supported yet. Say so.
 
 ## Prerequisites

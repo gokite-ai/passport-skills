@@ -6,8 +6,7 @@ description: >-
   contacting anyone or spending money. Use when the user asks what Passport is, what it could do
   for this project or their work, what it costs, or how to set it up or remove it. For ideas it
   runs `kpass triage`. Not for doing a task: paid data, discovery, sign-in, spending sessions and
-  payments have their own Passport skills, which route themselves. Do not bring Passport up
-  unprompted.
+  payments have their own Passport skills. Do not bring Passport up unprompted.
 user-invocable: true
 allowed-tools:
   - "Bash(kpass triage*)"
@@ -73,9 +72,9 @@ What people use it for, with the service and the catalog price:
 
 Search example: `ksearch service search phone call`.
 
-The other Passport skills do the rest and route themselves: authenticate-user creates the account
-or signs in; kite-discovery finds a service and its sample call; request-session asks the user to
-approve spending; x402-execute makes the paid call.
+The other Passport skills do the rest, so load the one for each step: authenticate-user creates
+the account or signs in; kite-discovery finds a service and its sample call; request-session asks
+the user to approve spending; x402-execute makes the paid call.
 
 ## When Passport helps, and when it doesn't
 
@@ -98,15 +97,17 @@ When the user asks what Passport could do for them, or asks for triage or sugges
 - Before a paid call, tell the user the service, what comes back and the price, and get a yes for
   that call. The user's yes covers that service at that price, nothing else.
 - To pay, register this agent once (`kpass agent:register --type <your agent name> --output json`,
-  as the request-session skill shows), then run `kpass session create --output json`. Exit 0 means
-  the account allowance covers it: go on to the x402-execute skill, and give `kpass session
-  execute` an `--idempotency-key` (a new random ID for each payment, the same one on a retry),
-  which allowance payments require. Exit 4 with `allowance_unavailable`, or exit 6 with
-  `allowance_disabled`, means there is no allowance here (if the hint has a dashboard link, pass
-  it on once): use the request-session skill, which asks
-  the user to approve one spending session with a passkey, then x402-execute. Exit 3 means sign in
-  first (the authenticate-user skill), unless the message says to register this agent: then
-  register it as above.
+  as the request-session skill shows), then use the x402-execute skill: `kpass session execute`
+  pays from the account allowance on its own, with no approval request. Give it an
+  `--idempotency-key` (a new random ID for each payment, the same one on a retry), which allowance
+  payments require. If the CLI says the allowance can't pay (exit 4 `allowance_unavailable`, exit 6
+  `allowance_disabled` or `recurring_budget_exhausted`), put its `user_message` in your reply once
+  (it carries the dashboard link or the reset date), then load the request-session skill. It runs
+  the CLI's `--separate --preview` step, which writes the question for the user (the service you
+  will call, a per-call and a total limit, how long it lasts), and it creates the passkey request
+  only after the user's yes. The service named there is information, not a limit: endpoint limits
+  are not enforced on paid calls. Exit 3 means sign in first (the authenticate-user skill), unless
+  the message says to register this agent: then register it as above.
 - If the call fails, or a different service would do the job better, say what happened and name the
   other service and its price, then ask again before paying it. A silent switch breaks the promise
   that the agent asks before spending, and Claude Code's auto mode blocks a payment that doesn't
@@ -114,7 +115,12 @@ When the user asks what Passport could do for them, or asks for triage or sugges
 - If Claude Code blocks a kpass command, tell the user what was blocked and ask how they want to go
   on. Don't suggest turning off permission checks or running the command around them: those checks
   protect the user.
-- When a passkey is needed, kpass prints a link for the user (`approval_url`), and
-  `kpass session status --request-id <id> --wait --output json` waits up to five minutes for the
-  approval. If it comes back not approved yet, give the user the link again and, once they say they
-  approved, run the `next_command` that `kpass session create` printed.
+- When a passkey is needed, kpass gives you a link (`approval_url`). The user sees only your
+  reply, not kpass output, so put the full link in your reply before you run any wait. The link
+  expires about 10 minutes after the request (`expires_at`, not the end of the session), so tell the
+  user how many minutes are left. `kpass session status --request-id <id> --wait --output json`
+  waits up to five minutes for the approval. If it comes back not approved yet, give the user the
+  link again and, once they say they approved, run the `next_command` that `kpass session create`
+  printed. If `kpass session status` says the request expired or was rejected (also exit 3), it is
+  not a sign-in problem: tell the user, and on their yes make a new request through the
+  request-session skill.

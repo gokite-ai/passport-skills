@@ -121,5 +121,5 @@ Before running any command, verify:
 
 - **Prerequisite:** User must be logged in. Use the **`authenticate-user`** skill.
 - **To register an agent or create sessions:** Use the **`request-session`** skill. This skill is read-only and cannot create or modify agents or sessions.
-- **To execute payments:** Use the **`x402-execute`** skill (requires an active session).
+- **To execute payments:** Use the **`x402-execute`** skill (pays from the account allowance, or from a separate session the user approved).
 - **To check wallet balance or send tokens:** Use the **`wallet-send`** skill.

@@ -15,7 +15,7 @@ Output: Agent already registered. Display "Agent Already Registered" card.
 
 **Step 2:** Merchant URL is already known: `https://weather.example.com/v1/forecast`
 
-(No manual session-list pre-check — `create` in Step 6 auto-detects any reusable session. Here we assume none covers the request, so it creates a new one.)
+(No manual session-list pre-check: `create --separate` in Step 6 auto-detects any reusable session. Here we assume the account allowance can't pay and none covers the request, so it creates a new one.)
 
 **Step 3:** Preflight the merchant URL.
 ```bash
@@ -56,62 +56,40 @@ Pass this inner object directly to `--delegation`. The CLI wraps it under `{"del
 }
 ```
 
-**Step 5:** Show the Proposed Session Parameters card and wait for explicit confirmation before creating the session — this is the user's only chance to catch a misread price or wrong scope before a passkey approval is triggered.
-```
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📋 Proposed Session Parameters
-
-🏪 Merchant:         weather.example.com
-📝 Task:             Query the weather forecast API at weather.example.com.
-💰 Per-tx limit:     1 USDC
-💰 Total budget:     10 USDC
-⏰ Session duration: 1 hour
-🔒 Payment method:   x402
-🎯 Scope:            Scoped to weather.example.com/v1/forecast
-
-Shall I proceed with creating this session?
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-```
-
-**User:** "yes, proceed"
-
-**Step 6:** Create the session.
+**Step 5:** Tell the user before any passkey request: run the CLI preview (it sends nothing). Earlier, `kpass session create --output json` answered `recurring_budget_exhausted` (the account allowance is used up until Tuesday), and its `next_command` was this preview.
 ```bash
-kpass session create --delegation '{"task":{"summary":"Query the weather forecast API at weather.example.com."},"payment_policy":{"max_amount_per_tx":"1","max_total_amount":"10","ttl_seconds":3600},"execution_constraints":{"x402":{"scope_mode":"scoped","allowed_endpoints":[{"method":"POST","host":"weather.example.com","path_prefix":"/v1/forecast"}]}}}' --output json
+DELEGATION_JSON='{"task":{"summary":"Query the weather forecast API at weather.example.com."},"payment_policy":{"max_amount_per_tx":"1","max_total_amount":"10","ttl_seconds":3600},"execution_constraints":{"x402":{"scope_mode":"scoped","allowed_endpoints":[{"method":"POST","host":"weather.example.com","path_prefix":"/v1/forecast"}]}}}'
+kpass session create --delegation "$DELEGATION_JSON" --separate --preview --reason recurring_budget_exhausted --resets-at 2026-10-27T00:00:00Z --price 1.00 --output json
+```
+Its `user_message`, which goes in your reply as is:
+
+> I can get this from weather.example.com (POST /v1/forecast) for USD 1.00. Your account allowance can't pay right now: it is used up until Tue 27 Oct, 00:00 UTC. I can ask for a separate spending limit instead: up to USD 1 per call and USD 10 in total, valid for 1 hour. A passkey page will open for you to approve. Should I set it up?
+
+**User:** "yes, go ahead"
+
+**Step 6:** Create the request (the preview's `on_yes_command`).
+```bash
+kpass session create --delegation "$DELEGATION_JSON" --separate --output json
 ```
 Output:
 ```json
 {
   "action": "approve_session",
   "request_id": "req_abc123",
-  "approval_url": "https://passport.dev.gokite.ai/approve/req_abc123",
-  "expires_at": "2026-03-17T12:05:00Z",
+  "approval_url": "https://passport-web.staging.gokite.ai/agent-session/approve?token=abc",
+  "expires_at": "2026-10-23T12:10:00Z",
+  "user_message": "I opened the approval page in your browser. If it did not open, use this link: https://passport-web.staging.gokite.ai/agent-session/approve?token=abc It allows up to USD 1 per call and USD 10 in total for 1 hour. The link expires in 10 minutes.",
+  "reply_first": true,
+  "browser_opened": true,
+  "wait_command": "kpass session status --request-id req_abc123 --wait --output json",
   "_version": "1",
   "status": "human_action_required",
-  "hint": "A session request was created. Show the approval URL to the user: https://passport.dev.gokite.ai/approve/req_abc123",
-  "next_command": "kpass session status --request-id req_abc123 --output json"
+  "hint": "Put user_message in your reply now. After the reply, run wait_command.",
+  "next_command": ""
 }
 ```
 
-Display the mandatory approval card:
-```
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🛡️ Approval Required
-
-A spending session needs your approval:
-
-🌐 https://passport.dev.gokite.ai/approve/req_abc123
-
-📝 Task:           Query the weather forecast API at weather.example.com.
-💰 Per-tx limit:    1 USDC
-💰 Total budget:    10 USDC
-⏰ Valid for:       1 hour
-📋 Request ID:      req_abc123
-
-👆 Open the link, review, and approve with passkey.
-⏳ I'll wait automatically...
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-```
+Put `user_message` in your reply now, as is, before any other command. The CLI already opened the page; do not run `open` yourself.
 
 **Step 7:** Poll for approval.
 ```bash
@@ -233,20 +211,15 @@ kpass agent:register --type <agent-type> --output json
 
 **Step 2:** No 402 preflight — the merchant is card-only. The budget comes from the user ($40 total; size per-tx to the expected charge).
 
-**Step 3:** Confirm parameters, marking it as a card session.
-```
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📋 Proposed Session Parameters
-
-🏪 Merchant:         card-only-store.example
-📝 Task:             Buy one item from card-only-store.example
-💰 Per-tx limit:     40 USDC
-💰 Total budget:     40 USDC
-⏰ Session duration: 1 hour
-🔒 Payment method:   Scoped virtual card (limit 40 USDC, multi-use until limit reached or expiry)
-
-Shall I proceed with creating this session?
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+**Step 3:** Tell the user first: run the same create with `--preview` added (it sends nothing), put its `user_message` in your reply, and add that a virtual card will be issued (limit 40 USD, multi-use until the limit is reached or it expires). Wait for the yes.
+```bash
+kpass session create --use-card \
+  --task-summary "Buy one item from card-only-store.example" \
+  --max-amount-per-tx 40 \
+  --max-total-amount 40 \
+  --ttl 1h \
+  --preview \
+  --output json
 ```
 
 **Step 4:** On confirmation, create with `--use-card` and the individual flags (no `--delegation`; `--max-total-amount` is required).

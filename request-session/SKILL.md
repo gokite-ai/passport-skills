@@ -1,27 +1,26 @@
 ---
 name: request-session
 description: >-
-  Authorize this agent to spend on behalf of the user by creating a spending
-  session. Invoke before any payment, paid API call (x402-execute), or shopping
-  checkout. Handles agent registration, merchant preflight, delegation construction,
-  and user approval via passkey. For card-only merchants (no x402/wallet support),
-  it also creates session-bound scoped-card (virtual card) sessions via `--use-card`,
-  gated on backend cards support and user card KYC. If a task requires a spending
-  session -- payments, paid API calls, or shopping checkout -- this skill must run
-  first. Wallet transfers (wallet-send) use their own flow and don't need a session.
+  Create a separate spending session that the user approves with a passkey. Use
+  when the account allowance can't pay (the CLI says so), the user asks for a
+  separate spending session, or for a shopping checkout (the allowance never pays
+  checkouts). Paid API calls on an account with an allowance need no session: go to
+  x402-execute. Handles agent registration, merchant preflight, delegation
+  construction, the preview the user sees first, and passkey approval. For
+  card-only merchants it also creates session-bound scoped-card (virtual card)
+  sessions via `--use-card`, gated on backend cards support and user card KYC.
+  Wallet transfers (wallet-send) use their own flow and don't need a session.
 user-invocable: true
 allowed-tools:
   - "Bash(bash */setup.sh*)"
   - "Bash(kpass agent:register*)"
   - "Bash(kpass session *)"
   - "Bash(curl *)"
-  - "Bash(open *)"
-  - "Bash(xdg-open *)"
 ---
 
 # Request Session
 
-Register the agent identity and create, monitor, or reuse spending sessions with user approval. A session authorizes the agent to spend funds on behalf of the user, gated by a delegation policy (task description, payment policy with per-tx and total caps, optional execution constraints).
+Register the agent identity and create, monitor, or reuse separate spending sessions with user approval. **The account allowance comes first:** on an account with an allowance, paid API calls go straight to `x402-execute` and need nothing from this skill. The CLI enforces this: `kpass session create` creates a passkey request only with `--separate`, and only after it has told you why the allowance can't pay. A separate session authorizes the agent to spend funds on behalf of the user, gated by a delegation policy (task description, payment policy with per-tx and total caps, optional execution constraints).
 
 ## Step 0: Ensure CLI is Installed — MANDATORY
 
@@ -38,10 +37,10 @@ Where `<skill-directory>` is the directory containing this SKILL.md file (e.g., 
 
 ## When to Use This Skill
 
-- The user asks you to make a payment, access a paid API, or perform any action that requires spending.
-- The **`shopping`** skill needs a session before checkout. The checkout charge (cart subtotal + the provider's price-cap headroom + $1 fee — see Path B in **`form-session-delegation`**) is the budget source — no 402 preflight needed.
-- Another skill (e.g., `x402-execute`) fails with "Agent not registered" or "No session specified".
-- You need to create a new spending session because the previous one expired or was consumed.
+- The CLI said the account allowance can't pay (`allowance_unavailable`, `allowance_disabled`, `recurring_budget_exhausted`, `allowance_too_small`) and the task still needs a paid call.
+- The user asks for a separate spending session ("set up a separate spending limit for X").
+- The **`shopping`** skill needs a session before checkout (always `--separate`; the allowance does not pay checkouts). The checkout charge (cart subtotal + the provider's price-cap headroom + $1 fee — see Path B in **`form-session-delegation`**) is the budget source — no 402 preflight needed.
+- Another skill (e.g., `x402-execute`) fails with "Agent not registered".
 - The user wants to see their active sessions.
 
 Do NOT use this skill when the user already has an **attachable session ID**
@@ -55,12 +54,10 @@ approval on a policy the owner already defined.
 ## Shared account allowance (matching POC release)
 
 For a paid API confirmed to accept **direct exact-scheme USDC x402** on the
-configured settlement network, after agent registration, show the user the
-service, expected result, and price, and wait for explicit confirmation for
-that exact paid call. If the original request already explicitly confirms
-that service and price, do not ask again. This is confirmation of the paid
-call, not another passkey approval. Then prefer the owner's existing account allowance when the user has not requested a
-separate budget or a scoped session:
+configured settlement network, after agent registration, prefer the owner's
+existing account allowance when the user has not requested a separate budget
+or a scoped session. `x402-execute` binds it on its own for paid calls; to
+bind it from this skill:
 
 ```bash
 kpass session allowance --output json
@@ -71,13 +68,15 @@ It does not create another budget and requires no new passkey approval. A bare
 `kpass session create --output json` uses the same path. On success, use the
 returned `session_id`; do not ask the user to choose between default and new.
 
-Only `allowance_unavailable` (no allowance or feature disabled) or
-`allowance_disabled` (owner opted this agent out) permits continuing to the
-ordinary session request flow below. On `allowance_unavailable`, give the user
+Only the CLI's "can't pay" codes, `allowance_unavailable` (no allowance or
+feature disabled), `allowance_disabled` (owner opted this agent out),
+`recurring_budget_exhausted` (used up until the reset) and
+`allowance_too_small` (over the per-call limit), permit continuing to the
+ordinary session request flow below, and only after the user's yes. On `allowance_unavailable`, give the user
 the dashboard link from the `hint` once, so the owner can set up an allowance.
 An older CLI that explicitly reports an
 unknown `allowance` subcommand uses the ordinary flow. Authentication, network,
-expiry, exhaustion, and unknown-payment errors are not permission to switch
+expiry, and unknown-payment errors are not permission to switch
 budgets or request a replacement silently.
 `allowance_cancelled` is not permission either: the CLI binds once to the
 owner's current allowance by itself. If that retry still fails, stop and tell
@@ -87,8 +86,8 @@ The configured network is **Base mainnet** (`eip155:8453`) on staging/prod
 and **Arc testnet** (`eip155:5042002`) on dev. Confirm the merchant advertises
 the matching network and USDC asset; do not infer testnet support from an Arc
 mainnet listing. The allowance does not authorize shopping, cards, A2A,
-Router top-ups, bridges, or other settlement routes. A failure on a supported allowance payment must stop; never try
-a broader session to evade its limit. All enabled agents consume the same
+Router top-ups, bridges, or other settlement routes. A failure on a supported allowance payment must stop; never start
+a separate session without the user's yes. All enabled agents consume the same
 account budget, and eligibility changes belong to the owner in the dashboard.
 
 ## Sessions Are Protocol-Agnostic
@@ -143,9 +142,23 @@ kpass agent:register --type <agent-type> --output json
 
 Idempotent, safe to call every time. Display the registration card (see `@references/commands.md`).
 
+### Step 1b: The Account Allowance First
+
+Skip this step for a shopping checkout, a `--use-card` session, or when the user asked for a separate session.
+
+```bash
+kpass session create --output json
+```
+
+- **Exit 0 with `source: "separate"`**: a separate session the user approved is current and still pays. Go to **`x402-execute`**; nothing to create.
+- **`separate_session_used_up`**: the separate session the user approved is used up. Stop and put the CLI's `user_message` in your reply. With the user's yes to a new separate session, continue with Step 3 (do not run this step again); with their yes to the allowance, pay with `x402-execute` plus `--use-allowance`.
+- **Exit 0** (`source: "allowance"`): the account allowance pays. Put its `user_message` in your reply if useful and go to **`x402-execute`**. Stop here; no passkey request.
+- **An `allowance_*` or `recurring_budget_exhausted` error**: the allowance can't pay. Its `user_message` says why (no allowance yet, turned off by the owner, used up until a date in UTC). Continue with Step 3 to build the separate session.
+- **Exit 3**: sign in first (`authenticate-user`).
+
 ### Step 2: Reuse Is Detected Automatically at Create Time
 
-You no longer need to run `session list` and eyeball matches before creating. `session create` (Step 7) automatically scans existing active sessions and applies the mechanical reuse checks (asset, per-tx, budget, remaining TTL, scope). If one covers the request it returns a `reuse_available` result with candidates instead of creating a new session — at which point your only remaining job is to confirm the **goal/merchant genuinely matches** before reusing. See `@references/commands.md` (`session create` → "Automatic Reuse Detection").
+You no longer need to run `session list` and eyeball matches before creating. `session create --separate` (Step 7) automatically scans existing active sessions and applies the mechanical reuse checks (asset, per-tx, budget, remaining TTL, scope). If one covers the request it returns a `reuse_available` result with candidates instead of creating a new session — at which point your only remaining job is to confirm the **goal/merchant genuinely matches** before reusing. See `@references/commands.md` (`session create` → "Automatic Reuse Detection").
 
 Running `kpass session list --status active --output json` is now optional — use it only for diagnostics or to inspect sessions directly.
 
@@ -204,58 +217,52 @@ After parsing the 402 response, display the Payment Requirements Discovered card
 
 See `form-session-delegation` skill for the full field mapping.
 
-### Step 5: Confirm Session Parameters with User
+### Step 5: Construct the Delegation
 
-Present the proposed session parameters to the user and wait for explicit confirmation before creating the session. The session create command triggers a passkey approval flow that the user has to interact with — burning that interaction on parameters they would have adjusted (a smaller budget, a longer TTL) is wasted friction. The confirmation card is also the user's only chance to review the merchant scope before the session is on-chain.
-
-Construct the delegation parameters from the 402 response + user context (see `form-session-delegation` skill for construction rules), then display:
-
-```
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📋 Proposed Session Parameters
-
-🏪 Merchant:         {merchant_host}
-📝 Task:             {task_summary}
-💰 Per-tx limit:     {max_amount_per_tx} {asset}
-💰 Total budget:     {max_total_amount} {asset}
-⏰ Session duration: {ttl_human_readable}
-🔒 Payment method:   x402
-🎯 Scope:            {scope_description}
-
-Shall I proceed with creating this session?
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-```
-
-The user may:
-- **Confirm** ("yes", "proceed", "looks good") → proceed to Step 6
-- **Adjust** ("make the budget 50", "change TTL to 2 hours") → update parameters and show the card again
-- **Cancel** ("no", "cancel") → stop
-
-### Step 6: Construct the Delegation
-
-Only after user confirmation, build the delegation JSON from:
+Build the delegation JSON from:
 1. The user's stated goal (becomes `task.summary`)
 2. The 402 preflight response (asset, amount per request)
-3. The confirmed parameters from Step 5
-4. The endpoint scope (from the merchant URL)
+3. Any limits the user stated (a smaller budget, a longer time)
+4. The endpoint (from the merchant URL), recorded with the session
 
 See the **`form-session-delegation`** skill for the complete schema, construction rules, validation checklist, and examples.
 
-### Step 7: Create Session with `--delegation`
+### Step 6: Tell the User Before Any Passkey Request (the CLI preview)
+
+A passkey request opens an approval page for the user, so they hear about it first. Run the preview: it sends nothing. If you came here from an "allowance can't pay" error, its `next_command` is exactly this command (with the reason); run it as given.
+
+```bash
+kpass session create --delegation "$DELEGATION_JSON" --separate --preview --price <PRICE> --output json
+```
+
+(`--price` is the endpoint's price from discovery or preflight, in USD; leave it out if you do not know it.)
+
+Put the preview's `user_message` in your reply as is. It names the service you will call, the price, why the allowance can't pay, both limits (per call and total) and how long the session lasts, and it asks "Should I set it up?". Then wait for the answer:
+- **Yes** → Step 7 with `on_yes_command`.
+- **Adjust** ("make the budget 50", "2 hours") → change the delegation and run the preview again.
+- **No** → stop.
+
+If the user already asked for a separate session in this conversation, that ask is the yes: still put the preview's `user_message` in your reply, then go on to Step 7.
+
+The service you will call is information, never a limit: endpoint limits are not enforced on paid calls today. Never tell the user a session is "limited to" or "scoped to" one service.
+
+### Step 7: Create the Request with `--separate`
 
 **Shell-safe substitution — MANDATORY:** `task.summary` is derived from the user's own words and may contain quotes, `$()`, backticks, or other shell metacharacters. Never hand-splice it into the command string — double-quoting does not stop `$()`/backtick expansion. Assign the JSON-encoder output to a shell variable as a **single-quoted literal** (escaping any embedded `'` as `'\''`), then reference the variable in double quotes. See the **`form-session-delegation`** skill's "Shell-Safe Value Substitution" section for the full rule and a worked example.
 
 ```bash
 # Example: encoder produced {"task":{"summary":"Buy John's book"},...}
 DELEGATION_JSON='{"task":{"summary":"Buy John'\''s book"},...}'
-kpass session create --delegation "$DELEGATION_JSON" --output json
+kpass session create --delegation "$DELEGATION_JSON" --separate --output json
 ```
 
-Two possible outcomes (see `@references/commands.md` `session create`):
-- **`status: "human_action_required"`** (a new request was created) → display the mandatory approval card and proceed to Step 8.
-- **`reuse_available: true`** (an existing active session already covers this request) → confirm the candidate's `task_summary` matches the current goal/merchant, then run the returned `next_command` (`session use …`) to reuse it — no new approval needed. If the goal does not match, re-run `create … --no-reuse` to force a new session.
+This is the preview's `on_yes_command`. Possible outcomes (see `@references/commands.md` `session create`):
+- **`status: "human_action_required"`** (a new request was created) → put the reply's `user_message` in your reply now, as is, before you run any other command. It holds the full approval link, the per-call limit, the total limit, the validity and the minutes until the link expires. The person reads your reply, not the kpass output, so a link that is only in a tool result has not been shown. This holds in every kind of session, interactive or scripted. The CLI opens the approval page itself when it safely can (`browser_opened`); do not run `open` yourself. Then go on to Step 8.
+- **`reuse_available: true`** (an existing active session already covers this request) → confirm the candidate's `task_summary` matches the current goal/merchant, then run the returned `next_command` (`session use …`) to reuse it, no new approval needed. If the goal does not match, re-run `create … --separate --no-reuse` to force a new session.
 
 ### Step 8: Poll for Approval
+
+Run the reply's `wait_command` only after its `user_message` is in your reply (Step 7). `next_command` is empty on purpose. The wait blocks for up to five minutes, and anything you have not written yet stays invisible for all of it.
 
 ```bash
 kpass session status --request-id <request_id> --wait --output json
@@ -299,17 +306,8 @@ Behavior:
 
 - The CLI sends `execution_constraints.card.enabled=true`; the backend derives the card amount (= max total) and expiry (= TTL) server-side. You only pass the flag and the budget/TTL.
 - **Reuse is skipped** for `--use-card` — a card session is always created fresh, because an existing cardless session cannot be reused for a card purchase. Do not pass `--no-reuse` (it is redundant) and do not try to reuse a prior session.
+- `--use-card` never uses the account allowance, so it needs no `--separate`. Tell the user first all the same: run the same command with `--preview` added, put its `user_message` in your reply, and add that a virtual card will be issued (limit = the total, multi-use until the limit is reached or it expires).
 - After create, it is the **same approval + polling flow** as a normal session (Steps 7–8). The card is issued at approval.
-
-### Confirm card parameters
-
-Show the Proposed Session Parameters card as usual, but change the payment-method line so the user knows a virtual card will be issued (this replaces the `🔒 Payment method: x402` line):
-
-```
-🔒 Payment method:   Scoped virtual card (limit {max_total_amount} {asset}, multi-use until limit reached or expiry)
-```
-
-Everything else in the flow (agent registration, approval card, polling, approved card) is identical to a normal session.
 
 ---
 
@@ -331,8 +329,11 @@ End-to-end walkthroughs for new session creation and session reuse:
 | 3 | Auth error | `Agent not registered`, `No user_id found`, `Agent is registered to a different user`, `Session request rejected`, `Session request expired` | See specific scenarios below. |
 | 4 | Not found | `not found` | Verify the request_id or session_id is correct. |
 | 5 | Rate limited | `rate limit` | Wait 30 seconds, then retry. |
-| 6 | Session policy / payment violation | `error_code: "session_asset_forbidden"`, `"session_rule_exceeded"`, `"session_total_exceeded"`, `"session_endpoint_forbidden"`, `"session_forbidden"`, `"session_owner_forbidden"`, `"payment_target_forbidden"`, `"payment_redirect_not_allowed"`, `"session_request_forbidden"` | Do NOT re-authenticate. Create a new session with corrected parameters. Check `error_code` and `hint` for the specific violation. |
+| 6 | Separate session used up | `error_code: "session_total_exceeded"`, `"separate_session_used_up"` | Stop and put the CLI's `user_message` in your reply. Never switch to the account allowance on your own. With the user's yes: a new separate session (Steps 3-8, preview first), or `--use-allowance` on execute. |
+| 6 | Session policy / payment violation | `error_code: "session_asset_forbidden"`, `"session_rule_exceeded"`, `"session_endpoint_forbidden"`, `"session_forbidden"`, `"session_owner_forbidden"`, `"payment_target_forbidden"`, `"payment_redirect_not_allowed"`, `"session_request_forbidden"` | Do NOT re-authenticate. Check `error_code` and `hint`. A new separate session with corrected parameters goes through Steps 3-8 (preview, then the user's yes). |
 | 6 | Allowance cancelled | `error_code: "allowance_cancelled"` | The CLI already bound once to the owner's current allowance and retried. Stop and tell the user the owner cancelled the allowance. Do not request a broader session to get around it. |
+| 4 / 6 | The allowance can't pay (from `session create` without `--separate`) | `error_code: "allowance_unavailable"` (4), `"allowance_disabled"`, `"recurring_budget_exhausted"`, `"allowance_too_small"` (6) | No request was created. Run the CLI's `next_command` (the `--separate --preview` step, Step 6) and put its `user_message` in your reply. Never add `--separate` yourself without that step. |
+| 0 | Allowance available (no request) | `allowance_available: true` | The account allowance pays. Run `next_command` and go to **`x402-execute`**. Use `--separate` only if the user asked for a separate session. |
 
 **Error envelope fields:** Error responses include `error` (raw backend message), `error_code` (machine-readable classification — prefer this for programmatic matching), and `hint` (recovery guidance).
 
@@ -401,6 +402,7 @@ Do NOT attempt any of the following. They will fail:
 - `kpass session create --expires-in` — does not exist
 - `kpass session create --allowed-domains` — does not exist
 - `kpass session create --spending-rules` — does not exist. The old `spending_rules` model is replaced by `delegation`.
+- `kpass session create --delegation ...` **without `--separate`** does not create a request on an account with an allowance: it returns `allowance_available` (or the reason the allowance can't pay). Real flags for a separate session: `--separate`, `--preview`, `--no-browser`, `--price`.
 - `kpass session status --session-id` — the flag is `--request-id`, not `--session-id`
 - `kpass session status` without `--wait` as the primary polling method — Always use `--wait` for the initial polling phase. Only omit `--wait` for single follow-up checks after the user signals they have approved.
 - Any command with `--json` — the correct flag is `--output json` (two separate tokens)
@@ -425,16 +427,19 @@ The standard sequence for setting up agent spending capability:
 ```
 1. authenticate-user skill       -->  User is logged in
 2. agent:register                -->  Agent is registered
-3. Get merchant URL from user    -->  Know what service to access
-4. curl preflight                -->  Discover payment requirements (402)
-5. Construct delegation          -->  Build policy from 402 + user context
-6. session create          -->  Create session with --delegation
-                                       (auto-detects a reusable active session:
-                                        on reuse_available, goal-match then
-                                        session use; else continue)
-7. session status --wait   -->  Wait for user approval (new session only)
-8. x402-execute or               -->  Execute transactions
-   wallet-send skill
+3. session create (plain)        -->  Account allowance pays? Go to x402-execute. Done.
+4. Get merchant URL from user    -->  Know what service to access
+5. curl preflight                -->  Discover payment requirements (402)
+6. Construct delegation          -->  Build policy from 402 + user context
+7. session create --separate --preview
+                                 -->  Put user_message in your reply, ask
+8. session create --separate     -->  After the yes (auto-detects a reusable
+                                       active session: on reuse_available,
+                                       goal-match then session use)
+9. user_message in the reply     -->  Link, limits, expiry, BEFORE the wait
+10. session status --wait        -->  Wait for user approval (new session only)
+11. x402-execute or              -->  Execute transactions
+    shopping checkout
 ```
 
 ---
@@ -445,5 +450,6 @@ The standard sequence for setting up agent spending capability:
 - **Delegation construction:** For the complete delegation schema, construction rules, validation checklist, and examples, see the **`form-session-delegation`** skill.
 - **Session already exists (attachable):** If the user provides a session ID created elsewhere (web dashboard), use the **`attach-session`** skill instead of creating.
 - **After session is active:** To execute x402 paid API requests, use the **`x402-execute`** skill.
+- **Account allowance:** paid API calls on an account with an allowance go straight to **`x402-execute`**; this skill is only for the separate session.
 - **For direct wallet transfers (no session):** Use the **`wallet-send`** skill.
 - **For diagnostics:** To inspect registered agents and sessions from the user's perspective, use the **`manage-agents`** skill (`user agents`, `user sessions`).

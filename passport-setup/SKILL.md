@@ -95,7 +95,7 @@ After installation, verify kpass works:
 kpass --version
 ```
 
-Expected output: a version at or above `min_kpass_version` in `skills.json` (currently 6.8.0 or later).
+Expected output: a version at or above `min_kpass_version` in `skills.json` (currently 6.8.4 or later).
 
 If `kpass --version` fails, the installation did not succeed. Report the error to the user and stop. Do not proceed to other Passport skills until verification passes.
 
