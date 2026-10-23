@@ -182,7 +182,7 @@ kpass shop:order status --order-id ord_abc123 --output json
 📦 Order Status
 
   📋 Order:     ord_abc123
-  🔄 Phase:     completed
+  📋 Status:    completed
   💳 Payment:   confirmed
   🔗 Tx Hash:   0xdeadbeef...
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

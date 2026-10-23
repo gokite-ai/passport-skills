@@ -651,7 +651,7 @@ kpass shop:order status --order-id <ID> --output json
   "order_id": "ord_abc123",
   "provider": "zinc",
   "provider_order_id": "550e8400-e29b-41d4-a716-446655440000",
-  "status": "completed",
+  "order_status": "completed",
   "payment_status": "settled",
   "destination_tx_hash": "0xdeadbeef...",
   "total_amount": "$15.49",
@@ -668,7 +668,7 @@ kpass shop:order status --order-id <ID> --output json
 }
 ```
 
-`status` values: `pending` (being placed), `completed` (placed with the retailer — `merchant_order_ids` is the retailer's order number and `refund_details.amount` the unused cap refunded to the wallet, in USDC base units), `failed` (`failure_reason` carries the provider code, e.g. `max_price_exceeded`, `out_of_stock`; the full charge is refunded), `refunded` (cancelled by the retailer; full refund). `payment_status`: `charged` → `settled` | `refunded`.
+**Read the order state from `order_status`, never from `status`** — the envelope's `status` is the CLI result (`"success"`) and shadows the backend's order field. `order_status` values: `pending` (being placed), `completed` (placed with the retailer — `merchant_order_ids` is the retailer's order number and `refund_details.amount` the unused cap refunded to the wallet, in USDC base units), `failed` (`failure_reason` carries the provider code, e.g. `max_price_exceeded`, `out_of_stock`; the full charge is refunded), `refunded` (cancelled by the retailer; full refund). `payment_status`: `charged` → `settled` | `refunded`.
 
 **Note:** This endpoint does NOT include delivery status. For delivery tracking, use `shop:order delivery`.
 
@@ -685,7 +685,7 @@ Check the order ID is correct.
 📦 Order Status
 
   📋 Order:     {order_id}
-  🔄 Phase:     {phase}
+  📋 Status:    {order_status}
   💳 Payment:   {payment_status}
   🔗 Tx Hash:   {tx_hash}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -773,7 +773,7 @@ kpass shop:order list --output json
   "orders": [
     {
       "order_id": "ord_abc123",
-      "phase": "completed",
+      "order_status": "completed",
       "payment_status": "confirmed",
       "currency": "usdc",
       "chain": "ethereum-sepolia"
