@@ -19,6 +19,8 @@ allowed-tools:
 
 Search for products, manage a shopping cart, collect shipping information, and place orders paid with cryptocurrency via headless checkout.
 
+**How checkout is priced (read before quoting a total):** the order is fulfilled by a provider that buys on its own retailer account, so it needs a hard **price cap** before tax and shipping are known. The backend sets `cap = cart subtotal + max(20%, $5)` (or `--max-total` if you pass one), charges the wallet **cap + $1.00 provider fee** up front, and the provider refunds `cap − actual total` (or everything, if the order fails) to the user's wallet on-chain. Tell the user both numbers: the estimated subtotal and the up-front charge.
+
 **Currently supported providers:** `amazon`. More providers will be added — the system is provider-agnostic.
 
 ## When to Use This Skill
@@ -40,7 +42,7 @@ Search for products, manage a shopping cart, collect shipping information, and p
 
 1. **User authenticated** — The user MUST be logged in. If not (exit code 3), use the **`authenticate-user`** skill first.
 2. **Agent registered** — The agent MUST be registered. If not (exit code 3 with "Agent not registered"), run `kpass agent:register --type <agent-type> --output json` (substitute your agent's identity: `claude`, `cursor`, `codex`, `cline`, etc.).
-3. **Active spending session** — Required ONLY for `shop:checkout`. All other commands (search, cart, shipping) do NOT require a session. Before checkout, create one with the **`request-session`** skill (budget derived from the cart total), or bind an existing one with the **`attach-session`** skill. Sessions are protocol-agnostic and settlement-token-agnostic — there is no `assets` allowlist field — but a session locks to the first asset it settles in: an **unlocked** session, or one already **locked to the checkout's settlement asset** (`shop:cart view` → `payment.currency`), with sufficient remaining budget can be reused; a session locked to a different asset fails checkout with `session_asset_forbidden` and needs a fresh session instead. You do not need to mark the session as shopping-specific. See the `shop:checkout` entry in `@references/commands.md` for the Pre-Checkout Checklist.
+3. **Active spending session** — Required ONLY for `shop:checkout`. All other commands (search, cart, shipping) do NOT require a session. Before checkout, create one with the **`request-session`** skill (budget derived from the **checkout charge** — subtotal + price-cap headroom + $1 fee, see Path B in **`form-session-delegation`**; a session sized to the bare subtotal fails with `session_rule_exceeded`), or bind an existing one with the **`attach-session`** skill. Sessions are protocol-agnostic and settlement-token-agnostic — there is no `assets` allowlist field — but a session locks to the first asset it settles in: an **unlocked** session, or one already **locked to the checkout's settlement asset** (`shop:cart view` → `payment.currency`), with sufficient remaining budget can be reused; a session locked to a different asset fails checkout with `session_asset_forbidden` and needs a fresh session instead. You do not need to mark the session as shopping-specific. See the `shop:checkout` entry in `@references/commands.md` for the Pre-Checkout Checklist.
 
 ## Defaults (Do Not Ask the User Unless They Specify Otherwise)
 
@@ -70,9 +72,9 @@ Follow this flow for a full shopping transaction. You may skip steps if the user
 3. **Confirm details before adding** — Ask quantity if user didn't specify. Default to 1 only if user says "add this" for a single item.
 4. **Add to cart** — Add the selected item(s). Only `--provider` and `--external-id` are required; the backend fetches product details automatically.
 5. **View cart** — Show the cart with totals. Offer to continue shopping or checkout.
-6. **Check shipping** — View the shipping profile. If incomplete, ask for missing fields.
-7. **Update shipping** — Fill in any missing fields the user provides.
-8. **Cost summary** — Show the cart total + shipping info. Ask for **explicit confirmation**.
+6. **Check shipping** — View the shipping profile. If incomplete, ask for missing fields. The retailer needs a **first and last name** and a **phone number**; `missing` lists `phone` and `name (first and last name)` when they are absent.
+7. **Update shipping** — Fill in any missing fields the user provides (`--phone` included).
+8. **Cost summary** — Show the cart subtotal, the up-front charge (cap + $1 fee, refunded down to the actual total) and the shipping info. Ask for **explicit confirmation**.
 9. **Checkout** — ONLY after the user explicitly says "confirm", "buy now", "place order", or equivalent. Requires a spending session.
 10. **Order tracking** — Report the order ID and allow status checks.
 
@@ -167,7 +169,7 @@ Read this when you need to model what a full shopping conversation looks like.
 |-----------|---------|----------------------|-----------------|
 | 0 | Success | `status: "success"` | Present the result using the appropriate display card. |
 | 1 | Network error / service unavailable | `network error: ...`, `context deadline exceeded`, `treasury relay is paused`, `service is temporarily unavailable` | For `shop:search`/`shop:cart`/`shop:shipping` (no money moved): retry after 10–30 seconds. **For `shop:checkout` specifically: do NOT blindly retry** — a timeout doesn't mean the order wasn't placed. Check `shop:order list` / `activity` to confirm the previous attempt didn't succeed before retrying (see "Error Output — Payment Provider Timeout" in `@references/commands.md`). |
-| 2 | Usage error | `Missing --query flag`, `Missing required flags`, `error_code: "checkout_not_confirmed"`, `"cart_empty"`, `"shipping_incomplete"`, `"cart_item_invalid_price"`, `No active session` | Fix the command flags or complete the prerequisite (fill cart, complete shipping, add `--confirmed`, create a session). Check `error_code` for the specific issue. |
+| 2 | Usage error | `Missing --query flag`, `Missing required flags`, `error_code: "checkout_not_confirmed"`, `"cart_empty"`, `"shipping_incomplete"`, `"cart_item_invalid_price"`, `"shop_cart_too_large"`, `"shop_cart_mixed_retailers"`, `"shop_max_total_invalid"`, `"checkout_rejected_by_merchant"`, `No active session` | Fix the command flags or complete the prerequisite (fill cart, complete shipping incl. phone, add `--confirmed`, create a session, trim the cart to 10 distinct items, raise `--max-total`). Check `error_code` for the specific issue. No money moved. |
 | 3 | Auth error | `Agent not registered`, `invalid authorization header` | Register the agent: `kpass agent:register --type <agent-type> --output json` (use your agent's identity). If that fails with "Not logged in", use **`authenticate-user`** first. |
 | 4 | Not found | `order not found`, `user wallet not found` | Check the ID is correct. For wallet errors, re-run login. |
 | 5 | Rate limited | `rate limit` | Wait 30 seconds, then retry. |
@@ -181,7 +183,22 @@ Read this when you need to model what a full shopping conversation looks like.
 - The user tried to checkout with no items. Search for products and add to cart first.
 
 **`error_code: "shipping_incomplete"` (exit code 2):**
-- Missing shipping fields. Run `shop:shipping view` to see which fields are missing, ask the user, then `shop:shipping update`.
+- Missing shipping fields. Run `shop:shipping view` to see which fields are missing, ask the user, then `shop:shipping update`. `phone` and a two-part `name` are required by the retailer.
+
+**`error_code: "shop_cart_too_large"` / `"shop_cart_mixed_retailers"` (exit code 2):**
+- One order holds at most 10 distinct items from one store. Remove items or split into two orders.
+
+**`error_code: "shop_max_total_invalid"` (exit code 2):**
+- `--max-total` is not a USD amount or is below the cart subtotal. Pass a cap at or above the subtotal, or omit it.
+
+**`error_code: "checkout_rejected_by_merchant"` (exit code 2, HTTP 422):**
+- The provider refused the order before charging (invalid address, item not orderable, unsupported product). Read `error` for the reason, fix the cart or shipping profile, and retry. No money moved.
+
+**`error_code: "shop_provider_quote_mismatch"` / `"shop_provider_no_settleable_rail"` / `"shop_provider_payment_rejected"` (exit code 1, HTTP 502):**
+- The provider's payment challenge could not be settled from this wallet, or it refused the signed payment. No money moved. Retry once after a minute; if it persists, report it — do not change the cart.
+
+**`error_code: "shop_checkout_in_flight"` (exit code 1):**
+- The payment was sent but the provider's answer was lost. The order may or may not exist. Run `shop:order list` first; if no new order shows, retry the same checkout — the retry re-presents the same idempotency key and recovers the order instead of charging twice.
 
 **`error_code: "checkout_not_confirmed"` (exit code 2):**
 - You forgot `--confirmed`. Always pass this flag — but only after the user explicitly confirmed.

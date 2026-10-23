@@ -58,7 +58,7 @@ Do not concatenate raw field values into a literal command string, and do not sk
 | `delegation.routing_enabled` | Optional | Top-level boolean **override**. Omitted → inherits the server's routing config (**enabled** on the Kite multichain deployment, so cross-chain bridge/swap is automatic when the merchant's chain differs from where funds sit — the agent need not set this). Set `false` to force same-chain-only. See Construction Rule 7. |
 | `delegation.routing_cost_cap_usd_micros` | Optional | Top-level integer. Max routing cost (bridge + swap fees) to tolerate, in USD micros (1 USD = 1,000,000). Bounds the cost whenever a payment is routed. Omitted → backend's configured default cap (may be non-zero); `0` = no cap. |
 
-Sessions are protocol-agnostic — the settlement protocol (x402, paygate, tempo, crossmint) is detected per request and is not part of the delegation. A single session can settle any supported protocol the merchant speaks.
+Sessions are protocol-agnostic — the settlement protocol (x402, paygate, tempo, or the shopping checkout) is detected per request and is not part of the delegation. A single session can settle any supported protocol the merchant speaks.
 
 ---
 
@@ -267,18 +267,18 @@ Use this when the task is bounded by spend but the agent cannot reliably predict
 
 ## Shopping Checkout Example -- Cart-Based Budget
 
-Use this when the payment amount is already known from a shopping cart total. No 402 preflight needed.
+Use this when the payment amount is already known from a shopping cart. No 402 preflight needed.
 
-Scenario: User is checking out a shopping cart with estimated total $32.82. Budget = $32.82 × 1.5 = $49.23, rounded up to $50.
+Scenario: User is checking out a shopping cart with subtotal $32.82. The checkout charge is the provider's price cap plus its $1 fee: cap = $32.82 + max(20%, $5) = $39.38, charge = $40.38; budget = $40.38 × 1.2 = $48.46, rounded up to $49.
 
 ```json
 {
   "task": {
-    "summary": "Shopping checkout — estimated total $32.82"
+    "summary": "Shopping checkout — cart subtotal $32.82, charge up to $40.38"
   },
   "payment_policy": {
-    "max_amount_per_tx": "50",
-    "max_total_amount": "50",
+    "max_amount_per_tx": "49",
+    "max_total_amount": "49",
     "ttl_seconds": 3600
   }
 }
@@ -306,13 +306,21 @@ Use this when the agent is accessing a paid API or merchant that returns a 402 P
 
 ### Path B: From a Known Amount (shopping checkout)
 
-Use this when the payment amount is already known before session creation — for example, a shopping cart total. **Skip the 402 preflight entirely.**
+Use this when the payment amount is already known before session creation — the shopping checkout. **Skip the 402 preflight entirely.**
 
-- `max_amount_per_tx`: known amount × 1.5, rounded up to the nearest whole number. This buffer accounts for price fluctuations and transaction fees
-- `max_total_amount`: same as `max_amount_per_tx` (single checkout transaction)
+**Checkout charge (what the session must cover).** Amazon checkout is fulfilled by a provider that buys on its own retailer account and needs a hard price cap before tax and shipping are known. The backend sets `cap = cart subtotal + max(20% of subtotal, $5.00)` (or the `--max-total` you pass, if any) and charges the wallet **cap + $1.00 provider fee** up front; whatever the order does not use is refunded by the provider to the user's wallet on-chain. Derive the session from that charge, never from the bare subtotal:
+
+- `charge = subtotal + max(0.2 × subtotal, 5.00) + 1.00`
+- `max_amount_per_tx` = `charge × 1.2`, rounded **up** to the next whole dollar
+- `max_total_amount` = same as `max_amount_per_tx`
+
+Example: subtotal $9.99 → cap $14.99 → charge $15.99 → `max_amount_per_tx` **"20"**. Subtotal $32.82 → cap $39.38 → charge $40.38 → **"49"**.
+
 - `ttl_seconds`: `3600` (1 hour — enough time for user to approve and complete checkout)
 - `execution_constraints`: omit (not applicable for shopping checkout)
-- `task.summary`: describe the purchase with the estimated total (e.g., `"Shopping checkout — estimated total $32.82"`)
+- `task.summary`: describe the purchase with the subtotal and the charge (e.g., `"Shopping checkout — cart subtotal $32.82, charge up to $40.38"`)
+
+For any other known amount (not a shopping checkout): `max_amount_per_tx` = amount × 1.5 rounded up, `max_total_amount` the same.
 
 ---
 
