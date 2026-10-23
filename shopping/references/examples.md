@@ -125,8 +125,9 @@ kpass shop:shipping update --name "Jane Doe" --email "jane@example.com" --line1 
   456 Oak Ave
   Austin, TX 78701, US
 
-💰 Estimated total: $9.99
-💳 Payment: USDC on ethereum-sepolia
+💰 Subtotal:        $9.99
+🧾 Charged up front: $15.99  (cap $14.99 incl. tax & shipping, + $1 provider fee; the unused part is refunded to your wallet)
+💳 Payment: USDC on base
 
 ⚠️  Do you want to place this order?
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -136,19 +137,19 @@ kpass shop:shipping update --name "Jane Doe" --email "jane@example.com" --line1 
 
 **Step 6: User confirms.** User says "yes, place the order".
 
-Cart total is $9.99. Agent needs a spending session — uses the **`request-session`** skill with the cart total as the budget source. Example delegation:
+Cart subtotal is $9.99, so the checkout charge is cap $14.99 (subtotal + $5 floor) + $1 fee = $15.99. Agent needs a spending session — uses the **`request-session`** skill with that charge as the budget source. Example delegation:
 
 ```json
-{"task":{"summary":"Shopping checkout — estimated total $9.99"},"payment_policy":{"max_amount_per_tx":"15","max_total_amount":"15","ttl_seconds":3600}}
+{"task":{"summary":"Shopping checkout — cart subtotal $9.99, charge up to $15.99"},"payment_policy":{"max_amount_per_tx":"20","max_total_amount":"20","ttl_seconds":3600}}
 ```
 
-The `form-session-delegation` skill derives the parameters (per-tx limit, total budget, TTL) from the cart total. The user approves the session via passkey.
+The `form-session-delegation` skill (Path B) derives the parameters (per-tx limit, total budget, TTL) from the charge. The user approves the session via passkey.
 
 Once the session is active (session ID is automatically saved in agent config), run checkout:
 ```bash
 kpass shop:checkout --confirmed --output json
 ```
-The checkout automatically uses the current session and deducts the cart total from its budget.
+The checkout automatically uses the current session and deducts the charge ($15.99) from its budget; the provider refunds the unused part of the cap to the wallet once the real total is known.
 
 **Agent says:**
 ```
@@ -156,10 +157,10 @@ The checkout automatically uses the current session and deducts the cart total f
 🎉 Order Placed!
 
 📦 Order ID:          ord_abc123
-🧾 Crossmint Order:   ce5bcec3-b6a0-...
-💰 Payment:           USDC on ethereum-sepolia
+🧾 Provider Order:    550e8400-e29b-41d4-a716-446655440000
+💰 Charged up front:  $15.99 USDC on base (cap 14.99 + $1 fee; unused part refunded)
 🔗 Tx Hash:           0xdeadbeef...
-📋 Status:            payment_submitted
+📋 Status:            pending
 
 Track with: kpass shop:order status --order-id ord_abc123 --output json
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -225,7 +226,7 @@ kpass shop:cart view --output json
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Estimated total: $32.82. Ready to checkout, or want to keep shopping?
+Subtotal: $32.82 (up to $40.38 will be charged at checkout — a $39.38 cap plus the $1 provider fee — and the unused part is refunded). Ready to checkout, or want to keep shopping?
 ```
 
 ---
@@ -260,7 +261,7 @@ kpass shop:cart add --provider amazon --external-id B0CXYYWL6G --quantity 2 --ou
 ```
 ⚠️ Checkout failed — your wallet doesn't have enough {currency} on {chain} to cover this order.
 
-Your cart total is approximately $9.99 in {currency}. You can check your wallet balance with the `wallet-send` skill, or fund your wallet before trying again.
+Checkout charges up to $15.99 in {currency} (the $14.99 cap plus the $1 provider fee). You can check your wallet balance with the `wallet-send` skill, or fund your wallet before trying again.
 ```
 
 **Agent does NOT auto-retry.** The user needs to fund the wallet first.

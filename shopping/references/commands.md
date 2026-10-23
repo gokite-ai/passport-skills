@@ -332,6 +332,7 @@ When complete:
      {line2}
      {city}, {state} {postal_code}
      {country}
+  📞 {phone}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
@@ -357,7 +358,7 @@ Omit `{line2}` from the card if it is empty.
 Merges provided fields into the shipping profile. Only pass fields that need updating — omitted fields are left unchanged.
 
 ```
-kpass shop:shipping update --name <NAME> --email <EMAIL> --line1 <ADDR> --city <CITY> --state <STATE> --postal <ZIP> --output json
+kpass shop:shipping update --name <NAME> --email <EMAIL> --line1 <ADDR> --city <CITY> --state <STATE> --postal <ZIP> --phone <PHONE> --output json
 ```
 
 ### Arguments
@@ -372,9 +373,10 @@ kpass shop:shipping update --name <NAME> --email <EMAIL> --line1 <ADDR> --city <
 | State/Province | `--state` | No* | Ask user | Non-empty string |
 | Postal/ZIP code | `--postal` | No* | Ask user | Non-empty string |
 | Country code | `--country` | No | Default: `US` | 2-letter country code |
+| Phone number | `--phone` | No* | Ask user | Digits, e.g. `2065550100`. Required by the retailer. |
 | Output format | `--output json` | Yes | Always pass | Literal value `json` |
 
-*Required if listed in `missing` from `shop:shipping view`.
+*Required if listed in `missing` from `shop:shipping view`. `--name` must be a first **and** last name — `missing` reports `name (first and last name)` otherwise.
 
 ### Success Output (exit code 0)
 
@@ -390,12 +392,12 @@ Show the updated shipping profile card. If now complete, proceed toward checkout
 
 Executes the checkout flow: validates cart and shipping, creates order, signs and broadcasts payment.
 
-**Timeout:** This command has a **5-minute timeout**. Checkout involves creating a Crossmint order, signing and broadcasting an on-chain transaction, and polling for receipt confirmation. This can take 1-3 minutes. The CLI shows a progress spinner with elapsed time in non-JSON mode. Do NOT treat a slow response as a failure — wait for the full timeout before giving up.
+**Timeout:** This command has a **5-minute timeout**. Checkout asks the provider for a payment challenge, signs an x402 payment from the user's wallet and submits the order in one round trip. It usually completes within a minute. The CLI shows a progress spinner with elapsed time in non-JSON mode. Do NOT treat a slow response as a failure — wait for the full timeout before giving up.
 
 **CRITICAL PREREQUISITES:**
 1. Cart must not be empty.
 2. Shipping profile must be complete.
-3. Agent must have an active spending session with sufficient budget to cover the cart total.
+3. Agent must have an active spending session with sufficient budget to cover the **checkout charge** (cap + $1 fee — see the Pre-Checkout Checklist), not just the cart subtotal.
 
 **CRITICAL: NEVER call this unless the user has explicitly confirmed the purchase.**
 
@@ -411,16 +413,17 @@ The CLI automatically resolves the session ID from the agent config (`current_se
 |----------|------|----------|--------|------------|
 | Confirmed | `--confirmed` | Yes | User must explicitly say "confirm", "buy now", "place order" | Must be present |
 | Session ID | `--session-id` | No | Auto-resolved from agent config. Only pass to override. | Must be an active session with sufficient budget |
+| Max total | `--max-total` | No | Only when the user names a ceiling ("don't spend more than $40") | USD amount ≥ cart subtotal, e.g. `40.00`. Replaces the default cap (subtotal + max(20%, $5)). The wallet is charged this + $1 up front; the unused part is refunded. |
 | Output format | `--output json` | Yes | Always pass | Literal value `json` |
 
 ### Pre-Checkout Checklist
 
 Before calling checkout, you MUST do ALL of the following in order:
 
-1. **Cart is not empty** — run `shop:cart view`. Calculate the estimated total by summing each item's price × quantity.
-2. **Shipping is complete** — run `shop:shipping view` and check `complete: true`.
+1. **Cart is not empty** — run `shop:cart view`. Calculate the **subtotal** by summing each item's price × quantity, then the **charge**: `cap = subtotal + max(0.2 × subtotal, 5.00)` (or the `--max-total` you will pass) and `charge = cap + 1.00`. One order holds at most 10 distinct items from one store.
+2. **Shipping is complete** — run `shop:shipping view` and check `complete: true` (phone and a first+last name are required).
 3. **Show confirmation dialog** — display the order summary card below and ask for explicit confirmation. Do NOT proceed without a "yes".
-4. **Active spending session** — if none exists, use the **`request-session`** skill (the cart total is the budget source — the `form-session-delegation` skill derives the session parameters from it, no 402 preflight needed), or bind an existing one with the **`attach-session`** skill. Sessions are protocol-agnostic and settlement-token-agnostic — there is no `assets` allowlist field — but a session locks to the first asset it settles in: an **unlocked** session, or one already **locked to the checkout's settlement asset** (`payment.currency` from `shop:cart view`), with sufficient remaining budget can be reused; a session locked to a different asset fails with `session_asset_forbidden` and needs a fresh session. Tell the user the estimated total so they know what they're approving.
+4. **Active spending session** — if none exists, use the **`request-session`** skill (the checkout **charge** is the budget source — the `form-session-delegation` skill's Path B derives the session parameters from it, no 402 preflight needed), or bind an existing one with the **`attach-session`** skill. A session whose per-tx limit is below the charge fails with `session_rule_exceeded`. Sessions are protocol-agnostic and settlement-token-agnostic — there is no `assets` allowlist field — but a session locks to the first asset it settles in: an **unlocked** session, or one already **locked to the checkout's settlement asset** (`payment.currency` from `shop:cart view`), with sufficient remaining budget can be reused; a session locked to a different asset fails with `session_asset_forbidden` and needs a fresh session. Tell the user the estimated total so they know what they're approving.
 
 **MANDATORY — You MUST show this confirmation card before calling checkout. No exceptions:**
 
@@ -438,7 +441,8 @@ Before calling checkout, you MUST do ALL of the following in order:
   {line1}
   {city}, {state} {postal_code}, {country}
 
-💰 Estimated total: {sum of price × quantity for all items}
+💰 Subtotal:        {sum of price × quantity for all items}
+🧾 Charged up front: {cap + $1.00}  (cap {cap} incl. tax & shipping, + $1 provider fee; the unused part is refunded to your wallet)
 💳 Payment: {currency} on {chain}
 
 ⚠️  Do you want to place this order?
@@ -451,22 +455,29 @@ Before calling checkout, you MUST do ALL of the following in order:
 | Shipping fields | From `shop:shipping view` response |
 | `{chain}` | From `shop:cart view` response field `payment.chain` |
 | `{currency}` | From `shop:cart view` response field `payment.currency` |
-| Estimated total | Sum of each item's price × quantity. Parse the `$X.XX` price strings. If a price cannot be parsed, show "see cart" instead of a number. |
+| Subtotal | Sum of each item's price × quantity. Parse the `$X.XX` price strings. If a price cannot be parsed, show "see cart" instead of a number. |
+| `{cap}` | `--max-total` if the user set one, else subtotal + max(20% of subtotal, $5.00). |
+| Charged up front | `{cap}` + $1.00. |
 
 **Only after the user responds with "yes", "confirm", "place order", or equivalent, proceed to create a session (if needed) and call `shop:checkout`.**
 
-**Session budget:** The checkout deducts the cart total from the session's spending budget. If the payment fails (e.g., insufficient balance), the reservation is released and the budget is restored. You do not need to manage the budget manually.
+**Session budget:** The checkout deducts the **charge** (cap + $1 fee) from the session's spending budget. If the payment fails (e.g., insufficient balance, provider rejection), the reservation is released and the budget is restored. The provider's later refund of the unused cap goes to the wallet, not back into the session budget. You do not need to manage the budget manually.
 
 ### Success Output (exit code 0)
 
 ```json
 {
   "order_id": "ord_abc123",
-  "crossmint_order_id": "ce5bcec3-b6a0-...",
-  "order_status": "payment_submitted",
-  "tx_hash": "0xdeadbeef...",
+  "provider": "zinc",
+  "provider_order_id": "550e8400-e29b-41d4-a716-446655440000",
+  "order_status": "pending",
+  "destination_tx_hash": "0xdeadbeef...",
+  "total_amount": "$18.49",
+  "max_total": "17.49",
+  "charged_amount": "18490000",
   "currency": "usdc",
-  "chain": "ethereum-sepolia",
+  "chain": "base",
+  "destination_chain": "base",
   "_version": "1",
   "status": "success",
   "hint": "Order placed. Order ID: ord_abc123.",
@@ -474,7 +485,7 @@ Before calling checkout, you MUST do ALL of the following in order:
 }
 ```
 
-**Note:** The envelope `status` field (`"success"`) is the CLI status. The `order_status` field (`"payment_submitted"`) is the payment provider's order status.
+**Note:** The envelope `status` field (`"success"`) is the CLI status. `order_status` is the order's own state: `pending` (provider is placing it with the retailer), `completed` (placed; `total_amount` becomes the actual total + fee and `refund_details` shows the refunded difference), `failed`/`refunded` (full refund by the provider). `total_amount` is what was charged up front (cap + $1); `charged_amount` is the same in USDC base units (6 decimals). `crossmint_order_id` only appears on orders placed before the provider switch.
 
 ### Error Output — Cart Empty (exit code 2, `error_code: "cart_empty"`)
 
@@ -502,7 +513,7 @@ Recovery: You called checkout without `--confirmed`. The `--confirmed` flag is r
 ```json
 {"status": "error", "error": "No active session."}
 ```
-Recovery: Create a spending session first using the **`request-session`** skill with the cart total as budget.
+Recovery: Create a spending session first using the **`request-session`** skill with the checkout charge (cap + $1 fee) as the budget source.
 
 ### Error Output — No Session Private Key (exit code 3)
 
@@ -523,14 +534,14 @@ Recovery: The session credentials don't match what the server expects. Re-create
 ```json
 {"_version": "1", "status": "error", "error": "payment amount exceeds max_total_amount", "error_code": "session_total_exceeded", "hint": "Payment amount exceeds the session's total budget. Create a new session with a higher --max-total-amount.", "next_command": ""}
 ```
-Recovery: The session budget is too small for the cart total. Create a new session with a higher budget using the **`request-session`** skill.
+Recovery: The session budget is too small for the checkout charge (cap + $1 fee, not the bare subtotal). Create a new session with a higher budget using the **`request-session`** skill.
 
 ### Error Output — Per-Transaction Limit Exceeded (exit code 6, `error_code: "session_rule_exceeded"`)
 
 ```json
 {"_version": "1", "status": "error", "error": "payment amount exceeds max_amount_per_tx", "error_code": "session_rule_exceeded", "hint": "Payment amount exceeds the session's per-transaction limit. Create a new session with a higher --max-amount-per-tx.", "next_command": ""}
 ```
-Recovery: The cart total exceeds the session's per-transaction limit. Create a new session with a higher `--max-amount-per-tx`.
+Recovery: The checkout charge (cap + $1 fee) exceeds the session's per-transaction limit. Create a new session with a higher `--max-amount-per-tx`, sized per Path B of **`form-session-delegation`**.
 
 ### Error Output — Wallet Not Found (exit code 4)
 
@@ -557,9 +568,35 @@ Recovery: The cart total exceeds the system's per-transaction cap. Try splitting
 
 The payment service may be temporarily paused or unavailable. The CLI will return exit code 1 with a message like `"treasury relay is paused"` or `"too many undercollected payments, relay paused until resolved"`. Recovery: Wait and retry after a few minutes. This is a transient infrastructure issue.
 
+### Error Output — Order Rejected by Provider (exit code 2, `error_code: "checkout_rejected_by_merchant"`)
+
+```json
+{"_version": "1", "status": "error", "error": "checkout rejected by merchant: The shipping address failed validation", "error_code": "checkout_rejected_by_merchant", "hint": "", "next_command": ""}
+```
+Recovery: Nothing was charged. Read `error`: fix the shipping profile (address/phone), remove an item the provider cannot order, or lower the quantity, then retry.
+
+### Error Output — Cart Limits (exit code 2, `error_code: "shop_cart_too_large"` / `"shop_cart_mixed_retailers"`)
+
+Recovery: One order holds at most 10 distinct items from a single store. Remove items or split into two checkouts.
+
+### Error Output — Invalid Max Total (exit code 2, `error_code: "shop_max_total_invalid"`)
+
+Recovery: `--max-total` must be a USD amount at or above the cart subtotal. Raise it or omit it.
+
+### Error Output — Provider Payment Not Settleable (exit code 1, HTTP 502, `error_code: "shop_provider_quote_mismatch"` / `"shop_provider_no_settleable_rail"` / `"shop_provider_payment_rejected"`)
+
+Recovery: No money moved. Retry once after a minute. If it persists, tell the user the checkout provider cannot be paid right now and stop.
+
+### Error Output — Outcome Unknown (exit code 1, `error_code: "shop_checkout_in_flight"`)
+
+```json
+{"_version": "1", "status": "error", "error": "checkout outcome unknown; check order list before retrying: ...", "error_code": "shop_checkout_in_flight", "hint": "", "next_command": "kpass shop:order list --output json"}
+```
+Recovery: The payment was sent but the provider's answer was lost. Run `shop:order list`. If the latest order is `failed` with no `provider_order_id`, retry the same checkout: it re-presents the same idempotency key, so a placed order is recovered instead of charged twice.
+
 ### Error Output — Payment Provider Timeout (exit code 1)
 
-The CLI has a 5-minute timeout for checkout. If it still times out, the payment may have been submitted on-chain but the receipt wasn't confirmed in time. Check `shop:order list` to see if the order was recorded, and `kpass activity` to see the payment attempt status. Retry only after verifying the previous attempt didn't succeed.
+The CLI has a 5-minute timeout for checkout. If it still times out, the payment may have been sent but the provider's answer was not received in time. Check `shop:order list` to see if the order was recorded, and `kpass activity` to see the payment attempt status. Retrying the same cart is safe (same idempotency key) once you have confirmed there is no placed order.
 
 ### What to Do After This Command
 
@@ -570,8 +607,8 @@ The CLI has a 5-minute timeout for checkout. If it still times out, the payment 
 🎉 Order Placed!
 
 📦 Order ID:          {order_id}
-🧾 Crossmint Order:   {crossmint_order_id}
-💰 Payment:           {currency} on {chain}
+🧾 Provider Order:    {provider_order_id}
+💰 Charged up front:  {total_amount} {currency} on {chain} (cap {max_total} + $1 fee; unused part refunded)
 🔗 Tx Hash:           {tx_hash}
 📋 Status:            {order_status}
 
@@ -582,10 +619,12 @@ Track with: kpass shop:order status --order-id {order_id} --output json
 | Placeholder | Source |
 |---|---|
 | `{order_id}` | From JSON field `order_id` |
-| `{crossmint_order_id}` | From JSON field `crossmint_order_id` |
+| `{provider_order_id}` | From JSON field `provider_order_id` (fall back to `crossmint_order_id` on older orders) |
+| `{total_amount}` | From JSON field `total_amount` |
+| `{max_total}` | From JSON field `max_total` |
 | `{currency}` | From JSON field `currency` — uppercase (e.g., `USDC`) |
 | `{chain}` | From JSON field `chain` |
-| `{tx_hash}` | From JSON field `tx_hash` |
+| `{tx_hash}` | From JSON field `destination_tx_hash` (or `tx_hash` when present) |
 | `{order_status}` | From JSON field `order_status` |
 
 ---
@@ -610,18 +649,26 @@ kpass shop:order status --order-id <ID> --output json
 ```json
 {
   "order_id": "ord_abc123",
-  "crossmint_order_id": "ce5bcec3-...",
-  "phase": "completed",
-  "payment_status": "confirmed",
-  "tx_hash": "0xdeadbeef...",
+  "provider": "zinc",
+  "provider_order_id": "550e8400-e29b-41d4-a716-446655440000",
+  "status": "completed",
+  "payment_status": "settled",
+  "destination_tx_hash": "0xdeadbeef...",
+  "total_amount": "$15.49",
+  "max_total": "17.49",
+  "charged_amount": "18490000",
+  "merchant_order_ids": ["113-1234567-1234567"],
+  "refund_details": {"status": "completed", "amount": "3000000", "currency": "usdc", "chain": "base"},
   "currency": "usdc",
-  "chain": "ethereum-sepolia",
+  "chain": "base",
   "_version": "1",
   "status": "success",
   "hint": "Order ord_abc123: completed",
   "next_command": ""
 }
 ```
+
+`status` values: `pending` (being placed), `completed` (placed with the retailer — `merchant_order_ids` is the retailer's order number and `refund_details.amount` the unused cap refunded to the wallet, in USDC base units), `failed` (`failure_reason` carries the provider code, e.g. `max_price_exceeded`, `out_of_stock`; the full charge is refunded), `refunded` (cancelled by the retailer; full refund). `payment_status`: `charged` → `settled` | `refunded`.
 
 **Note:** This endpoint does NOT include delivery status. For delivery tracking, use `shop:order delivery`.
 
@@ -650,7 +697,7 @@ If the user asks about delivery or tracking, use `shop:order delivery` instead.
 
 ## `shop:order delivery` — Check Delivery Status
 
-Fetches the latest delivery status from the payment provider. Unlike `shop:order status` (which uses cached data for completed orders), this always makes a live API call to get real-time delivery and tracking info.
+Fetches the latest delivery status from the checkout provider. Unlike `shop:order status` (which uses cached data for completed orders), this always makes a live API call to get real-time delivery and tracking info.
 
 ```
 kpass shop:order delivery --order-id <ID> --output json
@@ -668,25 +715,27 @@ kpass shop:order delivery --order-id <ID> --output json
 ```json
 {
   "order_id": "ord_abc123",
-  "crossmint_order_id": "ce5bcec3-...",
-  "delivery_status": "shipped",
+  "provider": "zinc",
+  "provider_order_id": "550e8400-e29b-41d4-a716-446655440000",
+  "delivery_status": "in_transit",
   "tracking_number": "1Z999AA10123456784",
-  "tracking_url": "https://track.example.com/1Z999AA10123456784",
-  "carrier": "UPS",
-  "estimated_arrival": "2026-04-10",
+  "carrier": "ups",
+  "estimated_delivery_min": "2026-10-28",
+  "estimated_delivery_max": "2026-10-28",
+  "recipient": {"physical_address": {"name": "Alice Test", "line1": "123 Test St", "city": "Seattle", "state_or_region": "WA", "postal_code": "98101", "country": "US"}},
   "_version": "1",
   "status": "success",
-  "hint": "Order ord_abc123 delivery: shipped",
+  "hint": "Order ord_abc123 delivery: in_transit",
   "next_command": ""
 }
 ```
 
 **Key fields:**
-- `delivery_status` — Current delivery state (e.g., `"pending"`, `"shipped"`, `"delivered"`, `"unknown"`).
+- `delivery_status` — Current delivery state: `processing` (order still being placed), `awaiting_shipment` (placed, no tracking yet), then the carrier states `pending`, `in_transit`, `delivered`; `failed` / `cancelled` when the order did not go through; `unknown` if the provider returned nothing.
 - `tracking_number` — Carrier tracking number (may be empty if not yet shipped).
 - `tracking_url` — URL to track the shipment (may be empty).
 - `carrier` — Shipping carrier name (may be empty).
-- `estimated_arrival` — Estimated delivery date (may be empty).
+- `estimated_delivery_min` / `estimated_delivery_max` — Estimated delivery date (may be empty).
 
 ### What to Do After This Command
 
@@ -701,7 +750,7 @@ kpass shop:order delivery --order-id <ID> --output json
   🏢 Carrier:   {carrier}
   🔢 Tracking:  {tracking_number}
   🔗 Track URL: {tracking_url}
-  📅 ETA:       {estimated_arrival}
+  📅 ETA:       {estimated_delivery_min}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 

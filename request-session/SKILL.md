@@ -39,7 +39,7 @@ Where `<skill-directory>` is the directory containing this SKILL.md file (e.g., 
 ## When to Use This Skill
 
 - The user asks you to make a payment, access a paid API, or perform any action that requires spending.
-- The **`shopping`** skill needs a session before checkout. The cart total is the budget source — no 402 preflight needed.
+- The **`shopping`** skill needs a session before checkout. The checkout charge (cart subtotal + the provider's price-cap headroom + $1 fee — see Path B in **`form-session-delegation`**) is the budget source — no 402 preflight needed.
 - Another skill (e.g., `x402-execute`) fails with "Agent not registered" or "No session specified".
 - You need to create a new spending session because the previous one expired or was consumed.
 - The user wants to see their active sessions.
@@ -93,7 +93,7 @@ account budget, and eligibility changes belong to the owner in the dashboard.
 
 ## Sessions Are Protocol-Agnostic
 
-A separately approved legacy session is fungible across paid-API and shopping flows. The account allowance has the narrower payment support described above. The settlement protocol (x402, paygate, tempo, or crossmint checkout) is detected at execute time from the merchant's preflight response — the delegation does **not** carry a protocol field. The authorization boundary is per-tx / total spending caps (`max_amount_per_tx` / `max_total_amount`, denominated in `payment_policy.currency`, default `USD`) plus optional `execution_constraints` endpoint scoping — there is **no `assets` allowlist field** and the caps are never expressed per-asset. The settlement asset itself is a separate, merchant-selected concern: the merchant's 402 dictates which token settles (normalized into the budget currency for cap enforcement), and the session locks to that first settled asset automatically (single-asset lock) — this lock is an emergent side effect of settlement, not a user-configurable allowlist. See the **`form-session-delegation`** skill for the full schema.
+A separately approved legacy session is fungible across paid-API and shopping flows. The account allowance has the narrower payment support described above. The settlement protocol (x402, paygate, tempo, or the shopping checkout) is detected at execute time from the merchant's preflight response — the delegation does **not** carry a protocol field. The authorization boundary is per-tx / total spending caps (`max_amount_per_tx` / `max_total_amount`, denominated in `payment_policy.currency`, default `USD`) plus optional `execution_constraints` endpoint scoping — there is **no `assets` allowlist field** and the caps are never expressed per-asset. The settlement asset itself is a separate, merchant-selected concern: the merchant's 402 dictates which token settles (normalized into the budget currency for cap enforcement), and the session locks to that first settled asset automatically (single-asset lock) — this lock is an emergent side effect of settlement, not a user-configurable allowlist. See the **`form-session-delegation`** skill for the full schema.
 
 For the full delegation schema and derivation rules, see the **`form-session-delegation`** skill.
 
@@ -110,7 +110,7 @@ The user MUST be authenticated before using this skill. If not logged in (exit c
 | Output format | `--output json` | Always use JSON output. Never omit this flag. |
 | Agent type | Your own agent identity (e.g., `claude` for Claude Code, `cursor` for Cursor, `codex` for Codex, `cline` for Cline, `grok-bot` for Grok Bot) | Never ask the user. Each agent passes its own name automatically. |
 | TTL | `3600` (1 hour) in delegation `ttl_seconds` | Use 1 hour unless the user specifies a different duration. |
-| Max amount per tx | Derive automatically from 402 preflight response OR from a known amount (e.g., shopping cart total) | Never ask the user for this. See **`form-session-delegation`** for derivation rules. |
+| Max amount per tx | Derive automatically from 402 preflight response OR from a known amount (e.g., the shopping checkout charge) | Never ask the user for this. See **`form-session-delegation`** for derivation rules. |
 | Max total amount | Derive automatically: per-tx price × estimated requests, or equal to per-tx for single transactions (e.g., shopping checkout) | Never ask the user. See **`form-session-delegation`** for derivation rules. |
 | Base URL | Omit (uses built-in default) | Only pass `--base-url` if the user explicitly provides a custom backend URL. |
 
@@ -151,7 +151,7 @@ Running `kpass session list --status active --output json` is now optional — u
 
 ### Shopping Checkout — Skip Steps 3–4
 
-If this session is being created for the **`shopping`** skill's checkout (the cart total is already known), skip Steps 3–4 entirely — do not ask for a merchant URL and do not curl anything. Go directly to Step 5 using Path B from the **`form-session-delegation`** skill (budget derived from the cart total, no `execution_constraints`). Steps 3–4 remain mandatory for every non-shopping flow (paid-API access via a merchant URL).
+If this session is being created for the **`shopping`** skill's checkout (the cart subtotal is already known), skip Steps 3–4 entirely — do not ask for a merchant URL and do not curl anything. Go directly to Step 5 using Path B from the **`form-session-delegation`** skill (budget derived from the checkout charge — subtotal + price-cap headroom + $1 provider fee — no `execution_constraints`). Steps 3–4 remain mandatory for every non-shopping flow (paid-API access via a merchant URL).
 
 ### Step 3: Get Merchant URL
 
