@@ -11,10 +11,12 @@ Sends an HTTP request through the Passport backend, which handles payment negoti
 **Timeout:** This command has a **5-minute timeout**. Payment operations involve on-chain transaction broadcasting and receipt polling, which can take 1-3 minutes. Payment now settles on the merchant's advertised network — on mainnet **base, Polygon, Avalanche, tempo, solana, Robinhood Chain, or Arc** (`eip155:5042`); on the dev environment **Arc testnet only** (`eip155:5042002`, no cross-chain routing); a **cross-chain routed settlement (or a Solana settlement) can take ~90 seconds, and the whole flow up to ~2 minutes**. The CLI shows a progress spinner with elapsed time in non-JSON mode. Do NOT treat a slow response as a failure — wait for the full timeout before giving up.
 
 ```
-kpass session execute --url <URL> --output json
+kpass session execute --url <URL> --method <METHOD> --idempotency-key <KEY> --output json
 ```
 
-Full form with additional flags (the idempotency key is required for recurring payments):
+**Who pays:** a usable current session the user approved is used as is. When no usable session is current (none, pending, revoked, expired), the CLI binds the owner's account allowance and pays from it, with no approval request. This bind is the same one `kpass session create --output json` makes; it creates no budget and moves no money.
+
+Full form with additional flags (the idempotency key is required for every account allowance payment; always pass it):
 
 ```
 kpass session execute \
@@ -36,7 +38,8 @@ kpass session execute \
 | Request headers | `--headers` | No | Only if target API requires custom headers | Must be a valid JSON object string (key-value pairs) |
 | Request body | `--body` | No | Only if the request needs a payload | Must be a valid JSON string |
 | Session ID | `--session-id` | No | Auto-read from agent config | Only pass to override the current session |
-| Operation key | `--idempotency-key` | For recurring payments | Generate once for each new payment; retain with the original request | Reuse the same key and identical request for a transport retry; never change it to bypass a pending or unknown outcome |
+| Use the allowance | `--use-allowance` | No | Only after the user said yes to paying from the account allowance instead of a used-up (or current) separate session | Boolean flag. Cannot be combined with `--session-id`. |
+| Operation key | `--idempotency-key` | Yes for allowance payments (always pass it) | A new random UUID for each new payment; keep it with the original request | Reuse the same key and identical request for any retry; never change it to get past a pending or unknown outcome. Without it, an allowance payment is refused before sending (`idempotency_key_required`) with a ready `next_command` |
 | Output format | `--output json` | Yes | Always pass | Literal value `json` |
 
 Check `kpass session execute --help` for `--idempotency-key` before using a recurring session. If the installed CLI lacks it, upgrade before executing; do not drop the key. The flag is forwarded as the `Idempotency-Key` header to Passport, not as a merchant request header.
@@ -138,9 +141,30 @@ See SKILL.md for the mandatory display card to show after this step.
 **"--body must be a valid JSON string" (exit code 2):**
 - The `--body` value is not valid JSON. Check for proper quoting and JSON syntax.
 
+**"Payments from the account allowance need --idempotency-key" (exit code 2, `error_code: "idempotency_key_required"`):**
+- Nothing was sent. Run the CLI's `next_command`; it carries a new key. Keep that key for any retry of this payment.
+
+**"The account allowance cannot pay" (exit code 4, `error_code: "allowance_unavailable"`):**
+- No usable session was current and the account has no allowance (or this Passport has none yet: an older backend answers the bind with a bare 404, which the CLI reports with this same code). Put `user_message` in your reply; it has the owner's dashboard link when the backend sends one. A separate spending session goes through **`request-session`**, which tells the user before any passkey request.
+
+**"The account allowance cannot pay: the owner turned it off for this agent" (exit code 6, `error_code: "allowance_disabled"`):**
+- Put `user_message` in your reply. Do not create a session on your own.
+
+**"Allowance used up" (exit code 6, `error_code: "recurring_budget_exhausted"`):**
+- The hint and `user_message` say why and until when (reset date with time and UTC). With a newer backend the CLI names the cause: over the per-call limit (`details.reason: "per_call_cap"`), or too little left this period (`"period_remaining"`), with the amounts. Tell the user once; do not switch sessions or budgets. A separate spending session goes through **`request-session`**.
+
+**"Allowance cannot cover this price" (exit code 6, `error_code: "allowance_too_small"`):**
+- Only from `session create --price`: the quoted price is over the per-call limit or over what is left. Same handling as used up.
+
+**"Payment outcome pending" (exit code 7, `error_code: "payment_outcome_pending"` or `"recurring_payment_unknown"`, `retriable: true`):**
+- A signed payment for this key was sent and its result is not known yet. `details.tx_hash` holds the merchant's settlement hash when it gave one; `details.retry_after_seconds` is 60.
+- Tell the user it may have gone through and is being checked, and that nothing new was charged. Retry ONCE later with the CLI's `next_command` (the SAME key). If it is still pending, stop: the owner's Activity will show the result. Never use a new key, never create a new session.
+
+**"Payment not settled" (exit code 7, `error_code: "payment_not_settled"`, `retriable: true`):**
+- The earlier attempt with this key was not charged. If the user still wants the result, run the CLI's `next_command` once; it carries a NEW key.
+
 **"No active session specified" (exit code 2):**
-- No `--session-id` was passed and no `current_session_id` is set in the agent config.
-- Use the **`request-session`** skill to create and approve a session first.
+- Only when you passed no `--session-id` and the CLI could not use the account allowance in sandbox mode. Otherwise the CLI uses the allowance.
 
 **"Agent not registered" (exit code 3):**
 - Use the **`request-session`** skill: run `agent:register --type <agent-type> --output json`. (The `--type` is your own agent identity — `claude`, `cursor`, `codex`, `cline`, etc. — never user-provided.)
@@ -149,17 +173,18 @@ See SKILL.md for the mandatory display card to show after this step.
 - The user switched accounts. Re-register with `agent:register --type <agent-type> --output json`.
 
 **"Asset not allowed by delegation" (exit code 6, `error_code: "session_asset_forbidden"`):**
-- The payment required by the target service uses an asset not listed in the session's `delegation.payment_policy.assets`. Create a new session with the correct asset in the delegation.
+- The payment required by the target service uses an asset not listed in the session's `delegation.payment_policy.assets`. Tell the user; a new separate session with the correct asset goes through `request-session` (`--separate --preview` first, then their yes).
 
 **"Endpoint not in allowed scope" (exit code 6, `error_code: "session_endpoint_forbidden"`):**
-- The target URL (method + host + path) does not match any entry in the session's `delegation.execution_constraints.x402.allowed_endpoints`. Either create a new session with broader scope, or create one without execution constraints.
-- **Hitting this on a job/poll URL right after a successful paid call** means the delegation only scoped the generate endpoint. Prevent it up front: when building the delegation for a generation-style merchant (Async Paid Goods pattern above), scope the poll/status path alongside the generate path in the *same* session — see form-session-delegation's "Async job/poll merchants" rule; this avoids the extra passkey approval entirely. If the error has already happened, the fix above doesn't apply retroactively — create a new session with corrected scope as usual, then resume by polling the **existing** job (do not repeat the paid generation call — see Async Paid Goods above).
+- The target URL (method + host + path) does not match any entry in the session's `delegation.execution_constraints.x402.allowed_endpoints`. Tell the user; a new separate session with broader scope (or without execution constraints) goes through `request-session` (`--separate --preview` first, then their yes).
+- **Hitting this on a job/poll URL right after a successful paid call** means the delegation only scoped the generate endpoint. Prevent it up front: when building the delegation for a generation-style merchant (Async Paid Goods pattern above), scope the poll/status path alongside the generate path in the *same* session — see form-session-delegation's "Async job/poll merchants" rule; this avoids the extra passkey approval entirely. If the error has already happened, the fix above doesn't apply retroactively — ask for a new separate session with corrected scope as usual (preview, then the user's yes), then resume by polling the **existing** job (do not repeat the paid generation call — see Async Paid Goods above).
 
 **"Amount exceeds per-transaction limit" (exit code 6, `error_code: "session_rule_exceeded"`):**
-- The payment amount for this request exceeds the session's `delegation.payment_policy.max_amount_per_tx`. Create a new session with a higher per-tx limit.
+- The payment amount for this request exceeds the session's `delegation.payment_policy.max_amount_per_tx`. Tell the user; a new separate session with a higher per-call limit goes through `request-session` (preview, then their yes).
 
-**"Total spend would exceed budget" (exit code 6, `error_code: "session_total_exceeded"`):**
-- The session's `delegation.payment_policy.max_total_amount` would be exceeded by this payment. Check `usage.spent_total` to see how much has been spent. Create a new session with a larger budget if needed.
+**"Total spend would exceed budget" (exit code 6, `error_code: "session_total_exceeded"`), and later "The separate spending session ... is used up" (exit code 6, `error_code: "separate_session_used_up"`, nothing sent):**
+- The separate session the user approved is used up. The CLI marks it, so no later `create` or `execute` moves its payments to the account allowance on its own.
+- Stop and put the CLI's `user_message` in your reply. With the user's yes: a new separate session (`request-session`, preview first), or pay from the allowance by adding `--use-allowance` to the execute command.
 
 **"Insufficient balance" (exit code 6, `error_code: "insufficient_balance"`):**
 - The user's wallet does not have enough funds for this payment. Use the **`wallet-send`** skill to check balance and fund the wallet before retrying.
@@ -227,5 +252,5 @@ Before running the command, verify:
 2. **Method:** Always set explicitly — from discovery metadata, or inferred per the **Defaults** rule (do not rely on the CLI's implicit `POST` fallback; it is wrong for GET-only endpoints).
 3. **Headers JSON:** If specified, must be a valid JSON object. Wrap with single quotes for shell safety.
 4. **Body JSON:** If specified, must be valid JSON. Wrap with single quotes for shell safety. Built from the endpoint's `example_request` when the catalog carries one (see **Constructing the Request Body**).
-5. **Session exists:** Ensure an active session is set (via `session status --wait` or `session use`).
-6. **Budget remaining:** Before executing, consider checking `usage.spent_total` against `delegation.payment_policy.max_total_amount` to ensure there is sufficient budget remaining for the request.
+5. **Idempotency key:** a new UUID for this payment (the same one on any retry of it).
+6. **Something to pay from:** nothing to check for the account allowance; the CLI binds it. With a separately approved session, you may check `usage.spent_total` against `delegation.payment_policy.max_total_amount`.

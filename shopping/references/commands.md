@@ -420,7 +420,7 @@ Before calling checkout, you MUST do ALL of the following in order:
 1. **Cart is not empty** — run `shop:cart view`. Calculate the estimated total by summing each item's price × quantity.
 2. **Shipping is complete** — run `shop:shipping view` and check `complete: true`.
 3. **Show confirmation dialog** — display the order summary card below and ask for explicit confirmation. Do NOT proceed without a "yes".
-4. **Active spending session** — if none exists, use the **`request-session`** skill (the cart total is the budget source — the `form-session-delegation` skill derives the session parameters from it, no 402 preflight needed), or bind an existing one with the **`attach-session`** skill. Sessions are protocol-agnostic and settlement-token-agnostic — there is no `assets` allowlist field — but a session locks to the first asset it settles in: an **unlocked** session, or one already **locked to the checkout's settlement asset** (`payment.currency` from `shop:cart view`), with sufficient remaining budget can be reused; a session locked to a different asset fails with `session_asset_forbidden` and needs a fresh session. Tell the user the estimated total so they know what they're approving.
+4. **Active spending session** — if none exists, use the **`request-session`** skill with `--separate` (the account allowance never pays checkouts; the cart total is the budget source — the `form-session-delegation` skill derives the session parameters from it, no 402 preflight needed), or bind an existing one with the **`attach-session`** skill. Sessions are protocol-agnostic and settlement-token-agnostic — there is no `assets` allowlist field — but a session locks to the first asset it settles in: an **unlocked** session, or one already **locked to the checkout's settlement asset** (`payment.currency` from `shop:cart view`), with sufficient remaining budget can be reused; a session locked to a different asset fails with `session_asset_forbidden` and needs a fresh session. Tell the user the estimated total so they know what they're approving.
 
 **MANDATORY — You MUST show this confirmation card before calling checkout. No exceptions:**
 
@@ -521,16 +521,16 @@ Recovery: The session credentials don't match what the server expects. Re-create
 ### Error Output — Session Budget Exceeded (exit code 6, `error_code: "session_total_exceeded"`)
 
 ```json
-{"_version": "1", "status": "error", "error": "payment amount exceeds max_total_amount", "error_code": "session_total_exceeded", "hint": "Payment amount exceeds the session's total budget. Create a new session with a higher --max-total-amount.", "next_command": ""}
+{"_version": "1", "status": "error", "error": "payment amount exceeds max_total_amount", "error_code": "session_total_exceeded", "hint": "This spending session is used up. Stop and tell the user. Do not switch on your own: a new separate session (create --separate --preview first) or paying from the account allowance (--use-allowance) needs their yes.", "next_command": ""}
 ```
-Recovery: The session budget is too small for the cart total. Create a new session with a higher budget using the **`request-session`** skill.
+Recovery: The checkout session's budget is too small for the cart total. Stop and put the CLI's `user_message` in your reply. A new checkout session needs the user's yes: **`request-session`** with `--separate` (preview first). The account allowance never pays checkouts.
 
 ### Error Output — Per-Transaction Limit Exceeded (exit code 6, `error_code: "session_rule_exceeded"`)
 
 ```json
-{"_version": "1", "status": "error", "error": "payment amount exceeds max_amount_per_tx", "error_code": "session_rule_exceeded", "hint": "Payment amount exceeds the session's per-transaction limit. Create a new session with a higher --max-amount-per-tx.", "next_command": ""}
+{"_version": "1", "status": "error", "error": "payment amount exceeds max_amount_per_tx", "error_code": "session_rule_exceeded", "hint": "Payment amount exceeds the session's per-transaction limit. Tell the user. A new separate session with a higher per-call limit needs their yes: run create with --separate --preview first.", "next_command": ""}
 ```
-Recovery: The cart total exceeds the session's per-transaction limit. Create a new session with a higher `--max-amount-per-tx`.
+Recovery: The cart total exceeds the session's per-transaction limit. Tell the user. A new checkout session with a higher per-call limit needs their yes: **`request-session`** with `--separate` (preview first).
 
 ### Error Output — Wallet Not Found (exit code 4)
 

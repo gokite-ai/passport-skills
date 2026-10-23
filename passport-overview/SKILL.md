@@ -97,18 +97,17 @@ When the user asks what Passport could do for them, or asks for triage or sugges
 - Before a paid call, tell the user the service, what comes back and the price, and get a yes for
   that call. The user's yes covers that service at that price, nothing else.
 - To pay, register this agent once (`kpass agent:register --type <your agent name> --output json`,
-  as the request-session skill shows), then run `kpass session create --output json`. Exit 0 means
-  the account allowance covers it: go on to the x402-execute skill, and give `kpass session
-  execute` an `--idempotency-key` (a new random ID for each payment, the same one on a retry),
-  which allowance payments require. Any result other than exit 0 or exit 3, whatever the code or
-  message (for example exit 4 with `allowance_unavailable`, exit 6 with `allowance_disabled`, or
-  a bare not found), means the allowance can't pay here (if the hint has a dashboard link, pass
-  it on once): load the request-session skill and follow it. It checks the price for free, shows
-  the user a session limited to this one service, with a per-call and a total limit, and asks
-  before it requests the passkey approval. Then use x402-execute. Don't run the flags-only
-  `kpass session create` that `kpass status` or an expired request suggests: it can't limit the
-  session to one service. Exit 3 means sign in first (the authenticate-user skill), unless the
-  message says to register this agent: then register it as above.
+  as the request-session skill shows), then use the x402-execute skill: `kpass session execute`
+  pays from the account allowance on its own, with no approval request. Give it an
+  `--idempotency-key` (a new random ID for each payment, the same one on a retry), which allowance
+  payments require. If the CLI says the allowance can't pay (exit 4 `allowance_unavailable`, exit 6
+  `allowance_disabled` or `recurring_budget_exhausted`), put its `user_message` in your reply once
+  (it carries the dashboard link or the reset date), then load the request-session skill. It runs
+  the CLI's `--separate --preview` step, which writes the question for the user (the service you
+  will call, a per-call and a total limit, how long it lasts), and it creates the passkey request
+  only after the user's yes. The service named there is information, not a limit: endpoint limits
+  are not enforced on paid calls. Exit 3 means sign in first (the authenticate-user skill), unless
+  the message says to register this agent: then register it as above.
 - If the call fails, or a different service would do the job better, say what happened and name the
   other service and its price, then ask again before paying it. A silent switch breaks the promise
   that the agent asks before spending, and Claude Code's auto mode blocks a payment that doesn't

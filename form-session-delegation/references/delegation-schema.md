@@ -54,7 +54,7 @@ Do not concatenate raw field values into a literal command string, and do not sk
 | `delegation.payment_policy.currency` | Optional | Budget denomination for the caps; backend defaults to `USD`. There is no `assets` field — the settlement token is merchant-driven and the session locks to the first settled asset automatically. |
 | `delegation.payment_policy.max_total_amount` | Optional | Total budget. Recommended when task has bounded spend. |
 | `delegation.execution_constraints` | Optional | Only when endpoint scope is known and stable |
-| `delegation.execution_constraints.x402.allowed_endpoints` | Required when `scope_mode == "scoped"` | Each entry needs `method`, `host`, `path_prefix` |
+| `delegation.execution_constraints.x402.allowed_endpoints` | Required when `scope_mode == "scoped"` | Each entry needs `method`, `host`, `path_prefix`. Recorded with the session; not enforced on paid calls today (since 2026-04-29), so never tell the user the session is limited to these endpoints. |
 | `delegation.routing_enabled` | Optional | Top-level boolean **override**. Omitted → inherits the server's routing config (**enabled** on the Kite multichain deployment, so cross-chain bridge/swap is automatic when the merchant's chain differs from where funds sit — the agent need not set this). Set `false` to force same-chain-only. See Construction Rule 7. |
 | `delegation.routing_cost_cap_usd_micros` | Optional | Top-level integer. Max routing cost (bridge + swap fees) to tolerate, in USD micros (1 USD = 1,000,000). Bounds the cost whenever a payment is routed. Omitted → backend's configured default cap (may be non-zero); `0` = no cap. |
 
@@ -290,7 +290,7 @@ Note: No `execution_constraints` needed for checkout — the backend handles the
 
 ## Practical Heuristics
 
-**The agent should autonomously decide all session parameters. Never ask the user for individual parameter values.** The user's only interaction is confirming the "Proposed Session Parameters" card.
+**The agent should autonomously decide all session parameters. Never ask the user for individual parameter values.** The user's only interaction is answering the CLI preview (`session create --separate --preview`), whose `user_message` you put in your reply.
 
 There are two derivation paths depending on the context:
 
@@ -334,7 +334,7 @@ Before passing the delegation to `session create`, verify:
 ## What Not To Do
 
 Do not:
-- **Ask the user for tx limits, total budget, or TTL** -- derive these automatically from the 402 response and task context. The user confirms via the "Proposed Session Parameters" card, not by answering questions about individual parameters.
+- **Ask the user for tx limits, total budget, or TTL** -- derive these automatically from the 402 response and task context. The user answers the CLI preview's question, not questions about individual parameters.
 - **Wrap the delegation in `{"delegation": {...}}`** -- the CLI wraps it automatically. Pass only the inner object: `{"task":{...},"payment_policy":{...}}`. Double-wrapping causes exit code 2.
 - Set a protocol field on the delegation -- sessions are protocol-agnostic; the settlement protocol is detected per request from preflight. The legacy `allowed_payment_approaches` field is silently ignored by the backend if you include it; don't.
 - Put hidden reasoning or internal notes into the delegation

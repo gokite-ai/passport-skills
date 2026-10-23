@@ -40,7 +40,7 @@ The authorization boundary is:
 - **Single-asset lock** — once a session has settled in one asset, the backend rejects subsequent transactions in any other asset.
 - **TTL** (`ttl_seconds`) — session lifetime.
 
-Optional `execution_constraints` can narrow what the session can do (e.g. `x402.allowed_endpoints` restricts the session to specific paid-API endpoints). `execution_constraints.card.enabled = true` requests a **session-bound scoped virtual card** (issued at approval, spending limit = `max_total_amount`, multi-use until the limit is reached or it expires) — for merchants that take a card rather than x402/wallet transfer. Prefer creating this via `session create --use-card` in the **`request-session`** skill, which also pre-flights card KYC and backend cards support; only hand-embed `card.enabled` in a raw delegation if you deliberately need to bypass those pre-flight checks.
+Optional `execution_constraints` can narrow what the session can do (e.g. `x402.allowed_endpoints` records which paid-API endpoints the session is for; it is recorded with the session but not enforced on paid calls today, so never present it to the user as a limit). `execution_constraints.card.enabled = true` requests a **session-bound scoped virtual card** (issued at approval, spending limit = `max_total_amount`, multi-use until the limit is reached or it expires) — for merchants that take a card rather than x402/wallet transfer. Prefer creating this via `session create --use-card` in the **`request-session`** skill, which also pre-flights card KYC and backend cards support; only hand-embed `card.enabled` in a raw delegation if you deliberately need to bypass those pre-flight checks.
 
 Optional and advanced: the top-level `routing_enabled` / `routing_cost_cap_usd_micros` fields control **cross-chain settlement**. `routing_enabled` is an **override** — when omitted it inherits the server's routing config, which is **enabled** on the Kite multichain (mainnet) deployment, so the backend auto-bridges/swaps when the merchant's chain differs from where the funds sit (the agent need not set anything). The **dev environment is single-chain (Arc testnet) with no routing provider** — do not set `routing_enabled` there or expect auto-bridging. Set `routing_enabled: false` to force a session to same-chain-only, and use `routing_cost_cap_usd_micros` to bound the bridge/swap cost. See Construction Rule 7 in `@references/delegation-schema.md`.
 
@@ -163,41 +163,21 @@ If a field is not available from the 402 response, omit that line from the card 
 
 ---
 
-## Step 2: Confirm Session Parameters with User
+## Step 2: Tell the User Before the Passkey Request
 
-After discovering payment requirements, present the proposed session parameters and wait for explicit confirmation before creating the session. The next step (`session create`) triggers a passkey approval flow the user has to interact with — burning that interaction on parameters they would have adjusted (smaller budget, longer TTL, different scope) is wasted friction, and the confirmation card is also their only chance to catch a misread 402 before the session is on-chain.
+After discovering payment requirements, build the delegation (Step 3), then run the CLI preview. It sends nothing and writes the question for the user:
 
-Display this card and wait for the user's response before proceeding:
-
-```
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📋 Proposed Session Parameters
-
-🏪 Merchant:         {merchant_host}
-📝 Task:             {task_summary}
-💰 Per-tx limit:     {max_amount_per_tx} {asset}
-💰 Total budget:     {max_total_amount} {asset}
-⏰ Session duration: {ttl_human_readable}
-🎯 Scope:            {scope_description}
-
-Shall I proceed with creating this session?
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```bash
+kpass session create --delegation "$DELEGATION_JSON" --separate --preview --price <PRICE> --output json
 ```
 
-| Placeholder | Source |
-|---|---|
-| `{merchant_host}` | The hostname from the merchant URL |
-| `{task_summary}` | The task summary you will put in the delegation (derived from user's request) |
-| `{max_amount_per_tx}` | The per-tx limit (from 402 response or user) |
-| `{max_total_amount}` | The total budget (calculated from per-tx * expected requests, or user-specified) |
-| `{asset}` | The payment asset |
-| `{ttl_human_readable}` | Human-readable duration (e.g., "1 hour", "24 hours") |
-| `{scope_description}` | Either "Scoped to {host}{path}" or "Unscoped (any endpoint)" |
+Put its `user_message` in your reply as is: the service you will call, the price, why the account allowance can't pay (when it can't), the per-call limit, the total limit and how long the session lasts, ending with "Should I set it up?". Then wait for the answer:
 
-The user may:
-- **Confirm** ("yes", "proceed", "looks good") → proceed to create the session
-- **Adjust** ("make the budget 50", "change TTL to 2 hours") → update parameters and show the card again
-- **Cancel** ("no", "cancel") → stop and inform the user
+- **Yes** → run the preview's `on_yes_command` (the same command with `--separate`, no `--preview`)
+- **Adjust** ("make the budget 50", "change TTL to 2 hours") → change the delegation and run the preview again
+- **No** → stop and tell the user
+
+The service line is information about where the agent will call, never a limit: `allowed_endpoints` is recorded with the session but not enforced on paid calls today. Never describe a session as "limited to" or "scoped to" one service.
 
 Only after the user explicitly confirms should you proceed to construct the delegation and call `session create`.
 

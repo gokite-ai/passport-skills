@@ -120,4 +120,4 @@ uses: step 1
 total_usd: <image price + email price>
 ```
 
-Do not call or pay for anything here. The money step comes after this hand-over and belongs to the payment skill.
+Do not call or pay for anything here. The money step comes after this hand-over: `x402-execute`, which pays from the account allowance. `request-session` only if the CLI says the allowance can't pay, or the person asks for a separate spending session.

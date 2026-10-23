@@ -72,7 +72,9 @@ elsewhere.
 Do NOT use this skill when no session exists yet — deciding what session a
 task needs and creating it is the **`request-session`** skill's job. Attaching
 is only cheaper than creating when the owner has already defined the policy;
-if the user just says "I want to pay for X", route to `request-session`.
+if the user just says "I want to pay for X", route to `x402-execute` (the
+account allowance pays) or, if the CLI says the allowance can't pay,
+`request-session`.
 
 ## Prerequisites
 

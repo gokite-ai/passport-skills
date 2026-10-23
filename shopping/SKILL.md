@@ -40,7 +40,7 @@ Search for products, manage a shopping cart, collect shipping information, and p
 
 1. **User authenticated** — The user MUST be logged in. If not (exit code 3), use the **`authenticate-user`** skill first.
 2. **Agent registered** — The agent MUST be registered. If not (exit code 3 with "Agent not registered"), run `kpass agent:register --type <agent-type> --output json` (substitute your agent's identity: `claude`, `cursor`, `codex`, `cline`, etc.).
-3. **Active spending session** — Required ONLY for `shop:checkout`. All other commands (search, cart, shipping) do NOT require a session. Before checkout, create one with the **`request-session`** skill (budget derived from the cart total), or bind an existing one with the **`attach-session`** skill. Sessions are protocol-agnostic and settlement-token-agnostic — there is no `assets` allowlist field — but a session locks to the first asset it settles in: an **unlocked** session, or one already **locked to the checkout's settlement asset** (`shop:cart view` → `payment.currency`), with sufficient remaining budget can be reused; a session locked to a different asset fails checkout with `session_asset_forbidden` and needs a fresh session instead. You do not need to mark the session as shopping-specific. See the `shop:checkout` entry in `@references/commands.md` for the Pre-Checkout Checklist.
+3. **Active spending session** — Required ONLY for `shop:checkout`. All other commands (search, cart, shipping) do NOT require a session. Before checkout, create one with the **`request-session`** skill (budget derived from the cart total; always `kpass session create --delegation ... --separate`, because the account allowance never pays shopping checkouts), or bind an existing one with the **`attach-session`** skill. Sessions are protocol-agnostic and settlement-token-agnostic — there is no `assets` allowlist field — but a session locks to the first asset it settles in: an **unlocked** session, or one already **locked to the checkout's settlement asset** (`shop:cart view` → `payment.currency`), with sufficient remaining budget can be reused; a session locked to a different asset fails checkout with `session_asset_forbidden` and needs a fresh session instead. You do not need to mark the session as shopping-specific. See the `shop:checkout` entry in `@references/commands.md` for the Pre-Checkout Checklist.
 
 ## Defaults (Do Not Ask the User Unless They Specify Otherwise)
 
@@ -171,7 +171,9 @@ Read this when you need to model what a full shopping conversation looks like.
 | 3 | Auth error | `Agent not registered`, `invalid authorization header` | Register the agent: `kpass agent:register --type <agent-type> --output json` (use your agent's identity). If that fails with "Not logged in", use **`authenticate-user`** first. |
 | 4 | Not found | `order not found`, `user wallet not found` | Check the ID is correct. For wallet errors, re-run login. |
 | 5 | Rate limited | `rate limit` | Wait 30 seconds, then retry. |
-| 6 | Session policy / payment violation | `error_code: "session_total_exceeded"`, `"session_rule_exceeded"`, `"session_asset_forbidden"`, `"session_endpoint_forbidden"`, `"insufficient_balance"`, `"payment_cap_exceeded"`, `"merchant_not_allowed"` | Do NOT re-authenticate. Check `error_code` and `hint` for the specific violation. For session policy errors, create a new session with corrected parameters using the **`request-session`** skill. For `insufficient_balance`, fund the wallet. For `payment_cap_exceeded`, reduce the order size. |
+| 6 | Allowance can't pay checkouts | `error_code: "allowance_not_for_checkout"` | The current session is the account allowance, which never pays shopping checkouts. Nothing was sent. Put the CLI's `user_message` in your reply, then create a separate session with **`request-session`** (`--separate`, after the preview and the user's yes). |
+| 6 | Checkout session used up | `error_code: "session_total_exceeded"`, `"separate_session_used_up"` | Stop and tell the user; a new checkout session needs their yes (request-session, `--separate`, preview first). The allowance never pays checkouts. |
+| 6 | Session policy / payment violation | `error_code: "session_rule_exceeded"`, `"session_asset_forbidden"`, `"session_endpoint_forbidden"`, `"insufficient_balance"`, `"payment_cap_exceeded"`, `"merchant_not_allowed"` | Do NOT re-authenticate. Check `error_code` and `hint` for the specific violation. For session policy errors, create a new session with corrected parameters using the **`request-session`** skill. For `insufficient_balance`, fund the wallet. For `payment_cap_exceeded`, reduce the order size. |
 
 **Error envelope fields:** Error responses include `error` (raw backend message), `error_code` (machine-readable classification — prefer this for programmatic matching), and `hint` (recovery guidance).
 
@@ -231,7 +233,7 @@ Before running any command, verify:
 
 - **Authentication:** User must be logged in. Use the **`authenticate-user`** skill.
 - **Agent registration:** Agent must be registered. Use `agent:register` from the **`request-session`** skill.
-- **Spending session (checkout only):** Use the **`request-session`** skill to create a session before checkout.
+- **Spending session (checkout only):** Use the **`request-session`** skill to create a separate session (`--separate`) before checkout. The account allowance does not pay checkouts.
 - **Wallet balance:** To check if the wallet has enough funds for checkout, use the **`wallet-send`** skill (`wallet balance`).
 - **Diagnostics:** To inspect agent registration and sessions, use the **`manage-agents`** skill.
 

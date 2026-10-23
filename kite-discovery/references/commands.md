@@ -217,7 +217,7 @@ The service id is the single positional argument; the old `--service-id`/`--serv
    - Payment approach, chain, and asset(s), verbatim
    - Pricing context, including each price's `unit` (`exact` vs `upto`)
 
-Then use **`request-session`** to prepare approval and **`x402-execute`** to perform the paid call.
+Then use **`x402-execute`** to perform the paid call; it pays from the account allowance. Use **`request-session`** only if the CLI says the allowance can't pay, or the user asks for a separate spending session.
 
 **MANDATORY -- After this command succeeds, you MUST display the following card:**
 

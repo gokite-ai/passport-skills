@@ -142,7 +142,7 @@ Cart total is $9.99. Agent needs a spending session — uses the **`request-sess
 {"task":{"summary":"Shopping checkout — estimated total $9.99"},"payment_policy":{"max_amount_per_tx":"15","max_total_amount":"15","ttl_seconds":3600}}
 ```
 
-The `form-session-delegation` skill derives the parameters (per-tx limit, total budget, TTL) from the cart total. The user approves the session via passkey.
+The `form-session-delegation` skill derives the parameters (per-tx limit, total budget, TTL) from the cart total. Create it with `kpass session create --delegation "$DELEGATION_JSON" --separate --output json` (the account allowance never pays checkouts), put the reply's `user_message` (link and limits) in your reply, then wait. The user approves the session via passkey.
 
 Once the session is active (session ID is automatically saved in agent config), run checkout:
 ```bash
