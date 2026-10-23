@@ -3,8 +3,8 @@ name: kite-router
 description: >-
   Run synchronous text-model inference through Kite Router with this Passport-bound
   agent. Invoke when the user asks this local agent to list Router models or
-  pricing, call a supported text model, or replace the old Marathon inference plugin.
-  Uses `kpass agent router`; it does not handle Marathon's delayed asynchronous jobs.
+  pricing or call a supported text model. Uses `kpass agent router` for immediate
+  inference at the catalog price.
 user-invocable: true
 allowed-tools:
   - "Bash(kpass agent *)"
@@ -14,7 +14,7 @@ allowed-tools:
 
 **Prerequisite**: Before using any Passport skill, check if `kpass` is installed by running `command -v kpass`. If it returns nothing, invoke the `passport-setup` skill first to install the CLI.
 
-Use the Passport CLI for both authentication and inference. Do not install or invoke the legacy Marathon MCP bridge for this flow, and do not persist the short-lived capability token.
+Use the Passport CLI for both authentication and inference. Do not persist the short-lived capability token.
 
 ## Prerequisites
 
@@ -35,7 +35,7 @@ Use the Passport CLI for both authentication and inference. Do not install or in
    kpass agent router --help
    ```
 
-   If it is unknown, upgrade the Passport bundle. Do not fall back to `marathon.build/install.sh`; that installer targets delayed asynchronous inference.
+   If it is unknown, upgrade the Passport bundle.
 
 2. This agent needs an active Passport runtime binding. Set up the runtime identity if needed:
 
@@ -79,7 +79,7 @@ Use the Passport CLI for both authentication and inference. Do not install or in
 
    Verify `binding.status` is `"active"`.
 
-3. The owner must sign in to Kite Router with Passport at least once before capability authentication can resolve a local Router account and allowance. If chat says to sign in first, send the owner to `https://marathon.build/playground`, have them choose Passport sign-in, then retry. This is account linking, not a separate approval flow.
+3. The owner must sign in to Kite Router with Passport at least once before capability authentication can resolve a local Router account and allowance. If chat says to sign in first, send the owner to `https://router.gokite.ai/dashboard/playground`, have them choose Passport sign-in, then retry. This is account linking, not a separate approval flow.
 
 The CLI pairs the Router with the selected Passport environment: Passport dev uses Router dev, and Passport production uses Router production. For staging, local development, or another custom Passport backend, set `--router-url` or `KITE_ROUTER_URL` to the exact Router origin supplied by the operator; never infer a staging hostname.
 
@@ -115,13 +115,13 @@ Optional flags:
 
 The assistant result is `.response.choices[0].message.content`; usage and provider metadata remain under `.response`. The command mints a fresh Router-only capability, sends it in the request, and discards it. Never print, log, cache, or ask the user to copy the token.
 
-This is a non-streaming synchronous call. For Marathon completion windows, delayed execution, job polling, or file-based delayed work, use the Marathon product instead; Kite Router does not reproduce those semantics.
+This is a non-streaming synchronous call. Every request starts immediately at the catalog price. Do not offer completion windows or discounts for waiting. Selected models have account and shared model quotas, published as `rate_limits` in the catalog.
 
 ## Failures
 
 - Exit 2: correct the model id or flags; refresh the catalog if the model is unavailable.
 - Exit 3: repair the Passport runtime binding following the setup steps above, or complete the owner's one-time Router sign-in when the error says the Passport identity is not linked.
-- Exit 5: wait briefly and retry once.
+- Exit 5 / HTTP 429: respect the reported `Retry-After` or `retry_after_seconds`, then retry at most once. Do not switch API keys or agents to bypass account limits.
 - Exit 6: inspect the JSON envelope. Tell the owner to top up in the Router web UI only when `error_code` or `error` identifies insufficient Router credit; otherwise follow `hint` or `next_command` to recover from the reported policy or authorization failure. A Router capability delegates identity only and cannot authorize wallet spending or bypass the owner's allowance.
 - Exit 1 or a 5xx: retry once. If it persists, report the Router URL, HTTP status, model id, and request time without including credentials or the prompt unless the user explicitly permits sharing it.
 
