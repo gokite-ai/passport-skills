@@ -5,7 +5,7 @@ Grok plugin manifest and skills.json validator for passport-skills.
 Checks:
 1. .grok-plugin/plugin.json is valid JSON with required fields
 2. skills.json has passport-setup entry with group "user"
-3. plugin.json lists exactly the 17 user-group skills from skills.json
+3. plugin.json lists exactly the 16 user-group skills from skills.json (kite-router pulled in 3.5.12, D266)
 4. passport-setup/SKILL.md has the install.sh line and 'kpass --version'
 5. Each other listed SKILL.md references passport-setup
 6. Every listed folder has SKILL.md with name/description frontmatter
@@ -104,8 +104,8 @@ def validate_plugin():
         print(f"FAIL: passport-setup group is '{passport_setup.get('group')}', expected 'user'")
         return 1
     
-    # Check 3: plugin lists exactly the 17 user-group skills
-    expected_count = 17
+    # Check 3: plugin lists exactly the 16 user-group skills (kite-router pulled in 3.5.12, D266)
+    expected_count = 16
     if len(user_skills) != expected_count:
         print(f"FAIL: skills.json has {len(user_skills)} user-group skills, expected {expected_count}")
         return 1

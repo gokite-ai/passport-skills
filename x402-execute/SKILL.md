@@ -11,6 +11,7 @@ user-invocable: true
 allowed-tools:
   - "Bash(kpass session list *)"
   - "Bash(kpass session execute *)"
+  - "Bash(kpass allowance status*)"
 ---
 
 # x402 Execute
@@ -35,7 +36,7 @@ Before using this skill, you MUST have:
 
 1. **User authenticated** -- Use the **`authenticate-user`** skill if not logged in.
 2. **Agent registered** -- Use the **`request-session`** skill to register the agent (also done automatically by **`attach-session`**).
-3. **Something to pay from** -- Usually nothing to do: the account allowance pays, and execute binds it on its own. Use **`request-session`** only when the CLI says the allowance can't pay (see Error Handling) or the user asks for a separate spending session. A session bound with **`attach-session`** (e.g. pre-created in the Passport web dashboard) is used as is; do not re-run `request-session` for it.
+3. **Something to pay from** -- Usually nothing to do: the account allowance pays, and execute binds it on its own, with no question to the user (`kpass allowance status --output json` shows what is left, free). Use **`request-session`** only when the CLI says the allowance can't pay (see Error Handling) or the user asks for a separate spending session. A session bound with **`attach-session`** (e.g. pre-created in the Passport web dashboard) is used as is; do not re-run `request-session` for it.
 
 If any of these are missing, the command will fail with exit code 3 (auth error). Follow the error message to the appropriate prerequisite skill.
 
@@ -68,43 +69,15 @@ Rules:
 3. **If `probe_status` is `broken`, prefer an alternative provider** — the endpoint failed its most recent verification probe. `unknown` means never probed; the example (if present) is still the best starting point.
 4. **On a merchant failure, read the merchant's actual reason before changing the request or retrying:** the error's `merchant_body` field (present on `merchant_rejected` and `payment_settled_unfulfilled` errors, and recorded in the **`activity`** skill's failure detail) states why the merchant refused — do not guess.
 
-## Display Cards -- MANDATORY
+## After the Call: One Plain Receipt Line
 
-**CRITICAL: You MUST display the formatted status cards shown in this skill after every major step. This is NOT optional. Never skip, summarize, or replace these cards with plain text. The exact horizontal-rule format must be used every time -- no exceptions.**
+After a paid call, tell the user what came back, then one plain receipt line. No emoji box, no card.
 
-If a command succeeds and has a display card template below, you MUST output that card before doing anything else. Do not proceed to the next step until the card is displayed.
+- **Paid from the account allowance** (`source: "allowance"` in the reply): the reply's `user_message` is the receipt, for example "Paid USD 0.005 from your account allowance. Left this week: USD 0.055 of USD 0.08. It resets Fri 30 Oct, 23:35 UTC." Put it in your reply as is: it gives the amount, what is left and the reset (the user asked to see all three).
+- **Paid from a separate session:** write "Paid {amount} {asset} to {host}; this session has spent {spent_total} of {max_total_amount}." from `payment_requirement.amount`, `payment_requirement.asset`, `usage.spent_total` and `delegation.payment_policy.max_total_amount`.
+- Add the transaction reference (`payment.payment_response.reference`) only when the user asks for proof.
 
-**MANDATORY -- After this command succeeds, you MUST display the following card to the user. Do not skip this. Do not summarize. Do not replace with plain text:**
-
-```
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-⚡ Payment Processed
-
-🎯 Target:     {url}
-📡 Method:     {method}
-📊 HTTP:       {status_code}
-💰 Paid:       {payment_amount} {payment_asset}
-📊 Budget:     {spent_total} / {max_total_amount} spent
-🏦 Wallet:     {wallet_address}
-
-📦 Response received successfully.
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-```
-
-| Placeholder | Source |
-|---|---|
-| `{url}` | From the `--url` flag value used in the execute command |
-| `{method}` | From the `--method` flag value (set from discovery, or inferred when discovery is missing — see **Defaults**) |
-| `{status_code}` | From JSON response field `x402.status_code` |
-| `{payment_amount}` | From JSON response field `payment_requirement.amount` |
-| `{payment_asset}` | From JSON response field `payment_requirement.asset` |
-| `{spent_total}` | From JSON response field `usage.spent_total` |
-| `{max_total_amount}` | From JSON response field `delegation.payment_policy.max_total_amount` (if set; show "unlimited" if not) |
-| `{wallet_address}` | From JSON response field `x402.wallet_address` |
-
-**Paid from the account allowance** (`source: "allowance"` in the reply): the reply carries `user_message`, for example "Paid USD 0.001 from your account allowance. Left this week: USD 0.79 of USD 0.80. It resets Tue 27 Oct, 00:00 UTC." Put it in your reply as is, in place of the Budget line (an allowance has no `max_total_amount`).
-
-**You MUST always display this card after a successful response. No exceptions.** Fill in all placeholders from the JSON output. See `@references/commands.md` for the full success JSON shape these placeholders are pulled from, and `@references/examples.md` for a worked example showing the card in context.
+The rules for the allowance (check it first, pay without asking inside it, what to say when it can't pay) are in one place: the **`kite-passport`** skill, "How the Account Allowance Works".
 
 ---
 
@@ -177,12 +150,13 @@ Generation services (video, image, audio, batch jobs) usually do NOT return the 
 | 2 | Idempotency key missing | `error_code: "idempotency_key_required"` | Nothing was sent. Run the CLI's `next_command` (it carries a new key) and keep that key for any retry of this payment. |
 | 2 | Usage error / routing rejected pre-spend | `Missing --url flag`, `--headers must be a valid JSON object string`, `--body must be a valid JSON string`, `--headers must be a JSON object with key-value pairs`, `No active session specified`, `error_code: "merchant_unsupported"`, `"route_unavailable"`, `"route_uneconomical"`, `"routing_cost_exceeded"`, `"slippage_exceeded"`, `"unsupported_asset"` | Fix the command syntax or check the target URL. For routing rejections (no funds moved), see **Cross-Chain Routing Errors** in `@references/commands.md`. |
 | 3 | Auth error | `Agent not registered`, `Agent is registered to a different user` | Use **`request-session`** to register the agent; see `@references/commands.md` for specific scenarios. |
-| 4 | No account allowance | `error_code: "allowance_unavailable"` | The allowance can't pay: none is set up, or this Passport has none. Put the CLI's `user_message` in your reply (it has the dashboard link when there is one). A separate spending session goes through **`request-session`**, which tells the user before any passkey request. |
+| 4 | No account allowance | `error_code: "allowance_unavailable"` | The allowance can't pay: none is active, or this Passport has none. The CLI opens the owner's allowance page in the browser when it can; its `user_message` says so and carries the link. Put it in your reply as is; do not run `open` yourself. A separate spending session goes through **`request-session`**, which tells the user before any passkey request. |
 | 4 | Not found | `not found` | Check that the URL is correct. |
 | 5 | Rate limited | `rate limit` | Wait 30 seconds, then retry. |
 | 6 | Separate session used up | `error_code: "session_total_exceeded"`, `"separate_session_used_up"` | The separate session the user approved is used up; the CLI marks it and sends nothing more from it. Stop and put the CLI's `user_message` in your reply. Never switch to the account allowance on your own. With the user's yes: a new separate session (**`request-session`**, preview first), or pay from the allowance by adding `--use-allowance` to execute. |
 | 6 | Session policy / payment violation (separately approved session) | `error_code: "session_asset_forbidden"`, `"session_endpoint_forbidden"`, `"session_rule_exceeded"`, `"insufficient_balance"`, `"payment_cap_exceeded"`, `"merchant_not_allowed"`, `"payment_redirect_not_allowed"` | Do NOT re-authenticate. Check `error_code` and `hint` for the specific violation. For session policy errors, tell the user; a new separate session with corrected parameters goes through **`request-session`** (preview, then their yes). For `insufficient_balance`, fund the wallet. For `payment_cap_exceeded`, try a smaller request. |
-| 6 | The allowance can't pay this | `error_code: "allowance_disabled"`, `"recurring_budget_exhausted"`, `"allowance_too_small"` | Do NOT create a new session on your own and do not switch budgets. Put the CLI's `user_message` (or `hint`) in your reply once: it says why (owner turned it off, used up until a date in UTC, or over the per-call limit) and where the owner can change it. A separate spending session goes through **`request-session`**, which tells the user before any passkey request. |
+| 6 | Wallet empty | `error_code: "wallet_empty"` | The Passport wallet has no funds, or less than this call costs, so nothing was paid or charged (the allowance is a limit, not money). Put the CLI's `user_message` in your reply: it has the top-up link. Do not retry now and do not switch to another way of paying. Only after the user says they topped up, run the CLI's `next_command`. |
+| 6 | The allowance can't pay this | `error_code: "allowance_disabled"`, `"recurring_budget_exhausted"`, `"allowance_too_small"` | Do NOT create a new session on your own and do not switch budgets. Put the CLI's `user_message` (or `hint`) in your reply once: it says why (owner turned it off, used up until a date in UTC, or over the per-call limit) with the numbers, and where the owner can change it. For used up and too small, the CLI opens the owner's allowance page in the browser when it can and its `user_message` says so. A separate spending session goes through **`request-session`**, which tells the user before any passkey request. |
 | 6 | Allowance cancelled | `error_code: "allowance_cancelled"` | The CLI already bound once to the owner's current allowance and retried. Stop and tell the user the owner cancelled the allowance. Do not request a broader session to get around it. |
 | 7 | Payment outcome not known yet | `error_code: "payment_outcome_pending"`, `"recurring_payment_unknown"` | A signed payment was sent and its result is not known. Tell the user it may have gone through and is being checked, and that nothing new was charged. Retry ONCE later (about a minute, `details.retry_after_seconds`) with the CLI's `next_command`, which has the SAME key. If it is still pending, stop and say the owner's Activity will show the result. Never use a new key, never create a new session. `details.tx_hash` is the merchant's settlement hash when it gave one. |
 | 7 | Earlier attempt not charged | `error_code: "payment_not_settled"` | Nothing was charged for that key. If the user still wants the result, run the CLI's `next_command` once: it carries a NEW key. |
@@ -222,7 +196,7 @@ Do NOT attempt any of the following. They will fail:
 
 ### After Successful Execution (what to do next)
 
-- **Paid from the account allowance:** the reply's `user_message` already says what is left and when it resets; do not add "the session still has budget".
+- **Paid from the account allowance:** the reply's `user_message` already says what was paid, what is left and when it resets; put it in your reply and do not add "the session still has budget".
 - **If a separately approved session has remaining budget** and the user may want follow-up requests, mention that it can make another request.
 - **After a completed payment:** Suggest that the user can verify the transaction in their history using the **`activity`** skill.
 - **If a separate session has expired:** the next execute pays from the account allowance when there is one. If the CLI says the allowance can't pay, use **`request-session`**.

@@ -26,10 +26,10 @@ def main():
             if path:
                 user_skills.append(path)
     
-    # Build expected set: user-group skills, excluding cloud-deploy, plus kite-router
+    # Build expected set: user-group skills, excluding cloud-deploy. kite-router
+    # was pulled from the bundle in 3.5.12 (D266) until Router works end to end.
     expected_skills = set(user_skills)
     expected_skills.discard("cloud-deploy/SKILL.md")  # Remove cloud-deploy if present
-    expected_skills.add("kite-router/SKILL.md")  # Add kite-router
     
     # Get the skills from plugin.json
     plugin_skills_list = plugin_data.get("skills", [])
@@ -59,9 +59,9 @@ def main():
             print(f"Error: skill path does not exist: {skill_path}", file=sys.stderr)
             sys.exit(1)
     
-    # Check that kite-router/SKILL.md is listed
-    if "kite-router/SKILL.md" not in plugin_skills:
-        print("Error: kite-router/SKILL.md is not listed in plugin.json", file=sys.stderr)
+    # kite-router must stay out until Router is done (D266).
+    if "kite-router/SKILL.md" in plugin_skills:
+        print("Error: kite-router/SKILL.md is pulled from the bundle (D266) but listed in plugin.json", file=sys.stderr)
         sys.exit(1)
     
     # Success

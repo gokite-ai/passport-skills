@@ -114,7 +114,7 @@ kpass session create --output json
 - **Exit 0 with `source: "separate"`**: a separate session the user approved is current and still pays. Go to **`x402-execute`**; nothing to create.
 - **`separate_session_used_up`**: the separate session the user approved is used up. Stop and put the CLI's `user_message` in your reply. With the user's yes to a new separate session, continue with Step 3 (do not run this step again); with their yes to the allowance, pay with `x402-execute` plus `--use-allowance`.
 - **Exit 0** (`source: "allowance"`): the account allowance pays. Put its `user_message` in your reply if useful and go to **`x402-execute`**. Stop here; no passkey request.
-- **An `allowance_*` or `recurring_budget_exhausted` error**: the allowance can't pay. Its `user_message` says why (no allowance yet, turned off by the owner, used up until a date in UTC). Continue with Step 3 to build the separate session.
+- **An `allowance_*` or `recurring_budget_exhausted` error**: the allowance can't pay. Its `user_message` says why with the numbers (no active allowance, turned off by the owner, used up until a date in UTC, too little left), and for none, used up and too small it says the CLI opened the owner's allowance page in the browser (with the link). Put it in your reply as is. Continue with Step 3 to build the separate session, as the other way to pay.
 - **Exit 3**: sign in first (`authenticate-user`).
 
 ### Step 2: Reuse Is Detected Automatically at Create Time
@@ -218,12 +218,12 @@ kpass session create --delegation "$DELEGATION_JSON" --separate --output json
 ```
 
 This is the preview's `on_yes_command`. Possible outcomes (see `@references/commands.md` `session create`):
-- **`status: "human_action_required"`** (a new request was created) → put the reply's `user_message` in your reply now, as is, before you run any other command. It holds the full approval link, the per-call limit, the total limit, the validity and the minutes until the link expires. The person reads your reply, not the kpass output, so a link that is only in a tool result has not been shown. This holds in every kind of session, interactive or scripted. The CLI opens the approval page itself when it safely can (`browser_opened`); do not run `open` yourself. Then go on to Step 8.
+- **`status: "human_action_required"`** (a new request was created) → put the reply's `user_message` in your reply now, word for word, before you run any other command. It holds the full approval link, the per-call limit, the total limit, the validity and the minutes until the link expires. Do not shorten it: a line that has the limits but not the `https://` link is a miss (prod e2e E-02: the agent wrote both limits, left out the link, then waited five minutes). Before you run the wait, check that the text you wrote has the whole link and both limits. The person reads your reply, not the kpass output, so a link that is only in a tool result has not been shown. This holds in every kind of session, interactive or scripted. The CLI opens the approval page itself when it safely can (`browser_opened`); do not run `open` yourself. Then go on to Step 8.
 - **`reuse_available: true`** (an existing active session already covers this request) → confirm the candidate's `task_summary` matches the current goal/merchant, then run the returned `next_command` (`session use …`) to reuse it, no new approval needed. If the goal does not match, re-run `create … --separate --no-reuse` to force a new session.
 
 ### Step 8: Poll for Approval
 
-Run the reply's `wait_command` only after its `user_message` is in your reply (Step 7). `next_command` is empty on purpose. The wait blocks for up to five minutes, and anything you have not written yet stays invisible for all of it.
+Run the reply's `wait_command` only after its `user_message` (the full link and both limits) is in your reply (Step 7). `next_command` is empty on purpose. The wait blocks for up to five minutes, and anything you have not written yet stays invisible for all of it.
 
 ```bash
 kpass session status --request-id <request_id> --wait --output json

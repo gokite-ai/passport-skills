@@ -48,30 +48,42 @@ web search for product research when a direct product-search command exists.
   built-in/MCP integration (e.g. drafting in Gmail) that may not even
   complete the action end-to-end.
 
-## Quick Reference
+## Which Skill Owns Which Job (the routing map)
 
-| User wants to... | Invoke this skill |
-|---|---|
-| Buy something, shop, find a product, compare prices | `shopping` |
-| Search Amazon, find deals, get product recommendations | `shopping` |
-| Build a product list, curate items within a budget | `shopping` |
-| Find the best X under $Y | `shopping` |
-| Track an order, check delivery status | `shopping` |
-| Find available APIs or paid services | `kite-discovery` |
-| Send an email, deliver a message via a paid provider | `kite-discovery`, then `x402-execute` (pays from the account allowance) |
-| Call a paid API or access a gated endpoint | `x402-execute` (pays from the account allowance; the CLI picks it) |
-| The CLI says the allowance can't pay, or the user asks for a separate spending session | `request-session` |
-| Send crypto, transfer tokens to an address | `wallet-send` (chain set is environment-specific — mainnet includes arc, Arc mainnet; dev serves arc as Arc testnet only) |
-| Check wallet balance, see how much money is available | `wallet-send` |
-| Get test tokens on testnet | `wallet-send` (staging/testnet only) |
-| Auto-repay an Aave loan if its health factor drops, reduce liquidation risk | `defi-auto-repay` |
-| Check an Aave position's health factor or debt | `defi-auto-repay` |
-| Sign up, log in, authenticate | `authenticate-user` |
-| Use a session created in the web dashboard, "here's a session ID" | `attach-session` |
-| See what agents or sessions exist | `manage-agents` |
-| View transaction history, verify a payment | `activity` |
-| Check if an order or payment went through | `activity` |
-| Update / upgrade kpass, check if the CLI is current | `upgrade-passport` |
+One job, one skill. Every Passport skill points here. If two skills seem to fit, this table decides.
+
+| User wants to... | Owner skill | Where the facts come from |
+|---|---|---|
+| Know what Passport is, what it costs, what it could do for this project | `passport-overview` | Its fact sheet; ideas from `kpass triage` |
+| Install kpass, or a Passport command is "not found" | `passport-setup` | Its setup script |
+| Sign up, log in, check who is logged in | `authenticate-user` | `kpass me` (the login check; there is no `kpass whoami`) |
+| Find a paid service or API for a job: live data, a record, media to make, a message to send, another AI model (LLM, translation, transcription, speech, OCR) | `kite-discovery` | `ksearch service search` (the catalog) |
+| Make the paid call | `x402-execute` | `kpass session execute`; it pays from the account allowance |
+| Know whether the allowance is set up, what is left, when it resets | this skill, **How the Account Allowance Works** | `kpass allowance status` (free) |
+| A separate spending session: the CLI says the allowance can't pay, the user asks for one, or a shopping checkout | `request-session` (builds the delegation with `form-session-delegation`) | `kpass session create --separate --preview` |
+| Use a session the user made in the web dashboard ("here's a session ID") | `attach-session` | `kpass session attach` |
+| Buy something, shop, compare prices, track an order | `shopping` | `kpass shop:*` |
+| Wallet balance (the money), send crypto, test tokens | `wallet-send` | `kpass wallet *` |
+| Past spending, did a payment go through | `activity` | `kpass activity` |
+| Which agents and separate sessions exist | `manage-agents` | `kpass user *` |
+| Auto-repay an Aave loan, check its health factor | `defi-auto-repay` | `kpass defi *` |
+| Update kpass | `upgrade-passport` | `kpass upgrade` |
+| Report a bug or feedback | `report-feedback` | `kpass agent feedback` |
+
+There is no separate skill for calling another AI model: such asks go to `kite-discovery` like any other paid service.
+
+**Commands:** use only commands a Passport skill names. If you are not sure a command exists, run `kpass <command> --help` before you use it. Never guess one. For the catalog, load `kite-discovery`: it searches with `ksearch service search <words>` and shows one entry with `ksearch service search --example <id>` (there is no `ksearch service show` or `ksearch service get`).
+
+## How the Account Allowance Works
+
+The account allowance is a weekly (or monthly) spending limit the owner approved once with a passkey. Paid calls inside it need no approval and no question.
+
+1. **Check it first, free.** `kpass allowance status --output json` shows `state` (`active`, `used_up`, `none`, `inactive`, `no_feature`), `amount`, `period`, `spent`, `left`, `reset_at`, `dashboard_url` and a `user_message`. It binds nothing and sends no payment. Use it to plan and to word an offer (before you offer to pay, and after login). It is not a gate before each payment: `kpass session execute` checks the allowance itself and refuses with the numbers when it can't pay.
+2. **Inside the allowance, pay without asking.** When `state` is `active`, go straight to `x402-execute`. Do not ask "should I pay?" and do not add your own per-call check: the user asked for the result, and the allowance cap is the guard.
+3. **None, too small or used up.** If `state` is `none`, `inactive`, `used_up` or `no_feature`, or the price is more than `left`, tell the user in one line with the numbers (amount, left, reset), using the CLI's `user_message`. When the CLI refuses a payment for this reason (`allowance_unavailable`, `allowance_too_small`, `recurring_budget_exhausted`), it opens the owner's allowance page in the browser when it can, and its `user_message` says whether it did, with the link: put it in your reply as is. Do not run `open` yourself. A separate spending session is the other way: `request-session`, which asks the user first.
+4. **After every paid call,** say what it cost, what is left and when it resets. The CLI's `user_message` on an allowance payment has all three ("Paid USD 0.005 from your account allowance. Left this week: USD 0.055 of USD 0.08. It resets Fri 30 Oct, 23:35 UTC."). Put it in your reply as is.
+5. **At set-up** (right after the user signs up or logs in): run `kpass allowance status`. If `state` is `none`, offer once to set one up on the dashboard (`dashboard_url`).
+6. **The wallet still holds the money.** The allowance is a limit, not funds. If the wallet is empty, a payment answers `wallet_empty`: nothing was charged. Put the `user_message` (it has the top-up link) in your reply, and run its `next_command` only after the user says they topped up.
 
 ## Common Task Patterns
 
@@ -99,9 +111,9 @@ This is a **PAID API** task. Flow:
 1. `kite-discovery` -- find the service in the Kite catalog (skip if URL is known)
 2. `authenticate-user` -- ensure the user is logged in
 3. `x402-execute` -- make the paid API request. `kpass session execute` pays
-   from the account allowance on its own (no approval request). No session
-   step is needed first: execute binds the allowance when no session is
-   current.
+   from the account allowance on its own (no approval request, no question to
+   the user). No session step is needed first: execute binds the allowance
+   when no session is current.
 4. Only if the CLI says the allowance can't pay (`allowance_unavailable`,
    `allowance_disabled`, `recurring_budget_exhausted`, `allowance_too_small`)
    or the user asked for a separate spending session: `request-session`. It
@@ -160,6 +172,9 @@ then retry the failed skill.
 If any skill returns exit code 6 (session policy violation), do NOT re-authenticate:
 the user is already logged in. Read `error_code` first:
 
+- `wallet_empty`: the wallet has no funds; nothing was charged. Put the CLI's
+  `user_message` (with the top-up link) in your reply. Run its `next_command`
+  only after the user says they topped up. Never create a session for it.
 - `allowance_disabled`, `recurring_budget_exhausted`, `allowance_too_small`,
   `allowance_not_for_checkout` (or any other `allowance_*`, `recurring_*` or
   `payment_*` code): do NOT create a new session on your own. Put the CLI's
@@ -243,10 +258,11 @@ platform yourself. Treat omission of the field as "no action needed."
    The shopping skill searches Amazon directly with structured results.
 3. **Authenticate before payments.** Shopping checkout, x402 API calls, and wallet
    sends all require an authenticated user.
-4. **The account allowance pays first.** Paid API calls go straight to
-   `x402-execute`; the CLI uses the account allowance and asks for no
-   approval. Never create a passkey approval request without telling the
-   user first (`request-session` does this with the CLI's preview).
+4. **The account allowance pays first, without asking.** Paid API calls go
+   straight to `x402-execute`; the CLI uses the account allowance and asks for
+   no approval, and you ask no question inside it (see **How the Account
+   Allowance Works**). Never create a passkey approval request without telling
+   the user first (`request-session` does this with the CLI's preview).
 5. **Mention related capabilities after completing a task.** For example, after a
    checkout, mention order tracking. After a payment, mention transaction history.
 6. **When in doubt, check the Kite catalog.** If the user needs external data or

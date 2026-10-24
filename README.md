@@ -35,7 +35,6 @@ Each skill is a `SKILL.md` file that gets injected into an AI agent's context at
 | **shopping** | `shopping/` | Search and buy physical products, manage a shopping cart, collect shipping details, and checkout with crypto. |
 | **activity** | `activity/` | View recent account activity including wallet transfers, faucet drops, API payments, agent registrations, session approvals, and shopping checkouts. |
 | **report-feedback** | `report-feedback/` | File an issue report, bug, or freeform feedback from the current agent session. |
-| **kite-router** | `kite-router/` | Passport-authenticated synchronous text-model inference through `kpass agent router`, with no MCP dependency. |
 | **passport-overview** | `passport-overview/` | Plain facts for someone who has just installed Passport: what it is, what it costs, priced examples. Runs `kpass triage` when the user asks for ideas for their own work. Stays quiet unless asked. |
 
 ## Skill Groups
@@ -63,8 +62,6 @@ authenticate-user  (always first for Passport payment flows)
        +----> activity        (view transaction history)
        |
        +----> report-feedback (file feedback / bug reports from the session)
-       |
-       +----> kite-router    (synchronous Router inference; Router allowance)
        |
        v
 x402-execute     (paid API calls: the account allowance pays first)
@@ -123,9 +120,6 @@ npx skills add gokite-ai/passport-skills/shopping
 # Diagnostics:
 npx skills add gokite-ai/passport-skills/activity
 npx skills add gokite-ai/passport-skills/report-feedback
-
-# Router inference (uses kpass agent router):
-npx skills add gokite-ai/passport-skills/kite-router
 ```
 
 ### Bootstrap Scripts
@@ -201,8 +195,6 @@ passport-skills/
     SKILL.md                     View recent account activity and transaction history
   report-feedback/
     SKILL.md                     File issue reports / bugs / freeform feedback from the agent session
-  kite-router/
-    SKILL.md                     Passport-authenticated Router catalog and synchronous chat
   scripts/
     setup.sh                     Bootstrap: verify Node.js >= 18, verify kpass CLI
     setup-ksearch.sh             Bootstrap: locate and verify bundled ksearch CLI

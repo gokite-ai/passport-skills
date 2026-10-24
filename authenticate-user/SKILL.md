@@ -13,6 +13,7 @@ allowed-tools:
   - "Bash(kpass login *)"
   - "Bash(kpass logout*)"
   - "Bash(kpass me*)"
+  - "Bash(kpass allowance status*)"
   - "Bash(KPASS_SIGNUP_CODE=* kpass signup *)"
   - "Bash(KPASS_LOGIN_CODE=* kpass login *)"
 ---
@@ -196,9 +197,11 @@ Do NOT attempt any of the following. They will fail:
 Once the user is logged in, immediately resume the task that required authentication:
 
 - **If the original task involves shopping or buying products:** Invoke the **`shopping`** skill.
-- **If the original task involves a paid API or service:** Invoke the **`request-session`** skill to create a spending session, then **`x402-execute`**.
+- **Right after sign-up or log-in, check the account allowance:** `kpass allowance status --output json` (free). If `state` is `none`, offer once to set one up at its `dashboard_url`: paid calls inside the allowance then need no approval. The rules are in the **`kite-passport`** skill, "How the Account Allowance Works".
+- **If the original task involves a paid API or service:** go to **`x402-execute`**; it pays from the account allowance with no session step and no question. Use **`request-session`** only when the CLI says the allowance can't pay or the user asks for a separate spending session.
 - **If the original task involves sending tokens or checking balance:** Invoke the **`wallet-send`** skill.
 - **If the user just wanted to log in:** Confirm success and mention available capabilities: "You're logged in. I can now shop for products, make payments, transfer tokens, or check your account activity."
+- **To check whether the user is logged in,** run `kpass me --output json`. There is no `kpass whoami`.
 
 ### Related Skills
 

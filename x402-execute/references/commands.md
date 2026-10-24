@@ -1,6 +1,6 @@
 # x402 Execute — Command Reference
 
-Full command reference for the `x402-execute` skill. SKILL.md carries the trigger logic, prerequisites, defaults, the request-body construction rules, the async job/poll flow, and the mandatory Payment Processed display card; this file has the command-level detail (flags, validation, full JSON output/error shapes, and the exhaustive error-scenario list). Worked end-to-end examples live in `examples.md`.
+Full command reference for the `x402-execute` skill. SKILL.md carries the trigger logic, prerequisites, defaults, the request-body construction rules, the async job/poll flow, and the plain receipt line after a paid call; this file has the command-level detail (flags, validation, full JSON output/error shapes, and the exhaustive error-scenario list). Worked end-to-end examples live in `examples.md`.
 
 ---
 
@@ -119,7 +119,7 @@ Check `kpass session execute --help` for `--idempotency-key` before using a recu
 2. Use `x402.parsed_response_body` (if available) or `x402.response_body` to extract the data.
 3. Present the relevant data to the user in a clear, readable format. Do NOT dump raw JSON unless the user asks.
 
-See SKILL.md for the mandatory display card to show after this step.
+See SKILL.md for the plain receipt line to give after this step.
 
 ---
 
@@ -145,16 +145,21 @@ See SKILL.md for the mandatory display card to show after this step.
 - Nothing was sent. Run the CLI's `next_command`; it carries a new key. Keep that key for any retry of this payment.
 
 **"The account allowance cannot pay" (exit code 4, `error_code: "allowance_unavailable"`):**
-- No usable session was current and the account has no allowance (or this Passport has none yet: an older backend answers the bind with a bare 404, which the CLI reports with this same code). Put `user_message` in your reply; it has the owner's dashboard link when the backend sends one. A separate spending session goes through **`request-session`**, which tells the user before any passkey request.
+- No usable session was current and the account has no allowance (or this Passport has none yet: an older backend answers the bind with a bare 404, which the CLI reports with this same code). Put `user_message` in your reply as is: when the CLI could open the owner's allowance page in the browser it says "I opened the page to set one up in your browser. If it did not open: <link>" (`details.page_opened: true`), else it names the link. Do not run `open` yourself. A separate spending session goes through **`request-session`**, which tells the user before any passkey request.
 
 **"The account allowance cannot pay: the owner turned it off for this agent" (exit code 6, `error_code: "allowance_disabled"`):**
 - Put `user_message` in your reply. Do not create a session on your own.
 
 **"Allowance used up" (exit code 6, `error_code: "recurring_budget_exhausted"`):**
-- The hint and `user_message` say why and until when (reset date with time and UTC). With a newer backend the CLI names the cause: over the per-call limit (`details.reason: "per_call_cap"`), or too little left this period (`"period_remaining"`), with the amounts. Tell the user once; do not switch sessions or budgets. A separate spending session goes through **`request-session`**.
+- The hint and `user_message` say why and until when (reset date with time and UTC). With a newer backend the CLI names the cause: over the per-call limit (`details.reason: "per_call_cap"`), or too little left this period (`"period_remaining"`), with the amounts. Tell the user once, with the CLI's `user_message` as is (it also says when the CLI opened the owner's allowance page, `details.page_opened`); do not switch sessions or budgets. A separate spending session goes through **`request-session`**.
 
 **"Allowance cannot cover this price" (exit code 6, `error_code: "allowance_too_small"`):**
 - Only from `session create --price`: the quoted price is over the per-call limit or over what is left. Same handling as used up.
+
+**"Wallet empty" (exit code 6, `error_code: "wallet_empty"`):**
+- The Passport wallet has no funds, or less than this call costs (`details.reason`: `empty` or `too_low`, with `balance` and `required`), so nothing was paid and nothing was charged. The backend checks this before any hold or signature (backend v3.4.5 and later). `details.topup_url` is where the owner adds funds.
+- Put `user_message` in your reply (it has the top-up link). Do not retry now and do not switch to another way of paying. Only after the user says they topped up, run the CLI's `next_command` (it carries the same key; nothing was stored for it).
+- On an older backend an empty wallet shows up as "Payment outcome pending" below, with `details.wallet_now_empty: true` and a top-up line added to `user_message`. Follow that row: it keeps the same-key rule.
 
 **"Payment outcome pending" (exit code 7, `error_code: "payment_outcome_pending"` or `"recurring_payment_unknown"`, `retriable: true`):**
 - A signed payment for this key was sent and its result is not known yet. `details.tx_hash` holds the merchant's settlement hash when it gave one; `details.retry_after_seconds` is 60.
