@@ -1,12 +1,12 @@
 ---
 name: x402-execute
 description: >-
-  Make paid API requests through an approved spending session. The backend handles
-  x402 payment negotiation automatically. Invoke when the task requires calling a
-  paid endpoint, accessing a gated resource, or fetching data from a Kite catalog
-  service. Prefer this over manual web scraping when a paid Kite service exists for
-  the task. Requires an active session, created via request-session or bound via
-  attach-session.
+  Make paid API requests with Kite Passport. Pays from the account allowance, or
+  from a session the user approved. The backend handles x402 payment negotiation
+  automatically. Invoke when the task requires calling a paid endpoint, accessing a
+  gated resource, or fetching data from a Kite catalog service. Prefer this over
+  manual web scraping when a paid Kite service exists for the task. No session step
+  is needed first when the account has an allowance: the CLI uses it.
 user-invocable: true
 allowed-tools:
   - "Bash(kpass session list *)"
@@ -17,7 +17,7 @@ allowed-tools:
 
 **Prerequisite**: Before using any Passport skill, check if `kpass` is installed by running `command -v kpass`. If it returns nothing, invoke the `passport-setup` skill first to install the CLI.
 
-Execute HTTP requests through an approved Kite Passport spending session. The Passport backend handles x402 payment negotiation transparently -- you specify the target URL and the backend negotiates payment with the remote service on your behalf. Execution has a **5-minute timeout**: payment settles on the merchant's advertised network -- on mainnet **base, Polygon, Avalanche, tempo, solana, Robinhood Chain, or Arc** (`eip155:5042`) -- and a cross-chain routed (or Solana) settlement can take up to ~2 minutes -- a slow response is not a failure until the full timeout is reached. On the **dev environment** the only settlement chain is **Arc testnet** (`eip155:5042002`, Circle USDC) and there is **no cross-chain routing** -- routed-settlement latency and the routing error codes below do not apply there.
+Execute HTTP requests and pay for them with Kite Passport. **The account allowance pays first:** when no usable session is current, `kpass session execute` binds the owner's account allowance and pays from it, with no approval request. A session the user approved separately (request-session or attach-session) is used when it is current. The Passport backend handles x402 payment negotiation transparently -- you specify the target URL and the backend negotiates payment with the remote service on your behalf. Execution has a **5-minute timeout**: payment settles on the merchant's advertised network -- on mainnet **base, Polygon, Avalanche, tempo, solana, Robinhood Chain, or Arc** (`eip155:5042`) -- and a cross-chain routed (or Solana) settlement can take up to ~2 minutes -- a slow response is not a failure until the full timeout is reached. On the **dev environment** the only settlement chain is **Arc testnet** (`eip155:5042002`, Circle USDC) and there is **no cross-chain routing** -- routed-settlement latency and the routing error codes below do not apply there.
 
 > **Reference files** (read when you need exact detail):
 > - `@references/commands.md` — full command reference: every flag, the full JSON output shape, and every error code/message for `session execute`.
@@ -35,7 +35,7 @@ Before using this skill, you MUST have:
 
 1. **User authenticated** -- Use the **`authenticate-user`** skill if not logged in.
 2. **Agent registered** -- Use the **`request-session`** skill to register the agent (also done automatically by **`attach-session`**).
-3. **Active spending session** -- Either create one with the **`request-session`** skill, or bind an existing one with the **`attach-session`** skill (e.g. a session pre-created in the Passport web dashboard). Both leave you with an active session usable here — do not re-run `request-session` just because the session came from `attach-session`.
+3. **Something to pay from** -- Usually nothing to do: the account allowance pays, and execute binds it on its own. Use **`request-session`** only when the CLI says the allowance can't pay (see Error Handling) or the user asks for a separate spending session. A session bound with **`attach-session`** (e.g. pre-created in the Passport web dashboard) is used as is; do not re-run `request-session` for it.
 
 If any of these are missing, the command will fail with exit code 3 (auth error). Follow the error message to the appropriate prerequisite skill.
 
@@ -52,11 +52,14 @@ unknown outcome.
 
 On `recurring_budget_exhausted`, stop. Tell the user the reset date and the
 dashboard link where the owner can raise the allowance; both are in the `hint`
-(from `reset_at` and `dashboard_url` in the reply). On
-`recurring_payment_unknown` or `execute_in_progress`, stop and ask the owner to
-reconcile the original operation. On `recurring_request_conflict`, restore the
+(from `reset_at` and `dashboard_url` in the reply). A separate spending
+session goes through **`request-session`**, only after the user's yes. On
+`recurring_payment_unknown`, follow the exit 7 row under Error Handling: retry
+once later with the CLI's `next_command` (same key), then stop. On
+`execute_in_progress`, stop and ask the owner to reconcile the original
+operation. On `recurring_request_conflict`, restore the
 original request rather than generating another key. Never switch agents or
-sessions to bypass an exhausted shared budget. The allowance currently supports
+sessions on your own to get around an exhausted shared budget. The allowance currently supports
 only direct exact-scheme USDC x402 on the configured network: Base mainnet
 (`eip155:8453`) on staging/prod or Arc testnet (`eip155:5042002`) on dev.
 It does not authorize shopping, cards, A2A, Router top-ups, or bridges.
@@ -73,12 +76,13 @@ retry still fails, stop and tell the user the owner cancelled the allowance.
 |---------|--------------|---------|
 | Output format | `--output json` | Always use JSON output. Never omit this flag. |
 | HTTP method | Set from discovery | **Set `--method` to the endpoint's method** from `kite-discovery` (`services get` → `service.featured_endpoints[].method` — the catalog carries the correct method+path per endpoint). If you have no discovery metadata, **infer it**: `GET` for reads/search/lookups (no request body), `POST` only when sending a body. **Do NOT blind-default to POST** — POSTing to a GET-only endpoint makes the merchant return no x402 challenge (`error_code: no_payment_requirement`), which looks like a payment bug but is just the wrong method. |
-| Session ID | Auto-read from agent config (`current_session_id`) | Only pass `--session-id` if the user wants to use a specific session different from the current one. |
+| Idempotency key | **Always pass `--idempotency-key <KEY>`**: a new random UUID for each new payment, and the SAME key on any retry of that payment. | The CLI refuses an allowance payment without one (`idempotency_key_required`, nothing sent) and gives a ready `next_command` with a key. |
+| Session ID | Auto-read from agent config (`current_session_id`). Who pays: a separate session the user approved pays while it is active; with none (or an expired one), the account allowance pays; a used-up one stops | Only pass `--session-id` if the user wants to use a specific session different from the current one. Pass `--use-allowance` only after the user said yes to paying from the allowance instead of a used-up separate session. |
 | Headers | Omit | Only pass `--headers` if the target API requires additional headers. If the endpoint's `example_request` includes headers, start from those. |
 | Body | Omit | Only pass `--body` if the request needs a payload. **If the endpoint carries an `example_request` in the catalog, start from its body and change only what the task requires** — see **Constructing the Request Body** below. |
 | Base URL | Omit (uses built-in default) | Only pass `--base-url` if the user explicitly provides a custom backend URL. |
 
-**Shell-safe substitution — MANDATORY:** `--url`, `--headers`, and `--body` commonly carry dynamic values (a user-provided or catalog target URL, a constructed JSON body). Never splice these into the command as bare text or inside double quotes — double quotes still expand `$(...)`, backticks, and `$VAR`. Assign each to a shell variable as a **single-quoted literal** (inert — no expansion, even on later reference; escape any embedded `'` as `'\''`), then reference the variables in double quotes, e.g. `kpass session execute --url "$TARGET_URL" --body "$BODY_JSON" --output json`. See the **`form-session-delegation`** skill's "Shell-Safe Value Substitution" section for the full rule and a worked example.
+**Shell-safe substitution — MANDATORY:** `--url`, `--headers`, and `--body` commonly carry dynamic values (a user-provided or catalog target URL, a constructed JSON body). Never splice these into the command as bare text or inside double quotes — double quotes still expand `$(...)`, backticks, and `$VAR`. Assign each to a shell variable as a **single-quoted literal** (inert — no expansion, even on later reference; escape any embedded `'` as `'\''`), then reference the variables in double quotes, e.g. `kpass session execute --url "$TARGET_URL" --body "$BODY_JSON" --idempotency-key "$PAY_KEY" --output json`. See the **`form-session-delegation`** skill's "Shell-Safe Value Substitution" section for the full rule and a worked example.
 
 ## Constructing the Request Body -- Start from the Catalog's `example_request`
 
@@ -128,6 +132,8 @@ If a command succeeds and has a display card template below, you MUST output tha
 | `{spent_total}` | From JSON response field `usage.spent_total` |
 | `{max_total_amount}` | From JSON response field `delegation.payment_policy.max_total_amount` (if set; show "unlimited" if not) |
 | `{wallet_address}` | From JSON response field `x402.wallet_address` |
+
+**Paid from the account allowance** (`source: "allowance"` in the reply): the reply carries `user_message`, for example "Paid USD 0.001 from your account allowance. Left this week: USD 0.79 of USD 0.80. It resets Tue 27 Oct, 00:00 UTC." Put it in your reply as is, in place of the Budget line (an allowance has no `max_total_amount`).
 
 **You MUST always display this card after a successful response. No exceptions.** Fill in all placeholders from the JSON output. See `@references/commands.md` for the full success JSON shape these placeholders are pulled from, and `@references/examples.md` for a worked example showing the card in context.
 
@@ -199,12 +205,18 @@ Generation services (video, image, audio, batch jobs) usually do NOT return the 
 |-----------|---------|----------------------|-----------------|
 | 0 | Success | `status: "success"` | Parse the response and present to user. |
 | 1 | Network error / settlement failure / service unavailable | `network error: ...`, `service is temporarily unavailable`, `error_code: "provider_unavailable"`, `"bridge_failed"`, `"swap_failed"`, `"swap_slippage_realized"` | Check connectivity. `provider_unavailable` (or a transient "service is temporarily unavailable") is safe to retry after a brief wait. For `bridge_failed`/`swap_failed`, funds may be in an ambiguous state — check the **`activity`** skill **before** retrying. `payment_settled_unfulfilled` also exits 1 but means the payment **already settled** — do **NOT** retry; see **Cross-Chain Routing Errors** in `@references/commands.md`. |
+| 2 | Idempotency key missing | `error_code: "idempotency_key_required"` | Nothing was sent. Run the CLI's `next_command` (it carries a new key) and keep that key for any retry of this payment. |
 | 2 | Usage error / routing rejected pre-spend | `Missing --url flag`, `--headers must be a valid JSON object string`, `--body must be a valid JSON string`, `--headers must be a JSON object with key-value pairs`, `No active session specified`, `error_code: "merchant_unsupported"`, `"route_unavailable"`, `"route_uneconomical"`, `"routing_cost_exceeded"`, `"slippage_exceeded"`, `"unsupported_asset"` | Fix the command syntax or check the target URL. For routing rejections (no funds moved), see **Cross-Chain Routing Errors** in `@references/commands.md`. |
 | 3 | Auth error | `Agent not registered`, `Agent is registered to a different user` | Use **`request-session`** to register the agent; see `@references/commands.md` for specific scenarios. |
+| 4 | No account allowance | `error_code: "allowance_unavailable"` | The allowance can't pay: none is set up, or this Passport has none. Put the CLI's `user_message` in your reply (it has the dashboard link when there is one). A separate spending session goes through **`request-session`**, which tells the user before any passkey request. |
 | 4 | Not found | `not found` | Check that the URL is correct. |
 | 5 | Rate limited | `rate limit` | Wait 30 seconds, then retry. |
-| 6 | Session policy / payment violation | `error_code: "session_asset_forbidden"`, `"session_endpoint_forbidden"`, `"session_rule_exceeded"`, `"session_total_exceeded"`, `"insufficient_balance"`, `"payment_cap_exceeded"`, `"merchant_not_allowed"`, `"payment_redirect_not_allowed"` | Do NOT re-authenticate. Check `error_code` and `hint` for the specific violation. For session policy errors, create a new session with corrected parameters using the **`request-session`** skill. For `insufficient_balance`, fund the wallet. For `payment_cap_exceeded`, try a smaller request. |
+| 6 | Separate session used up | `error_code: "session_total_exceeded"`, `"separate_session_used_up"` | The separate session the user approved is used up; the CLI marks it and sends nothing more from it. Stop and put the CLI's `user_message` in your reply. Never switch to the account allowance on your own. With the user's yes: a new separate session (**`request-session`**, preview first), or pay from the allowance by adding `--use-allowance` to execute. |
+| 6 | Session policy / payment violation (separately approved session) | `error_code: "session_asset_forbidden"`, `"session_endpoint_forbidden"`, `"session_rule_exceeded"`, `"insufficient_balance"`, `"payment_cap_exceeded"`, `"merchant_not_allowed"`, `"payment_redirect_not_allowed"` | Do NOT re-authenticate. Check `error_code` and `hint` for the specific violation. For session policy errors, tell the user; a new separate session with corrected parameters goes through **`request-session`** (preview, then their yes). For `insufficient_balance`, fund the wallet. For `payment_cap_exceeded`, try a smaller request. |
+| 6 | The allowance can't pay this | `error_code: "allowance_disabled"`, `"recurring_budget_exhausted"`, `"allowance_too_small"` | Do NOT create a new session on your own and do not switch budgets. Put the CLI's `user_message` (or `hint`) in your reply once: it says why (owner turned it off, used up until a date in UTC, or over the per-call limit) and where the owner can change it. A separate spending session goes through **`request-session`**, which tells the user before any passkey request. |
 | 6 | Allowance cancelled | `error_code: "allowance_cancelled"` | The CLI already bound once to the owner's current allowance and retried. Stop and tell the user the owner cancelled the allowance. Do not request a broader session to get around it. |
+| 7 | Payment outcome not known yet | `error_code: "payment_outcome_pending"`, `"recurring_payment_unknown"` | A signed payment was sent and its result is not known. Tell the user it may have gone through and is being checked, and that nothing new was charged. Retry ONCE later (about a minute, `details.retry_after_seconds`) with the CLI's `next_command`, which has the SAME key. If it is still pending, stop and say the owner's Activity will show the result. Never use a new key, never create a new session. `details.tx_hash` is the merchant's settlement hash when it gave one. |
+| 7 | Earlier attempt not charged | `error_code: "payment_not_settled"` | Nothing was charged for that key. If the user still wants the result, run the CLI's `next_command` once: it carries a NEW key. |
 
 **Error envelope fields:** Error responses include `error` (raw backend message), `error_code` (machine-readable classification — prefer this for programmatic matching), and `hint` (recovery guidance). The `error` field is a passthrough of the backend's original message.
 
@@ -234,13 +246,15 @@ Do NOT attempt any of the following. They will fail:
 ### Prerequisites (before this skill)
 
 - **Prerequisite (auth):** User must be logged in. Use the **`authenticate-user`** skill.
-- **Prerequisite (session):** Agent must be registered and have an active session with appropriate delegation. Use the **`request-session`** skill to create one, or the **`attach-session`** skill to bind an existing attachable session (e.g. created in the web dashboard) — either satisfies this prerequisite.
+- **Prerequisite (session):** Agent must be registered. The account allowance needs no session step; the CLI binds it. Use the **`request-session`** skill only when the CLI says the allowance can't pay or the user asks for a separate session, or the **`attach-session`** skill to bind an existing attachable session (e.g. created in the web dashboard).
 - **Delegation construction:** For understanding the delegation schema and how payment policy and execution constraints work, see the **`form-session-delegation`** skill.
 - **For direct wallet transfers:** To send tokens directly to an address (not through x402), use the **`wallet-send`** skill.
 - **For diagnostics:** To inspect registered agents and sessions from the user's perspective, use the **`manage-agents`** skill.
 
 ### After Successful Execution (what to do next)
 
-- **If the session has remaining budget** and the user may want follow-up requests, mention: "The session still has budget. Want to make another request?"
+- **Paid from the account allowance:** the reply's `user_message` already says what is left and when it resets; do not add "the session still has budget".
+- **If a separately approved session has remaining budget** and the user may want follow-up requests, mention that it can make another request.
 - **After a completed payment:** Suggest that the user can verify the transaction in their history using the **`activity`** skill.
-- **If the session is exhausted or expired:** A new session is needed for further requests -- use **`request-session`**.
+- **If a separate session has expired:** the next execute pays from the account allowance when there is one. If the CLI says the allowance can't pay, use **`request-session`**.
+- **If a separate session is used up:** stop and tell the user (see Error Handling). It never falls to the allowance without their yes.

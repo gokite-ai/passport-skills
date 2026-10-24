@@ -198,12 +198,24 @@ Resolution:
 
 ---
 
-## `session create` — Create a Spending Session with Delegation
+## `session create`: Account Allowance First, or a Separate Spending Session
 
-Creates a new spending session request using a delegation object. The user MUST approve it via the returned `approval_url` before the session becomes active.
+**The account allowance comes first on every form.** `create` creates a passkey request only with `--separate` (or for `--use-card` and `--type attachable`, which the allowance never funds). Every other form checks the allowance first:
+
+| You run | Allowance can pay | Allowance can't pay (none, turned off, used up, not active, or under a quoted `--price`) | Backend has no allowance feature (older Passport) |
+|---|---|---|---|
+| `kpass session create --output json` | binds it: `source: "allowance"`, `user_message` (what is left, reset in UTC) | error with its `error_code`, `user_message` and hint | error `allowance_unavailable` |
+| `kpass session create --delegation '<JSON>' --output json` (or the flags-only form) | **no request**: `allowance_available: true`, `next_command` = plain create | **no request**: error with its code, `user_message`, and `next_command` = the same create plus `--separate --preview` | creates the request (as below) |
+| `... --separate --preview` | sends nothing; returns `user_message` (the question to ask) and `on_yes_command` | same | same |
+| `... --separate` | creates the passkey request | same | same |
+
+**A separate session the user approved comes before the allowance while it is active.** Every form without `--separate` first looks at the current session: a usable separate one answers `source: "separate"` (exit 0, no bind; it keeps paying); a used-up one answers `separate_session_used_up` (exit 6: stop and tell the user). `--use-allowance` (only after the user's yes) skips that check.
+
+Checking the allowance binds this agent to it (the same idempotent bind as plain create). That moves no money and creates no approval, and never moves the current session off a usable separate session.
 
 ```
-kpass session create --delegation '<JSON>' --output json
+kpass session create --delegation '<JSON>' --separate --preview --output json   # the question
+kpass session create --delegation '<JSON>' --separate --output json             # after the yes
 ```
 
 ### Arguments
@@ -216,6 +228,10 @@ kpass session create --delegation '<JSON>' --output json
 | Per-tx limit | `--max-amount-per-tx` | With `--use-card` | Derived from the price | Decimal string |
 | Total budget / card limit | `--max-total-amount` | **Required with `--use-card`** (becomes the card's spending limit) | The session budget | Decimal string |
 | TTL | `--ttl` / `--ttl-seconds` | With `--use-card` | e.g. `1h`, `7d`, or integer seconds | Positive duration |
+| Separate session | `--separate` | To create a passkey request | Only after the user said yes to the preview, or asked for a separate session themselves | Boolean flag. Without it (and without `--use-card` / `--type attachable`) no request is created on an allowance account. |
+| Preview | `--preview` | No | The CLI's `next_command` after "allowance can't pay" | Boolean flag. Implies `--separate`. Sends nothing. Returns `user_message` and `on_yes_command`. |
+| No browser | `--no-browser` | No | Pass when no browser should open (`KPASS_NO_BROWSER=1` does the same; test rigs set it) | Boolean flag |
+| Quoted price | `--price` | No | The endpoint's price from discovery or preflight, in USD | Decimal string. The allowance is compared against it (per-call limit and what is left). Without it the CLI compares nothing but "nothing left". |
 | Skip reuse detection | `--no-reuse` | No | Pass only when you have already decided to force a brand-new session | Boolean flag. Disables the automatic reuse check described below. Redundant with `--use-card` (reuse is always skipped for card sessions). |
 | Output format | `--output json` | Yes | Always pass | Literal value `json` |
 
@@ -328,79 +344,94 @@ Recovery for each is in SKILL.md → Error Handling → "Scoped-card (`--use-car
    | `{expires_at}` | `reuse_candidate.expires_at` |
    | `{asset}` | The settlement asset from the merchant's 402 (e.g. `USDC`); omit if unknown |
 
-3. **If it does NOT match** (different merchant/action), or the user prefers a fresh session → re-run `session create … --no-reuse` to force a new session, and briefly tell the user why.
+3. **If it does NOT match** (different merchant/action), or the user prefers a fresh session → re-run `session create … --separate --no-reuse` to force a new session, and briefly tell the user why.
 4. **Multiple candidates** → `reuse_candidates` is ordered best-first (latest expiry, most budget). Pick the goal-matching one; if several match, ask the user which to use.
 
 **The `--delegation` flag accepts an inline JSON string.** Wrap with single quotes on the outside for shell safety. See the **`form-session-delegation`** skill for the complete schema.
 
-### Success Output (exit code 0)
+### Allowance Available Output (exit code 0, no request)
+
+```json
+{
+  "allowance_available": true,
+  "source": "allowance",
+  "session_id": "agent_session_abc",
+  "allowance_id": "allow_abc",
+  "user_message": "Payments will come from your account allowance, no approval needed. Left this week: USD 0.79 of USD 0.80. It resets Tue 27 Oct, 00:00 UTC.",
+  "_version": "1",
+  "status": "success",
+  "hint": "The account allowance can pay, so no approval request was created. Run next_command; it uses the allowance. Use --separate only if the user asked for a separate spending session.",
+  "next_command": "kpass session create --output json"
+}
+```
+
+Run `next_command`, then pay with **`x402-execute`** (always with `--idempotency-key`).
+
+### Allowance Can't Pay Output (error, no request)
+
+```json
+{
+  "_version": "1",
+  "status": "error",
+  "error": "The account allowance cannot pay: the owner turned it off for this agent.",
+  "error_code": "allowance_disabled",
+  "user_message": "The owner turned off the account allowance for this agent. They can turn it back on in the Passport dashboard, or approve a separate spending limit for this task.",
+  "hint": "... No approval request was created. Run next_command: it prints the question to ask the user and sends nothing.",
+  "next_command": "kpass session create --delegation '{...}' --separate --preview --reason allowance_disabled --output json"
+}
+```
+
+Codes: `allowance_unavailable` (exit 4: no allowance yet, or not active), `allowance_disabled` (exit 6), `recurring_budget_exhausted` (exit 6: used up, `details.reset_at`), `allowance_too_small` (exit 6: only with `--price`). Run `next_command` (the preview). Do not add `--separate` on your own.
+
+### Preview Output (exit code 0, nothing sent)
+
+```json
+{
+  "preview": true,
+  "user_message": "I can get this from x402.example.com (GET /weather/now) for USD 0.001. Your account allowance can't pay right now: it is used up until Tue 27 Oct, 00:00 UTC. I can ask for a separate spending limit instead: up to USD 0.001 per call and USD 0.002 in total, valid for 1 hour. A passkey page will open for you to approve. Should I set it up?",
+  "on_yes_command": "kpass session create --delegation '{...}' --separate --output json",
+  "caps": { "max_amount_per_tx": "0.001", "max_total_amount": "0.002", "validity": "1 hour" },
+  "service": "x402.example.com GET /weather/now",
+  "_version": "1",
+  "status": "success",
+  "hint": "Nothing was sent. Put user_message in your reply and wait for the user's answer. Only after a yes, run on_yes_command.",
+  "next_command": ""
+}
+```
+
+Put `user_message` in your reply and end the turn. Run `on_yes_command` only after the user says yes. The service line is information about which service you will call; it is not a limit on the session.
+
+### Request Created Output (exit code 0)
 
 ```json
 {
   "action": "approve_session",
   "request_id": "req_abc123",
-  "approval_url": "https://passport.dev.gokite.ai/approve/req_abc123",
-  "expires_at": "2026-03-17T12:05:00Z",
+  "approval_url": "https://passport-web.staging.gokite.ai/agent-session/approve?token=...",
+  "expires_at": "2026-10-23T12:10:00Z",
+  "user_message": "I opened the approval page in your browser. If it did not open, use this link: https://passport-web.staging.gokite.ai/agent-session/approve?token=... It allows up to USD 0.001 per call and USD 0.002 in total for 1 hour. The link expires in 10 minutes.",
+  "reply_first": true,
+  "browser_opened": true,
+  "wait_command": "kpass session status --request-id req_abc123 --wait --output json",
   "_version": "1",
   "status": "human_action_required",
-  "hint": "A session request was created. Show the approval URL to the user: https://passport.dev.gokite.ai/approve/req_abc123",
-  "next_command": "kpass session status --request-id req_abc123 --output json"
+  "hint": "Put user_message in your reply now. After the reply, run wait_command.",
+  "next_command": ""
 }
 ```
 
 **Key fields:**
-- `status` is `"human_action_required"` — NOT an error. Exit code is 0.
-- `request_id` — needed for polling the approval status.
-- `approval_url` — MUST be shown to the user. This is the URL where they review and approve the session.
-- `next_command` — contains the `session status` command to check approval.
+- `status` is `"human_action_required"`, NOT an error. Exit code is 0.
+- `user_message`: the full link, the per-call limit, the total limit, the validity and the minutes until the link expires. Written by the CLI so nothing is lost.
+- `browser_opened`: the CLI opened the approval page itself when it safely could (https, the Passport web host only; never in CI, over SSH, in sandbox mode, with `--no-browser` or `KPASS_NO_BROWSER=1`). Do not run `open` yourself.
+- `next_command` is empty on purpose. `wait_command` is the wait, for after your reply.
 
 ### What to Do After This Command
 
-1. **Show the approval URL to the user** by displaying the mandatory card below.
-2. **MANDATORY — Open the approval URL in the user's default browser automatically.**
-
-   `{approval_url}` is backend-generated (from the `session create` response), not user input — but treat it as untrusted anyway: do not splice it into the command as bare text or inside double quotes (double quotes still expand `$(...)`, backticks, and `$VAR`). Assign it to a shell variable as a **single-quoted literal** (inert — no expansion, even on later reference; escape any embedded `'` as `'\''`), then reference the variable in double quotes:
-   ```bash
-   APPROVAL_URL='<value of the approval_url field, single-quoted, unmodified>'
-   open "$APPROVAL_URL"                        # macOS
-   xdg-open "$APPROVAL_URL"                    # Linux
-   cmd.exe /c start "" "$APPROVAL_URL"         # Windows (via Bash, e.g. WSL/git-bash)
-   ```
-   The Windows form needs the empty `""` title argument — `start "$APPROVAL_URL"` alone makes `cmd.exe` treat the URL as the window title instead of the target, and nothing opens. Detect the OS and use the appropriate command. This saves the user from having to copy-paste the URL. If `open` fails, the URL is still in the card — the user can click or copy it manually.
-3. **Immediately start polling for approval** using `session status --request-id <request_id> --wait --output json`. Never skip this step. Never tell the user "let me know when done" without polling first.
+1. **Put `user_message` in your reply, as is, before any other command.** The person reads your reply, not the kpass output; a link only in a tool result has not been shown. This holds in every kind of session, interactive or scripted.
+2. **Then run `wait_command`** (`session status --request-id <request_id> --wait --output json`). Never run it before the reply with the link, and never skip it.
 
 **CRITICAL:** Do NOT attempt to execute any transactions until the session is approved. The session is not active until the user approves it.
-
-**MANDATORY — After this command succeeds, display this card:**
-
-```
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🛡️ Approval Required
-
-A spending session needs your approval:
-
-🌐 {approval_url}
-
-📝 Task:           {task_summary}
-💰 Per-tx limit:    {max_amount_per_tx} {currency}
-💰 Total budget:    {max_total_amount} {currency}
-⏰ Valid for:       {ttl_human_readable}
-📋 Request ID:      {request_id}
-
-👆 Open the link, review, and approve with passkey.
-⏳ I'll wait automatically...
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-```
-
-| Placeholder | Source |
-|---|---|
-| `{approval_url}` | From JSON response field `approval_url` |
-| `{task_summary}` | From the delegation `task.summary` you constructed |
-| `{max_amount_per_tx}` | From the delegation `payment_policy.max_amount_per_tx` |
-| `{max_total_amount}` | From the delegation `payment_policy.max_total_amount` (if set; omit line if not) |
-| `{currency}` | From the delegation `payment_policy.currency` (defaults to `USD`). |
-| `{ttl_human_readable}` | Calculate from the delegation `payment_policy.ttl_seconds` (e.g., `3600` → "1 hour") |
-| `{request_id}` | From JSON response field `request_id` |
 
 ---
 
@@ -424,7 +455,7 @@ kpass session status --request-id <request_id> --wait --output json
 
 ### Polling Strategy — MANDATORY
 
-**CRITICAL: After creating a session and showing the approval card, you MUST immediately start polling. Never skip polling. Never tell the user "let you know" without polling first.**
+**CRITICAL: After creating a request, first put its `user_message` in your reply, then start polling. Never poll before the link is in your reply, and never skip the poll.**
 
 Use the `--wait` flag with default settings:
 
@@ -436,11 +467,7 @@ This polls the backend every 3 seconds for up to 5 minutes automatically.
 
 **If approved within 5 minutes:** The command returns success with the session details. Display the "Session Approved" card and proceed.
 
-**If 5 minutes pass without approval (timeout):** The command returns with a pending/timeout status. STOP polling and tell the user:
-
-```
-Still waiting for your approval. Please let me know once you've approved the session, and I'll check the status.
-```
+**If 5 minutes pass without approval (timeout):** The command returns a pending reply with `user_message` (the link, the limits and the minutes left) and an empty `next_command`. STOP polling, put that `user_message` in your reply, and ask the user to tell you once they have approved.
 
 Then wait for the user to respond. When they indicate approval (e.g., "done", "approved", "I approved it", "ok"), do a single status check:
 
@@ -455,8 +482,8 @@ The session still shows as pending. There might be an issue with the approval. P
 ```
 
 **The flow is always:**
-1. Create session → show approval card (MANDATORY)
-2. Start polling immediately with `--wait` (MANDATORY — never skip)
+1. Create the request → put its `user_message` in your reply (MANDATORY)
+2. Run `wait_command` right after that reply (mandatory, never skip)
 3. If timeout → ask user and wait for their signal
 4. On user signal → single check (without `--wait`)
 
@@ -529,12 +556,12 @@ All set. I can now execute payments on your behalf.
   "_version": "1",
   "status": "error",
   "error": "Session request was rejected by the user.",
-  "hint": "Create a new session request with 'kpass session create'.",
-  "next_command": ""
+  "hint": "The user said no to this request. Do not ask again unless they want to. To pay from the account allowance instead, run next_command.",
+  "next_command": "kpass session create --output json"
 }
 ```
 
-If rejected, inform the user: "The session request was not approved. Would you like me to create a new one, perhaps with different terms?"
+If rejected, tell the user the request was not approved. Do not create another request unless they ask for one.
 
 ### Expired Output (exit code 3)
 
@@ -543,12 +570,12 @@ If rejected, inform the user: "The session request was not approved. Would you l
   "_version": "1",
   "status": "error",
   "error": "Session request expired before approval.",
-  "hint": "Create a new session request with 'kpass session create'.",
-  "next_command": ""
+  "hint": "The approval link expired. Run next_command to use the account allowance; ask the user before any new approval request.",
+  "next_command": "kpass session create --output json"
 }
 ```
 
-If expired, inform the user and offer to create a new session request.
+If expired, tell the user. A new approval request needs the preview and their yes again.
 
 ### Pending Output (exit code 0)
 
@@ -558,8 +585,11 @@ If expired, inform the user and offer to create a new session request.
   "expires_at": "2026-03-17T12:05:00Z",
   "_version": "1",
   "status": "pending",
-  "hint": "Session request is still pending approval.",
-  "next_command": "kpass session status --request-id req_abc123 --output json"
+  "user_message": "Approve it with your passkey at this link: https://... It allows up to USD 0.001 per call and USD 0.002 in total for 1 hour. The link expires in 4 minutes.",
+  "reply_first": true,
+  "wait_command": "kpass session status --request-id req_abc123 --wait --output json",
+  "hint": "Session request is still pending approval. If the user has not seen user_message yet, put it in your reply first, then run wait_command.",
+  "next_command": ""
 }
 ```
 

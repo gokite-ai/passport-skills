@@ -65,7 +65,7 @@ A want you can do yourself from the other results (read, compare, sum up, format
 
 - **Call.** Use the Call line as the call: its method and URL. Fill each `:name` or `{name}` slot in the path from the path input of that name. Never invent a path or widen one. The example is a reference; change its values to fit the ask.
 - **Scope.** Copy the Scope line as the spending scope. Never widen it or drop it.
-- **Chain.** When Pays on names a chain other than Base, tell the person the wallet needs funds on that chain and that bridging is manual today.
+- **Chain.** When Pays on names a chain other than Base, warn the person before they approve: to pay there, Passport first moves at least 1 USD worth of their Base USDC to that chain, keeps what is left over as their balance on that chain, and lists only the merchant payment in their activity.
 - **Pay.** Hand over the price and the payment route. Give one price. If the line shows a price that varies, say so and give the last price seen with its date.
 - **Order of choice.** Fit first, then the fields the detail view lists as seen in a real reply, then the record, then price. For the record, prefer works with an example, then works without one; avoid broken (its newest check failed). Untested (no successful real call yet) alone is no reason to drop the best fit.
 - **Per call.** If an endpoint takes one subject per call and the want covers several subjects, count one call per subject and give the total price. Before you use one endpoint for several wants about different subjects, check this.
@@ -120,4 +120,4 @@ uses: step 1
 total_usd: <image price + email price>
 ```
 
-Do not call or pay for anything here. The money step comes after this hand-over and belongs to the payment skill.
+Do not call or pay for anything here. The money step comes after this hand-over: `x402-execute`, which pays from the account allowance. `request-session` only if the CLI says the allowance can't pay, or the person asks for a separate spending session.

@@ -46,7 +46,7 @@ The delegation includes:
 | 3 | Auth error (invalid OTP, expired session, bad token) |
 | 4 | Not found (user not registered, session not found, service not found) |
 | 5 | Rate limited |
-| 6 | Session policy / payment violation (e.g. `session_asset_forbidden`, `session_total_exceeded`) -- do NOT re-authenticate; create a new session with corrected parameters. See each skill's `SKILL.md` for the full `error_code` list. |
+| 6 | Session policy / payment violation (e.g. `session_asset_forbidden`, `session_total_exceeded`) -- do NOT re-authenticate and do NOT create a session on your own. Tell the user; a used-up separate session stops (never a switch to the account allowance without their yes), and any new separate session goes through `--separate --preview` and their yes. See each skill's `SKILL.md` for the full `error_code` list. |
 
 ### Agent-lane extensions (7, 8)
 

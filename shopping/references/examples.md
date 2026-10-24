@@ -143,7 +143,7 @@ Cart subtotal is $9.99, so the checkout charge is cap $14.99 (subtotal + $5 floo
 {"task":{"summary":"Shopping checkout — cart subtotal $9.99, charge up to $15.99"},"payment_policy":{"max_amount_per_tx":"20","max_total_amount":"20","ttl_seconds":3600}}
 ```
 
-The `form-session-delegation` skill (Path B) derives the parameters (per-tx limit, total budget, TTL) from the charge. The user approves the session via passkey.
+The `form-session-delegation` skill (Path B) derives the parameters (per-tx limit, total budget, TTL) from the charge. Create it with `kpass session create --delegation "$DELEGATION_JSON" --separate --output json` (the account allowance never pays checkouts), put the reply's `user_message` (link and limits) in your reply, then wait. The user approves the session via passkey.
 
 Once the session is active (session ID is automatically saved in agent config), run checkout:
 ```bash

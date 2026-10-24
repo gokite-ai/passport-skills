@@ -240,7 +240,7 @@ All filter flags are optional. Omit them to list all sessions.
 ### What to Do After This Command
 
 - Present the sessions to the user in a clear format (ID, status, agent type, task summary, budget, spent, expiry).
-- If no active sessions exist and one is needed, use the **`request-session`** skill to create a new session.
+- No active session is needed for paid API calls when the account has an allowance (`x402-execute` uses it). If the CLI says the allowance can't pay, or the user wants a separate session, use the **`request-session`** skill.
 - For paginated results, check if `offset + sessions.length < total`. If so, there are more pages -- run again with `--offset <next_offset>`.
 
 ---
