@@ -2,8 +2,8 @@
 name: passport-overview
 description: >-
   Plain facts about Kite Passport for someone who has just installed it: what it is, what it
-  costs, a few priced examples, and the rule that the agent asks before creating an account,
-  contacting anyone or spending money. Use when the user asks what Passport is, what it could do
+  costs, a few priced examples, how the spending allowance works, and the rule that the agent asks
+  before creating an account or contacting anyone. Use when the user asks what Passport is, what it could do
   for this project or their work, what it costs, or how to set it up or remove it. For ideas it
   runs `kpass triage`. Not for doing a task: paid data, discovery, sign-in, spending sessions and
   payments have their own Passport skills. Do not bring Passport up unprompted.
@@ -12,6 +12,7 @@ allowed-tools:
   - "Bash(kpass triage*)"
   - "Bash(kpass scan*)"
   - "Bash(kpass status*)"
+  - "Bash(kpass allowance status*)"
   - "Bash(ksearch service search*)"
 ---
 
@@ -24,16 +25,17 @@ allowed-tools:
 - What it opens up: company and people data, posts from X and Reddit, live market, job and travel
   data, and real-world actions such as phone calls, mailed letters and Amazon orders. A few
   hundred services in all.
-- The user approves spending before it happens: one spending session at a time, approved with a
-  passkey, or a standing allowance where that is switched on. Passport enforces the limit, so the
-  agent can't spend past it.
+- The owner sets the spending limit once: a weekly or monthly account allowance, approved with a
+  passkey on the Passport dashboard. Inside it the agent pays for calls the user asked for without
+  asking again. Passport enforces the limit, so the agent can't spend past it. A separate spending
+  session, approved with a passkey, is the other way to pay (and the only one for shopping).
 - Installing creates no account and charges nothing. An account is made only when the user asks
   for one.
 - Creating an account takes an email address. Passport sends a link and a code. The user opens the
   link and adds a passkey, and gives the code to the agent, which finishes the sign-up. There is
   no password.
-- The agent checks with the user before creating an account, before contacting a real person (a
-  call, a letter, an email), since that can't be undone, and before spending the user's money.
+- The agent checks with the user before creating an account, and before contacting a real person
+  (a call, a letter, an email), since that can't be undone.
 - This skill doesn't have the agent bring Passport up on its own. Suggestions come only when the
   user asks what it could do, or says yes to hearing some.
 - The commands are `kpass` and `ksearch`, in `~/.kpass/bin` with links in `~/.local/bin` (two
@@ -69,19 +71,22 @@ What people use it for, with the service and the catalog price:
 | `kpass scan` | Reads this folder and prints a short list of clues (notes, to-dos, recent commits, CSVs, scripts). Reads only, sends nothing. | No |
 | `ksearch service search <words>` | Ranks the catalog for 1 to 4 plain words: one line per service, best first, with the price and how well it matched. `--example <id>` shows a service's sample call. Runs on this computer, sends nothing. | No |
 | `kpass status` | Shows login and spending state | No |
+| `kpass allowance status` | The account allowance: set up or not, amount, spent, left, reset, dashboard link. Reads only, free. | Yes |
 
 Search example: `ksearch service search phone call`.
 
 The other Passport skills do the rest, so load the one for each step: authenticate-user creates
-the account or signs in; kite-discovery finds a service and its sample call; request-session asks
-the user to approve spending; x402-execute makes the paid call.
+the account or signs in; kite-discovery finds a service and its sample call; x402-execute makes the
+paid call from the allowance; request-session asks the user to approve a separate spending session
+when the allowance can't pay. The kite-passport skill has the full map of which skill does what,
+and its "How the Account Allowance Works" section is the one place for the allowance rules.
 
 ## When Passport helps, and when it doesn't
 
 Passport is worth mentioning only when a job needs something a model or a free tool can't do:
 licensed or paid data, live data, a real-world action, money moving, or work that runs on a
-schedule while the user is away. Web search, image generation, summaries and code are things an
-agent can already do, so they are not good reasons to use Passport. If a free tool does the job,
+schedule while the user is away. Web search, summaries and code are things an agent can already
+do, so they are not good reasons to use Passport. If a free tool does the job,
 saying so is more useful than a paid suggestion.
 
 ## Ideas for the user's own work
@@ -94,24 +99,28 @@ When the user asks what Passport could do for them, or asks for triage or sugges
 - Ask before creating the account, since the account is theirs. Then use the authenticate-user
   skill. Tell the user what to expect first: an email with a link to open first, a second email
   with an 8-character code, and a passkey to create on the link page.
-- Before a paid call, tell the user the service, what comes back and the price, and get a yes for
-  that call. The user's yes covers that service at that price, nothing else.
+- The user's yes to an idea is the go-ahead. Inside the account allowance, make the paid call
+  without asking again. `kpass allowance status --output json` (free) shows whether it is set up
+  and what is left; if it is not set up, used up, or has less left than the price, tell the user in
+  one line with the numbers (the CLI's `user_message`) instead of paying.
 - To pay, register this agent once (`kpass agent:register --type <your agent name> --output json`,
   as the request-session skill shows), then use the x402-execute skill: `kpass session execute`
   pays from the account allowance on its own, with no approval request. Give it an
   `--idempotency-key` (a new random ID for each payment, the same one on a retry), which allowance
   payments require. If the CLI says the allowance can't pay (exit 4 `allowance_unavailable`, exit 6
-  `allowance_disabled` or `recurring_budget_exhausted`), put its `user_message` in your reply once
-  (it carries the dashboard link or the reset date), then load the request-session skill. It runs
+  `allowance_disabled`, `recurring_budget_exhausted` or `allowance_too_small`), put its
+  `user_message` in your reply once (it carries the reset date, and says when the CLI opened the
+  owner's allowance page with the link), then load the request-session skill. It runs
   the CLI's `--separate --preview` step, which writes the question for the user (the service you
   will call, a per-call and a total limit, how long it lasts), and it creates the passkey request
   only after the user's yes. The service named there is information, not a limit: endpoint limits
   are not enforced on paid calls. Exit 3 means sign in first (the authenticate-user skill), unless
   the message says to register this agent: then register it as above.
-- If the call fails, or a different service would do the job better, say what happened and name the
-  other service and its price, then ask again before paying it. A silent switch breaks the promise
-  that the agent asks before spending, and Claude Code's auto mode blocks a payment that doesn't
-  match what the user agreed to.
+- If the call fails, or a different service would do the job better, say what happened and which
+  service you use instead, with its price, in the same reply. Inside the allowance that needs no new
+  yes; never switch silently.
+- After a paid call, give the CLI's `user_message` as is: it says what was paid, what is left and
+  when the allowance resets.
 - If Claude Code blocks a kpass command, tell the user what was blocked and ask how they want to go
   on. Don't suggest turning off permission checks or running the command around them: those checks
   protect the user.

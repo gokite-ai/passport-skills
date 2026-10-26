@@ -407,9 +407,9 @@ Put `user_message` in your reply and end the turn. Run `on_yes_command` only aft
 {
   "action": "approve_session",
   "request_id": "req_abc123",
-  "approval_url": "https://passport-web.staging.gokite.ai/agent-session/approve?token=...",
+  "approval_url": "https://agentpassport.ai/agent-session/approve?token=...",
   "expires_at": "2026-10-23T12:10:00Z",
-  "user_message": "I opened the approval page in your browser. If it did not open, use this link: https://passport-web.staging.gokite.ai/agent-session/approve?token=... It allows up to USD 0.001 per call and USD 0.002 in total for 1 hour. The link expires in 10 minutes.",
+  "user_message": "I opened the approval page in your browser. If it did not open, use this link: https://agentpassport.ai/agent-session/approve?token=... It allows up to USD 0.001 per call and USD 0.002 in total for 1 hour. The link expires in 10 minutes.",
   "reply_first": true,
   "browser_opened": true,
   "wait_command": "kpass session status --request-id req_abc123 --wait --output json",
