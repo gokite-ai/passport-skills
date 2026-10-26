@@ -76,9 +76,9 @@ Output:
 {
   "action": "approve_session",
   "request_id": "req_abc123",
-  "approval_url": "https://passport-web.staging.gokite.ai/agent-session/approve?token=abc",
+  "approval_url": "https://agentpassport.ai/agent-session/approve?token=abc",
   "expires_at": "2026-10-23T12:10:00Z",
-  "user_message": "I opened the approval page in your browser. If it did not open, use this link: https://passport-web.staging.gokite.ai/agent-session/approve?token=abc It allows up to USD 1 per call and USD 10 in total for 1 hour. The link expires in 10 minutes.",
+  "user_message": "I opened the approval page in your browser. If it did not open, use this link: https://agentpassport.ai/agent-session/approve?token=abc It allows up to USD 1 per call and USD 10 in total for 1 hour. The link expires in 10 minutes.",
   "reply_first": true,
   "browser_opened": true,
   "wait_command": "kpass session status --request-id req_abc123 --wait --output json",

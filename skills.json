@@ -4,7 +4,7 @@
   "display_name": "Kite Passport Skills",
   "description": "Skills that teach AI agents how to authenticate users, manage spending sessions, execute payments, and transfer tokens using the kpass CLI.",
   "version": "3.6.4",
-  "min_kpass_version": "6.8.4",
+  "min_kpass_version": "6.8.9",
   "min_ksearch_version": "3.0.0",
   "setup_script": "scripts/setup.sh",
   "groups": {
@@ -205,7 +205,7 @@
     {
       "slug": "manage-agents",
       "name": "Manage Agents",
-      "description": "Inspect registered agents and spending sessions on the user's account. Invoke for diagnostics, debugging \"agent not registered\" errors, reviewing active or expired sessions, checking budget remaining, or when the user asks what agents or sessions exist. Read-only -- does not create or modify anything.",
+      "description": "Inspect registered agents and spending sessions on the user's account. Invoke for diagnostics, debugging \"agent not registered\" errors, reviewing active or expired sessions, checking a separate session's budget remaining, or when the user asks what agents or sessions exist. Read-only -- does not create or modify anything. For the account allowance (set up or not, left, reset) use `kpass allowance status` instead.",
       "path": "manage-agents/SKILL.md",
       "group": "user",
       "tags": [
@@ -297,26 +297,9 @@
       "dependencies": []
     },
     {
-      "slug": "kite-router",
-      "name": "Kite Router",
-      "description": "Run synchronous text-model inference through Kite Router with this Passport-bound agent. Invoke to list Router models or pricing, call a supported text model, or replace the old Marathon inference plugin. Uses `kpass agent router`; it does not handle Marathon delayed jobs.",
-      "path": "kite-router/SKILL.md",
-      "group": "user",
-      "tags": [
-        "inference",
-        "models",
-        "llm",
-        "router",
-        "chat"
-      ],
-      "dependencies": [
-        "authenticate-user"
-      ]
-    },
-    {
       "slug": "passport-overview",
       "name": "Passport Overview",
-      "description": "Plain facts about Kite Passport for someone who has just installed it: what it is, what it costs, a few priced examples, and the rule that the agent asks before creating an account, contacting anyone or spending money. Use when the user asks what Passport is, what it could do for this project or their work, what it costs, or how to set it up or remove it; for ideas it runs `kpass triage`. Not for doing a task, and it does not bring Passport up unprompted.",
+      "description": "Plain facts about Kite Passport for someone who has just installed it: what it is, what it costs, a few priced examples, how the spending allowance works, and the rule that the agent asks before creating an account or contacting anyone. Use when the user asks what Passport is, what it could do for this project or their work, what it costs, or how to set it up or remove it. For ideas it runs `kpass triage`. Not for doing a task: paid data, discovery, sign-in, spending sessions and payments have their own Passport skills. Do not bring Passport up unprompted.",
       "path": "passport-overview/SKILL.md",
       "group": "user",
       "tags": [

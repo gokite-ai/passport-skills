@@ -89,20 +89,10 @@ Output:
 }
 ```
 
-Display the mandatory card:
-```
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-⚡ Payment Processed
+Write one plain receipt line (this example pays from a separate session):
 
-🎯 Target:     https://weather.example.com/v1/forecast
-📡 Method:     POST
-📊 HTTP:       200
-💰 Paid:       1.00 USDC
-📊 Budget:     4.00 / 10.00 spent
-🏦 Wallet:     0xabc123...
-
-📦 Response received successfully.
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```text
+Paid 1.00 USDC to weather.example.com; this session has spent 4.00 of 10.00.
 ```
 
 **Step 3:** Present the result to the user.

@@ -3,8 +3,9 @@ name: manage-agents
 description: >-
   Inspect registered agents and spending sessions on the user's account. Invoke for
   diagnostics, debugging "agent not registered" errors, reviewing active or expired
-  sessions, checking budget remaining, or when the user asks what agents or sessions
-  exist. Read-only -- does not create or modify anything.
+  sessions, checking a separate session's budget remaining, or when the user asks what
+  agents or sessions exist. Read-only -- does not create or modify anything. For the
+  account allowance (set up or not, left, reset) use `kpass allowance status` instead.
 user-invocable: true
 allowed-tools:
   - "Bash(kpass user *)"
