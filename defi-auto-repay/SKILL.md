@@ -145,7 +145,7 @@ so it needs your passkey. It stays armed until you approve.
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
-Optionally open the URL (`open`/`xdg-open`), then run `next_command` (`repay-trigger get --id <id>`) to confirm `trigger_status: "cancelled"`. A `pending_approval` trigger — and an armed trigger wherever the environment doesn't require the passkey — cancels immediately with no approval step.
+Optionally open the URL (`open`/`xdg-open`). **After the user approves**, run `next_command` (`repay-trigger get --id <id>`) to confirm `trigger_status: "cancelled"`. That command is a one-shot read (no `--wait`): if it still shows `armed`, the user hasn't finished approving — wait and check again. A `pending_approval` trigger — and an armed trigger wherever the environment doesn't require the passkey — cancels immediately with no approval step.
 
 ## Error Handling
 
