@@ -101,7 +101,9 @@ No flags. `status: "success"` with `triggers: [ … ]`, newest first (up to 50).
 |------|----------|-------|
 | `--id` | yes | Trigger ID |
 
-Cancels a `pending_approval` or `armed` trigger. No passkey (cancelling only removes authority). Returns `trigger_status: "cancelled"`. A firing or finished trigger can't be cancelled (`aave_trigger_not_cancellable`, exit 2).
+Cancels a `pending_approval` or `armed` trigger. A `pending_approval` trigger cancels immediately with no passkey and returns `trigger_status: "cancelled"`.
+
+An **armed** trigger has set USDC aside, so releasing it can need the user's passkey. When it does, the response is `status: "human_action_required"` (exit 0) with `action: "approve_aave_repay_cancel"`, `approval_url`, `approval_expires_at`, and `next_command`; the trigger stays `armed` until the user approves in the browser, after which it becomes `cancelled`. Where the environment doesn't require it, an armed trigger also cancels immediately. A firing or finished trigger can't be cancelled (`aave_trigger_not_cancellable`, exit 2).
 
 ## Error codes
 
