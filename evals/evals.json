@@ -590,5 +590,36 @@
       "health factor",
       "expir"
     ]
+  },
+  {
+    "id": 142,
+    "prompt": "Swap 1 USDC for ETH on Base.",
+    "expected_output": "Agent invokes defi-swap and previews first with 'kpass defi swap --dry-run --output json', shows a Swap Quote card, and asks the user to confirm before executing; it does NOT run the non-dry-run swap until the user replies yes.",
+    "assertions": [
+      "kpass defi swap",
+      "--dry-run",
+      "--output json",
+      "━━━"
+    ]
+  },
+  {
+    "id": 143,
+    "prompt": "What would I get if I swapped 50 USDC into ETH?",
+    "expected_output": "Agent runs 'kpass defi swap --dry-run --output json' and shows the Swap Quote card without executing (no non-dry-run swap).",
+    "assertions": [
+      "kpass defi swap",
+      "--dry-run",
+      "--output json"
+    ]
+  },
+  {
+    "id": 144,
+    "prompt": "Do a swap for me.",
+    "expected_output": "Agent asks the user for the sell asset, buy asset and amount before running anything; it never invents them, and uses --sell/--buy/--amount.",
+    "assertions": [
+      "sell",
+      "buy",
+      "amount"
+    ]
   }
 ]
