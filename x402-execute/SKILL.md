@@ -81,6 +81,7 @@ retry still fails, stop and tell the user the owner cancelled the allowance.
 | Session ID | Auto-read from agent config (`current_session_id`). Who pays: a separate session the user approved pays while it is active; with none (or an expired one), the account allowance pays; a used-up one stops | Only pass `--session-id` if the user wants to use a specific session different from the current one. Pass `--use-allowance` only after the user said yes to paying from the allowance instead of a used-up separate session. |
 | Headers | Omit | Only pass `--headers` if the target API requires additional headers. If the endpoint's `example_request` includes headers, start from those. |
 | Body | Omit | Only pass `--body` if the request needs a payload. **If the endpoint carries an `example_request` in the catalog, start from its body and change only what the task requires** — see **Constructing the Request Body** below. |
+| Plan price | Omit | If the catalog card names a plan price (for example `--amount 0.001` for per-request billing), pass `--amount <price>`: the backend pays only the merchant offer at exactly that price. On `amount_no_match` nothing was paid; the error lists the merchant's offers, so tell the user instead of retrying without `--amount`. |
 | Base URL | Omit (uses built-in default) | Only pass `--base-url` if the user explicitly provides a custom backend URL. |
 
 **Shell-safe substitution — MANDATORY:** `--url`, `--headers`, and `--body` commonly carry dynamic values (a user-provided or catalog target URL, a constructed JSON body). Never splice these into the command as bare text or inside double quotes — double quotes still expand `$(...)`, backticks, and `$VAR`. Assign each to a shell variable as a **single-quoted literal** (inert — no expansion, even on later reference; escape any embedded `'` as `'\''`), then reference the variables in double quotes, e.g. `kpass session execute --url "$TARGET_URL" --body "$BODY_JSON" --idempotency-key "$PAY_KEY" --output json`. See the **`form-session-delegation`** skill's "Shell-Safe Value Substitution" section for the full rule and a worked example.
@@ -208,7 +209,6 @@ Do NOT attempt any of the following. They will fail:
 - `kpass x402` -- does not exist
 - `kpass pay` -- does not exist; use `session execute` for paid requests, or `wallet send` for direct transfers
 - `kpass session execute --type transfer` -- the `--type` flag does not exist on execute; execution type is determined by the target URL
-- `kpass session execute --amount` -- does not exist; payment amount is determined by the target service's x402 requirements
 - `kpass session execute --currency` -- does not exist
 - `kpass session execute --to` -- does not exist; use `wallet send` for direct transfers
 - Any command with `--json` -- the correct flag is `--output json` (two separate tokens)
