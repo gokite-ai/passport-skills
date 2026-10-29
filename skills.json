@@ -203,6 +203,27 @@
       ]
     },
     {
+      "slug": "defi-swap",
+      "name": "DeFi Swap",
+      "description": "Swap one token for another on Uniswap (Base) through the user's Passport wallet: preview a live quote (expected output, slippage, route), then execute after the user confirms. Respects USDC set aside by armed Aave repay triggers (refuses with balance_reserved). Invoke when the user wants to swap, convert, trade or exchange one on-chain asset for another on Base, or asks what a swap would return.",
+      "path": "defi-swap/SKILL.md",
+      "group": "user",
+      "tags": [
+        "defi",
+        "swap",
+        "uniswap",
+        "trade",
+        "convert",
+        "exchange",
+        "base",
+        "usdc",
+        "eth"
+      ],
+      "dependencies": [
+        "authenticate-user"
+      ]
+    },
+    {
       "slug": "manage-agents",
       "name": "Manage Agents",
       "description": "Inspect registered agents and spending sessions on the user's account. Invoke for diagnostics, debugging \"agent not registered\" errors, reviewing active or expired sessions, checking a separate session's budget remaining, or when the user asks what agents or sessions exist. Read-only -- does not create or modify anything. For the account allowance (set up or not, left, reset) use `kpass allowance status` instead.",
