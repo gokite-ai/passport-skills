@@ -125,7 +125,7 @@ See SKILL.md for the plain receipt line to give after this step.
 
 ## Error Handling — Full Reference
 
-**Error envelope fields:** Error responses include `error` (raw backend message), `error_code` (machine-readable classification — prefer this for programmatic matching), and `hint` (recovery guidance). The `error` field is a passthrough of the backend's original message.
+**Error envelope fields:** Error responses include `error` (raw backend message), `error_code` (machine-readable classification — prefer this for programmatic matching), and `hint` (recovery guidance). The `error` field is a passthrough of the backend's original message. On exit 7, read `details.outcome` before you match `error_code`: it refines the code, and `merchant_failed_held` arrives under the same `payment_outcome_pending` / `recurring_payment_unknown` codes as a plain pending outcome.
 
 ### Specific Error Scenarios
 
@@ -161,20 +161,22 @@ See SKILL.md for the plain receipt line to give after this step.
 - Put `user_message` in your reply (it has the top-up link). Do not retry now and do not switch to another way of paying. Only after the user says they topped up, run the CLI's `next_command` (it carries the same key; nothing was stored for it).
 - On an older backend an empty wallet shows up as "Payment outcome pending" below, with `details.wallet_now_empty: true` and a top-up line added to `user_message`. Follow that row: it keeps the same-key rule.
 
-**"Merchant failed after payment" (exit code 7, `details.outcome: "merchant_failed_held"`):**
+**"Merchant failed after payment" (exit code 7, `details.outcome: "merchant_failed_held"`, `retriable: true`):**
+- Matched on `details.outcome`, not on `error_code`: the code stays `recurring_payment_unknown`, or `payment_outcome_pending` on a same-key retry. An agent that matches the code alone lands on "Payment outcome pending" below and retries a payment it must never retry. Read `details.outcome` first.
 - The payment settled and the merchant then returned an error, so no result was delivered. The money is **held, not charged**, until Kite confirms where it goes. `details.payment_id` identifies the payment, `details.held_amount` is what is held, and `details.result_by` is when the final result is due.
 - `user_message` states those facts. Put it in your reply as is, in the turn the call returns. Report the facts only; do not tell the user how likely a refund is.
 - Then run the CLI's `next_command`, `kpass session updates --wait --payment-id <id> --output json`, to learn the confirmed result, and put that result's `user_message` in your reply.
 - Never retry this payment: not with the same idempotency key, and not with a new one. A retry buys the same merchant failure and a second hold.
 
 **`session updates` (what the wait answers):**
-- `status: "decided"` carries the final `outcome`, a `user_message` and, when there is one, a `tx_hash`. The outcomes are `not_charged_released` (the hold was released and nothing was charged), `charged` (the payment stands) and `under_review` (not final yet; its `user_message` says what happens next). Relay the `user_message` either way.
-- `status: "still_held"` exits 7 and carries a `next_command` to wait again. Run that one. Do not go back to `session execute`.
+- `status: "decided"` exits 0 with a `user_message` and an `updates` array. Each entry carries `payment_id`, `outcome`, `key`, `tx_hash` and its own `user_message`. The final outcomes are `not_charged_released` (the hold was released and nothing was charged) and `charged` (the payment stands). Relay the `user_message` either way.
+- `status: "still_held"` exits 7 with `error_code: "payment_result_pending"` and carries a `next_command` to wait again. Run that one. Do not go back to `session execute`.
+- `outcome: "under_review"` is not final and does not end the wait. It shows up in `updates` while the money is still held; relay its `user_message` and keep waiting with the `next_command`.
 
 **`payment_updates` (a result that arrives on a later call):**
 - Any `kpass session execute` reply may carry a top-level `payment_updates` array holding the decided results of earlier held payments. Relay each entry's `user_message` to the user alongside that call's own receipt line.
 
-**"Payment outcome pending" (exit code 7, `error_code: "payment_outcome_pending"` or `"recurring_payment_unknown"`, `retriable: true`):**
+**"Payment outcome pending" (exit code 7, `error_code: "payment_outcome_pending"` or `"recurring_payment_unknown"`, `retriable: true`, and `details.outcome` is not `"merchant_failed_held"`):**
 - A signed payment for this key was sent and its result is not known yet. `details.tx_hash` holds the merchant's settlement hash when it gave one; `details.retry_after_seconds` is 60.
 - Tell the user it may have gone through and is being checked, and that nothing new was charged. Retry ONCE later with the CLI's `next_command` (the SAME key). If it is still pending, stop: the owner's Activity will show the result. Never use a new key, never create a new session.
 

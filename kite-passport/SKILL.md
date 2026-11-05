@@ -197,7 +197,10 @@ session, the account allowance pays.
 
 If any skill returns exit code 7 (`payment_outcome_pending`,
 `recurring_payment_unknown`, `payment_not_settled`), never create a new
-session and never invent a new key. Read `details.outcome` first:
+session and never invent a new key. Read `details.outcome` before you match
+`error_code`. On exit 7 the outcome refines the code, and a merchant failure
+reuses `recurring_payment_unknown`, or `payment_outcome_pending` on a same-key
+retry:
 
 - `merchant_failed_held`: the payment settled, the merchant then returned an
   error, and no result was delivered. The money is held, not charged. Put the
@@ -207,9 +210,9 @@ session and never invent a new key. Read `details.outcome` first:
   (`kpass session updates --wait --payment-id <id>`) and report the confirmed
   result, or read it from `payment_updates` on your next payment call. Never
   retry this payment, with the same key or with a new one.
-- Any other exit 7, follow `x402-execute`: pending means retry once later with
-  the SAME key (the CLI's `next_command`), then stop; not settled means run the
-  CLI's `next_command`, which carries a new key.
+- Any other `details.outcome`, follow `x402-execute`: pending means retry once
+  later with the SAME key (the CLI's `next_command`), then stop; not settled
+  means run the CLI's `next_command`, which carries a new key.
 
 ## Reading the JSON Envelope (Applies to Every Skill)
 

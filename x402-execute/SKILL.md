@@ -56,12 +56,14 @@ On `recurring_budget_exhausted`, stop. Tell the user the reset date and the
 dashboard link where the owner can raise the allowance; both are in the `hint`
 (from `reset_at` and `dashboard_url` in the reply). A separate spending
 session goes through **`request-session`**, only after the user's yes. On
-`recurring_payment_unknown`, follow the exit 7 row under Error Handling: retry
-once later with the CLI's `next_command` (same key), then stop. When an exit 7
-answer carries `details.outcome: "merchant_failed_held"`, do not retry at all:
-the merchant failed after the payment and the money is held. Give the user the
-CLI's facts and wait for the result with the CLI's `next_command`, as
-**Merchant Failed After Payment** below sets out. On
+`recurring_payment_unknown`, read `details.outcome` before you act on the
+`error_code`, because a merchant failure keeps that same code. `details.outcome:
+"merchant_failed_held"` means no retry at all, with the same key or with a new
+one, because the merchant failed after the payment and the money is held. Give
+the user the CLI's facts and wait for the result with the CLI's `next_command`, as
+**Merchant Failed After Payment** below sets out. Otherwise follow the exit 7
+row under Error Handling: retry once later with the CLI's `next_command` (same
+key), then stop. On
 `execute_in_progress`, stop and ask the owner to reconcile the original
 operation. On `recurring_request_conflict`, restore the
 original request rather than generating another key. Never switch agents or
@@ -195,11 +197,11 @@ Generation services (video, image, audio, batch jobs) usually do NOT return the 
 | 6 | Wallet empty | `error_code: "wallet_empty"` | The Passport wallet has no funds, or less than this call costs, so nothing was paid or charged (the allowance is a limit, not money). Put the CLI's `user_message` in your reply: it has the top-up link. Do not retry now and do not switch to another way of paying. Only after the user says they topped up, run the CLI's `next_command`. |
 | 6 | The allowance can't pay this | `error_code: "allowance_disabled"`, `"recurring_budget_exhausted"`, `"allowance_too_small"` | Do NOT create a new session on your own and do not switch budgets. Put the CLI's `user_message` (or `hint`) in your reply once: it says why (owner turned it off, used up until a date in UTC, or over the per-call limit) with the numbers, and where the owner can change it. For used up and too small, the CLI opens the owner's allowance page in the browser when it can and its `user_message` says so. A separate spending session goes through **`request-session`**, which tells the user before any passkey request. |
 | 6 | Allowance cancelled | `error_code: "allowance_cancelled"` | The CLI already bound once to the owner's current allowance and retried. Stop and tell the user the owner cancelled the allowance. Do not request a broader session to get around it. |
-| 7 | Merchant failed after payment | `details.outcome: "merchant_failed_held"` | The payment settled, the merchant then returned an error, and no result was delivered. The money is **held, not charged**. Put the CLI's `user_message` in your reply as is, in the turn the call returns: it states the failure, what is held (`details.held_amount`) and when the final result is due (`details.result_by`). Then run the CLI's `next_command` (`kpass session updates --wait --payment-id <id>`) and report the confirmed result. **Never retry this payment**, with the same key or with a new one. See **Merchant Failed After Payment** below. |
-| 7 | Payment outcome not known yet | `error_code: "payment_outcome_pending"`, `"recurring_payment_unknown"` | A signed payment was sent and its result is not known. Tell the user it may have gone through and is being checked, and that nothing new was charged. Retry ONCE later (about a minute, `details.retry_after_seconds`) with the CLI's `next_command`, which has the SAME key. If it is still pending, stop and say the owner's Activity will show the result. Never use a new key, never create a new session. `details.tx_hash` is the merchant's settlement hash when it gave one. |
+| 7 | Merchant failed after payment | `details.outcome: "merchant_failed_held"` (`error_code` stays `recurring_payment_unknown`, or `payment_outcome_pending` on a same-key retry) | Matched on `details.outcome`, not on `error_code`: the code is the one a plain pending outcome also carries, so read `details.outcome` first. The payment settled, the merchant then returned an error, and no result was delivered. The money is **held, not charged**. Put the CLI's `user_message` in your reply as is, in the turn the call returns: it states the failure, what is held (`details.held_amount`) and when the final result is due (`details.result_by`). Then run the CLI's `next_command` (`kpass session updates --wait --payment-id <id>`) and report the confirmed result. **Never retry this payment**, with the same key or with a new one. See **Merchant Failed After Payment** below. |
+| 7 | Payment outcome not known yet | `error_code: "payment_outcome_pending"`, `"recurring_payment_unknown"`, and `details.outcome` is not `"merchant_failed_held"` | A signed payment was sent and its result is not known. Tell the user it may have gone through and is being checked, and that nothing new was charged. Retry ONCE later (about a minute, `details.retry_after_seconds`) with the CLI's `next_command`, which has the SAME key. If it is still pending, stop and say the owner's Activity will show the result. Never use a new key, never create a new session. `details.tx_hash` is the merchant's settlement hash when it gave one. |
 | 7 | Earlier attempt not charged | `error_code: "payment_not_settled"` | Nothing was charged for that key. If the user still wants the result, run the CLI's `next_command` once: it carries a NEW key. |
 
-**Error envelope fields:** Error responses include `error` (raw backend message), `error_code` (machine-readable classification — prefer this for programmatic matching), and `hint` (recovery guidance). The `error` field is a passthrough of the backend's original message.
+**Error envelope fields:** Error responses include `error` (raw backend message), `error_code` (machine-readable classification — prefer this for programmatic matching), and `hint` (recovery guidance). The `error` field is a passthrough of the backend's original message. On exit 7, read `details.outcome` before you match `error_code`: it refines the code, and `merchant_failed_held` arrives under the same `payment_outcome_pending` / `recurring_payment_unknown` codes as a plain pending outcome.
 
 See `@references/commands.md` for the exact message/scenario write-up of every error above, the full Cross-Chain Routing Errors reference, and the note on non-2xx target-service responses.
 
@@ -215,8 +217,9 @@ Exit 7 with `details.outcome: "merchant_failed_held"` means the payment settled 
    PAYMENT_ID='<details.payment_id from the error, single-quoted, unmodified>'
    kpass session updates --wait --payment-id "$PAYMENT_ID" --output json
    ```
-   - `status: "decided"` carries the final `outcome` (`not_charged_released`, `charged` or `under_review`), a `user_message`, and a `tx_hash` when there is one.
-   - `status: "still_held"` exits 7 and carries a `next_command` to wait again. Run that one. Do not go back to `session execute`.
+   - `status: "decided"` exits 0 with a `user_message` and an `updates` array; each entry carries `payment_id`, `outcome` (`not_charged_released` or `charged`), `key`, `tx_hash` and its own `user_message`.
+   - `status: "still_held"` exits 7 with `error_code: "payment_result_pending"` and a `next_command` to wait again. Run that one. Do not go back to `session execute`.
+   - An `under_review` entry does not end the wait: the money is still held, so relay its `user_message` and keep waiting with the `next_command`.
 3. **Report the confirmed result** by putting the update's `user_message` in your reply.
 
 **Never retry the payment.** Not with the same `--idempotency-key`, and not with a new one. The merchant already failed, so a retry buys the same failure and a second hold.
