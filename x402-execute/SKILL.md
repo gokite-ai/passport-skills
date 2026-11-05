@@ -224,7 +224,7 @@ Exit 7 with `details.outcome: "merchant_failed_held"` means the payment settled 
 
 **Never retry the payment.** Not with the same `--idempotency-key`, and not with a new one. The merchant already failed, so a retry buys the same failure and a second hold.
 
-**You can also pick the result up on a later call.** Any `kpass session execute` reply may carry a top-level `payment_updates` array holding the decided results of earlier held payments. Relay each entry's `user_message` to the user alongside that call's own receipt line.
+**You can also pick the result up on a later call.** Any `kpass session execute` reply may carry a `payment_updates` array holding the decided results of earlier held payments: in the data of a successful reply, and under `details` of an error reply, so a later error does not hide it. Relay each entry's `user_message` to the user alongside that call's own receipt line.
 
 ---
 

@@ -166,7 +166,7 @@ See SKILL.md for the plain receipt line to give after this step.
 - The payment settled and the merchant then returned an error, so no result was delivered. The money is **held, not charged**, until Kite confirms where it goes. `details.payment_id` identifies the payment, `details.held_amount` is what is held, and `details.result_by` is when the final result is due.
 - `user_message` states those facts. Put it in your reply as is, in the turn the call returns. Report the facts only; do not tell the user how likely a refund is.
 - Then run the CLI's `next_command`, `kpass session updates --wait --payment-id <id> --output json`, to learn the confirmed result, and put that result's `user_message` in your reply.
-- Never retry this payment: not with the same idempotency key, and not with a new one. A retry buys the same merchant failure and a second hold.
+- Never retry this payment: not with the same idempotency key, and not with a new one. A retry buys the same merchant failure and a second hold. The `retriable: true` on this reply is about the `next_command` wait, not about sending the payment again.
 
 **`session updates` (what the wait answers):**
 - `status: "decided"` exits 0 with a `user_message` and an `updates` array. Each entry carries `payment_id`, `outcome`, `key`, `tx_hash` and its own `user_message`. The final outcomes are `not_charged_released` (the hold was released and nothing was charged) and `charged` (the payment stands). Relay the `user_message` either way.
@@ -174,7 +174,7 @@ See SKILL.md for the plain receipt line to give after this step.
 - `outcome: "under_review"` is not final and does not end the wait. It shows up in `updates` while the money is still held; relay its `user_message` and keep waiting with the `next_command`.
 
 **`payment_updates` (a result that arrives on a later call):**
-- Any `kpass session execute` reply may carry a top-level `payment_updates` array holding the decided results of earlier held payments. Relay each entry's `user_message` to the user alongside that call's own receipt line.
+- Any `kpass session execute` reply may carry a `payment_updates` array holding the decided results of earlier held payments: in the data of a successful reply, and under `details` of an error reply. Look in both, so a later error does not hide a decided result. Relay each entry's `user_message` to the user alongside that call's own receipt line.
 
 **"Payment outcome pending" (exit code 7, `error_code: "payment_outcome_pending"` or `"recurring_payment_unknown"`, `retriable: true`, and `details.outcome` is not `"merchant_failed_held"`):**
 - A signed payment for this key was sent and its result is not known yet. `details.tx_hash` holds the merchant's settlement hash when it gave one; `details.retry_after_seconds` is 60.
