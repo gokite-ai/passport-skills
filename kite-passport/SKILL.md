@@ -202,11 +202,12 @@ session and never invent a new key. Read `details.outcome` before you match
 reuses `recurring_payment_unknown`, or `payment_outcome_pending` on a same-key
 retry:
 
-- `merchant_failed_held`: the payment settled, the merchant then returned an
-  error, and no result was delivered. The money is held, not charged. Put the
-  CLI's `user_message` in your reply as is, in the turn the call returns: it
-  states the failure, what is held (`details.held_amount`) and when the final
-  result is due (`details.result_by`). Then run the CLI's `next_command`
+- `merchant_failed_held`: the merchant returned an error after payment and
+  delivered no result. The amount is held, not spent and not released, until
+  the result is known. Put the CLI's `user_message` in your reply as is, in
+  the turn the call returns: it states the failure, what is held
+  (`details.held_amount`) and when the final result is due
+  (`details.result_by`). Then run the CLI's `next_command`
   (`kpass session updates --wait --payment-id <id>`) and report the confirmed
   result, or read it from `payment_updates` on your next payment call. Never
   retry this payment, with the same key or with a new one.

@@ -163,7 +163,7 @@ See SKILL.md for the plain receipt line to give after this step.
 
 **"Merchant failed after payment" (exit code 7, `details.outcome: "merchant_failed_held"`, `retriable: true`):**
 - Matched on `details.outcome`, not on `error_code`: the code stays `recurring_payment_unknown`, or `payment_outcome_pending` on a same-key retry. An agent that matches the code alone lands on "Payment outcome pending" below and retries a payment it must never retry. Read `details.outcome` first.
-- The payment settled and the merchant then returned an error, so no result was delivered. The money is **held, not charged**, until Kite confirms where it goes. `details.payment_id` identifies the payment, `details.held_amount` is what is held, and `details.result_by` is when the final result is due.
+- The merchant returned an error after payment and delivered no result. The amount is **held**, not spent and not released, until the result is known. `details.payment_id` identifies the payment, `details.held_amount` is what is held, and `details.result_by` is when the final result is due.
 - `user_message` states those facts. Put it in your reply as is, in the turn the call returns. Report the facts only; do not tell the user how likely a refund is.
 - Then run the CLI's `next_command`, `kpass session updates --wait --payment-id <id> --output json`, to learn the confirmed result, and put that result's `user_message` in your reply.
 - Never retry this payment: not with the same idempotency key, and not with a new one. A retry buys the same merchant failure and a second hold. The `retriable: true` on this reply is about the `next_command` wait, not about sending the payment again.
