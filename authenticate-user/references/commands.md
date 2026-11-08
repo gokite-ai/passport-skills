@@ -25,7 +25,115 @@ Full command reference for the `authenticate-user` skill. SKILL.md carries the t
 
 ---
 
-## `signup init` -- Start Signup
+## `login` -- Start the Browser Sign-In
+
+The first command of every sign-in, for a new user and a returning user alike. kpass opens the browser on this machine and registers the approval request with the backend.
+
+```
+kpass login --output json
+```
+
+### Arguments
+
+| Argument | Flag | Required | Source | Validation |
+|----------|------|----------|--------|------------|
+| Output format | `--output json` | Yes | Always pass | Literal value `json` |
+
+No other flags. `--client` and `--no-interactive` belong to `login init`, not here.
+
+### Success Output (exit code 0)
+
+```json
+{
+  "request_id": "req_abc123",
+  "approve_url": "https://passport.gokite.ai/approve/req_abc123",
+  "_version": "1",
+  "status": "pending",
+  "hint": "Approve the sign-in in your browser.",
+  "next_command": "kpass login status --wait 50 --output json"
+}
+```
+
+**Key fields:**
+- `status` is `"pending"` -- NOT an error. Exit code is 0.
+- `approve_url` -- put this in your reply to the user, in full. They see your message, not this JSON.
+- `request_id` -- the backend's handle for this attempt. `login status` finds it on its own; you do not pass it back.
+
+### No Browser on This Machine (exit code 9)
+
+```json
+{
+  "_version": "1",
+  "status": "error",
+  "error": "no browser available to open",
+  "error_code": "browser_unavailable",
+  "hint": "Use the email code flow instead.",
+  "next_command": "kpass login init --email <EMAIL> --client agent --output json --no-interactive"
+}
+```
+
+Containers, SSH sessions and CI machines land here. Match on `error_code`, not on the exit number, and switch to `login init` below. This is not a failure to report to the user.
+
+### Older kpass
+
+A kpass from before browser sign-in answers `kpass login` with the login group's help text or an unknown-command error rather than JSON. Treat that as "no browser sign-in on this install" and run the older flow in SKILL.md ("Older kpass: Login vs Signup").
+
+### What to Do After This Command
+
+1. Put the `approve_url` in your reply: "Approve the sign-in in your browser: {approve_url}".
+2. Run `login status` below. Do not wait for the user to tell you they approved.
+
+---
+
+## `login status` -- Read the Browser Sign-In
+
+Blocks server-side for up to `--wait` seconds, then reports where the sign-in got to.
+
+```
+kpass login status --wait 50 --output json
+```
+
+### Arguments
+
+| Argument | Flag | Required | Source | Validation |
+|----------|------|----------|--------|------------|
+| Wait seconds | `--wait` | Yes (for agent use) | Always pass `50` | Positive integer |
+| Output format | `--output json` | Yes | Always pass | Literal value `json` |
+
+There is no `--request-id`. kpass tracks the pending request locally, which is why this command still works in a later agent run.
+
+### Output
+
+Read the sign-in state from `login_status`, or from the envelope's `status` when the response carries no `login_status` field.
+
+```json
+{
+  "login_status": "signed_in",
+  "email": "user@example.com",
+  "user_id": "user_789xyz",
+  "_version": "1",
+  "status": "success",
+  "hint": "Signed in as user@example.com.",
+  "next_command": ""
+}
+```
+
+| State | Meaning | Next step |
+|---|---|---|
+| `pending` | Not approved yet | Run the same command again. Repeat the `approve_url` in your reply every few rounds. |
+| `signed_in` | Done; `email` and `user_id` are in the response | Display the Welcome Back card. No email was sent and no code is needed. |
+| `expired` | Nobody approved in time | Run `kpass login --output json` again. The browser is usually signed in by then, so it is one click. |
+| `failed` | The sign-in did not complete | Run `kpass login --output json` again. If that also fails, use `login init`. |
+
+### What to Do After This Command
+
+The approval lands server-side whether or not you are waiting. If your run stops between `login` and `login status`, run `login status` again when you come back rather than starting a new `kpass login` — the earlier attempt is very likely already approved, and a fresh one would make the user click twice.
+
+---
+
+## `signup init` -- Start Signup (Older kpass Only)
+
+**Reached only from SKILL.md's "Older kpass: Login vs Signup".** A current kpass signs up new users through `login` or `login init`, so it never runs any `signup` sub-command.
 
 Sends a verification link and a sign-up code to the user's email address.
 
@@ -75,7 +183,7 @@ See the **"Messaging After `signup init` — MANDATORY"** section in `SKILL.md` 
 
 ---
 
-## `signup poll` -- Detect Email Verification (Run in the Background, Not Optional)
+## `signup poll` -- Detect Email Verification (Older kpass Only)
 
 Polls the backend until the user clicks the verification link. **Start this immediately after `signup init`, in the background** (`run_in_background: true`), rather than waiting for the user to type something like "verified" or "done" — that keyword is not a real signal (the backend is), and requiring it just adds a manual step the poll makes unnecessary. Do not run it inline/foreground: with `--wait` it blocks server-side for up to `--timeout` (default 600s), which would stall the whole conversation for up to ten minutes if not backgrounded.
 
@@ -146,7 +254,7 @@ When the backgrounded poll notifies you `verification_status` is `"verified"`:
 
 ---
 
-## `signup exchange` -- Complete Signup and Authenticate
+## `signup exchange` -- Complete Signup and Authenticate (Older kpass Only)
 
 Completes the signup flow: creates the user account, obtains a JWT, and saves credentials to local config. After this command succeeds, the user is fully authenticated — do NOT run `login init`.
 
@@ -185,9 +293,11 @@ Display the Account Created & Logged In card (SKILL.md). Fill in all placeholder
 
 ---
 
-## `login init` -- Start OTP Login
+## `login init` -- Start the Email Code Sign-In
 
-Sends an 8-character one-time code to the user's email address.
+The fallback when `kpass login` exits 9 (`browser_unavailable`), and the first command of the older-kpass flow.
+
+Sends an 8-character one-time code to the user's email address. **One email, one code, and it works for an address that has never signed up as much as for a known one** — a current kpass registers the new user on `login verify`. There is no second email and no `signup` step.
 
 ```
 kpass login init --email <EMAIL> --client agent --output json --no-interactive
@@ -383,8 +493,19 @@ Use `me` when you need to confirm the current auth state before proceeding with 
 - If from `signup poll`: skip polling and proceed — ask the user for the 8-character code, then run `signup exchange` with the `signup_id` and code (via `KPASS_SIGNUP_CODE` env var). The exchange endpoint accepts consumed sessions.
 - If from `signup exchange`: run `kpass me --output json` to check if the user is already authenticated. If `me` succeeds, display the welcome-back card. If `me` fails, the exchange may have failed for another reason — check the error message.
 
+**No browser on this machine (exit code 9, `browser_unavailable` from `kpass login`):**
+- Expected on containers, SSH sessions and CI machines, not a failure.
+- Run `login init` with the user's email, then `login verify` with the code they read back. One email, one code.
+- Do not report exit 9 to the user as an error, and do not retry `kpass login`.
+
+**Browser sign-in came back `expired` or `failed` (from `login status`):**
+- Run `kpass login --output json` once more and give the user the new `approve_url`.
+- The browser is usually signed in by this point, so the second attempt is one click.
+- If the second attempt also ends `failed`, switch to `login init`.
+
 **Email not registered during login (exit code 4):**
-- Fall back to `signup init` with the same email.
+- Only an older kpass returns this; a current one registers the address instead.
+- On an older kpass, fall back to `signup init` with the same email.
 - Tell the user: "It looks like you don't have an account yet. I'll create one for you."
 
 **Signup blocked — email already registered (exit code 3 from `signup init`):**
