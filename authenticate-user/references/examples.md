@@ -36,6 +36,9 @@ Output:
 {
   "request_id": "req_abc123",
   "approve_url": "https://passport.gokite.ai/approve/req_abc123",
+  "login_status": "pending",
+  "browser_opened": true,
+  "expires_at": "2026-03-17T12:10:00Z",
   "_version": "1",
   "status": "pending",
   "hint": "Approve the sign-in in your browser.",
@@ -107,13 +110,12 @@ Output (exit code 9):
 {
   "_version": "1",
   "status": "error",
-  "error": "no browser available to open",
-  "error_code": "browser_unavailable",
-  "hint": "Use the email code flow instead.",
-  "next_command": "kpass login init --email <EMAIL> --client agent --output json --no-interactive"
+  "error": "No browser can be opened here (…).",
+  "hint": "Run 'kpass login init --email <EMAIL>' to sign in with an emailed code instead.",
+  "next_command": ""
 }
 ```
-Do not report this to the user as a failure. Ask for their email address if you do not have it.
+The exit code 9 is what tells you to switch. There is no `error_code` field to match on, and `next_command` is empty, so nothing in the body hands you the next step. Do not report this to the user as a failure. Ask for their email address if you do not have it.
 
 **Step 2:** Send the one code.
 ```bash

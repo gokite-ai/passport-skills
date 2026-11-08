@@ -47,6 +47,9 @@ No other flags. `--client` and `--no-interactive` belong to `login init`, not he
 {
   "request_id": "req_abc123",
   "approve_url": "https://passport.gokite.ai/approve/req_abc123",
+  "login_status": "pending",
+  "browser_opened": true,
+  "expires_at": "2026-03-17T12:10:00Z",
   "_version": "1",
   "status": "pending",
   "hint": "Approve the sign-in in your browser.",
@@ -58,6 +61,9 @@ No other flags. `--client` and `--no-interactive` belong to `login init`, not he
 - `status` is `"pending"` -- NOT an error. Exit code is 0.
 - `approve_url` -- put this in your reply to the user, in full. They see your message, not this JSON.
 - `request_id` -- the backend's handle for this attempt. `login status` finds it on its own; you do not pass it back.
+- `login_status` -- `"pending"` here, the same field `login status` answers with.
+- `browser_opened` -- whether kpass opened the browser itself. Put `approve_url` in your reply either way, so the user can open it when nothing opened for them.
+- `expires_at` -- when this attempt stops being approvable. After it, `login status` answers `expired`.
 
 ### No Browser on This Machine (exit code 9)
 
@@ -65,14 +71,13 @@ No other flags. `--client` and `--no-interactive` belong to `login init`, not he
 {
   "_version": "1",
   "status": "error",
-  "error": "no browser available to open",
-  "error_code": "browser_unavailable",
-  "hint": "Use the email code flow instead.",
-  "next_command": "kpass login init --email <EMAIL> --client agent --output json --no-interactive"
+  "error": "No browser can be opened here (…).",
+  "hint": "Run 'kpass login init --email <EMAIL>' to sign in with an emailed code instead.",
+  "next_command": ""
 }
 ```
 
-Containers, SSH sessions and CI machines land here. Match on `error_code`, not on the exit number, and switch to `login init` below. This is not a failure to report to the user.
+Containers, SSH sessions and CI machines land here. **Detect this by the exit code 9.** There is no `error_code` field on this response and `next_command` is empty, so the exit code is the only thing that tells you to switch. The parenthetical inside `error` names the reason and varies, so match the start of the string at most, never the whole of it. Switch to `login init` below. This is not a failure to report to the user.
 
 ### Older kpass
 
@@ -493,8 +498,9 @@ Use `me` when you need to confirm the current auth state before proceeding with 
 - If from `signup poll`: skip polling and proceed — ask the user for the 8-character code, then run `signup exchange` with the `signup_id` and code (via `KPASS_SIGNUP_CODE` env var). The exchange endpoint accepts consumed sessions.
 - If from `signup exchange`: run `kpass me --output json` to check if the user is already authenticated. If `me` succeeds, display the welcome-back card. If `me` fails, the exchange may have failed for another reason — check the error message.
 
-**No browser on this machine (exit code 9, `browser_unavailable` from `kpass login`):**
+**No browser on this machine (exit code 9 from `kpass login`, the `browser_unavailable` case):**
 - Expected on containers, SSH sessions and CI machines, not a failure.
+- The exit code is the signal. The body carries `status: "error"` and an `error` starting "No browser can be opened here", with no `error_code` field and an empty `next_command`.
 - Run `login init` with the user's email, then `login verify` with the code they read back. One email, one code.
 - Do not report exit 9 to the user as an error, and do not retry `kpass login`.
 

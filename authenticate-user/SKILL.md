@@ -118,7 +118,11 @@ This blocks server-side for up to 50 seconds and then answers. **The sign-in sta
 
 ### Step 3 (only if there is no browser): the email code
 
-`kpass login` exits **9** with `error_code: "browser_unavailable"` when the machine has no browser to open — a container, an SSH session, a CI box. Match on `error_code`, not on the number. Then:
+`kpass login` exits **9** when the machine has no browser it can open. That is the `browser_unavailable` case, and it is the normal answer inside a container, an SSH session or a CI box.
+
+**Detect it by the exit code 9.** The exit code is the only signal kpass gives you here. The response carries `status: "error"` and an `error` that starts "No browser can be opened here", it has **no `error_code` field**, and its `next_command` is empty. An agent that waits for an `error_code` never switches, so the user on a headless machine never gets their code.
+
+Switch to the email code:
 
 ```bash
 kpass login init --email <EMAIL> --client agent --output json --no-interactive
@@ -249,7 +253,7 @@ A command that needs a new spending key comes back with `error_code: "allowance_
 | 4 | Not found | `email not registered`, `not found` | On a current kpass this does not come up: `login init` registers a new address too. On an older kpass, fall back to `signup init`. |
 | 5 | Rate limited | `rate limit` | Wait 30 seconds, then retry. |
 | 6 | Session policy violation | N/A for authenticate-user | This exit code is not expected from authentication commands. If encountered, it indicates a session delegation issue — use **`request-session`** to create a new session. |
-| 9 | No browser on this machine | `error_code: "browser_unavailable"` from `kpass login` | Switch to the email code: `login init`, then `login verify`. One email, one code. Not a failure to report to the user. |
+| 9 | No browser on this machine, the `browser_unavailable` case | `status: "error"` from `kpass login` with an `error` starting `No browser can be opened here`. This response has no `error_code` field. | Key off the exit code 9 itself. Switch to the email code: `login init`, then `login verify`. One email, one code. Not a failure to report to the user. |
 | Non-zero | A new spending key needs approval | `error_code: "allowance_key_approval_pending"`, `_expired`, `_denied` | Give the user the response's `user_message` with its approve link, then re-run the same command. See the section above. Match on `error_code`, not on the number. |
 
 See `@references/commands.md` for the exact JSON error envelope of every command and the full Specific Error Scenarios reference (wrong OTP, expired verification link, already-consumed signup session, email not registered).
