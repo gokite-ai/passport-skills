@@ -31,9 +31,9 @@ allowed-tools:
   session, approved with a passkey, is the other way to pay (and the only one for shopping).
 - Installing creates no account and charges nothing. An account is made only when the user asks
   for one.
-- Creating an account takes an email address. Passport sends a link and a code. The user opens the
-  link and adds a passkey, and gives the code to the agent, which finishes the sign-up. There is
-  no password.
+- Creating an account takes an email address, and signing in later takes the same step. One email
+  with one code, or one click in your browser if Passport is already signed in. The user adds a
+  passkey on the dashboard, which is what approves spending later. There is no password.
 - The agent checks with the user before creating an account, and before contacting a real person
   (a call, a letter, an email), since that can't be undone.
 - This skill doesn't have the agent bring Passport up on its own. Suggestions come only when the
@@ -97,8 +97,8 @@ When the user asks what Passport could do for them, or asks for triage or sugges
 ## After the user says yes to an idea
 
 - Ask before creating the account, since the account is theirs. Then use the authenticate-user
-  skill. Tell the user what to expect first: an email with a link to open first, a second email
-  with an 8-character code, and a passkey to create on the link page.
+  skill. Tell the user what to expect first: one email with one code, or one click in your browser
+  if Passport is already signed in, and a passkey to create on the dashboard.
 - The user's yes to an idea is the go-ahead. Inside the account allowance, make the paid call
   without asking again. `kpass allowance status --output json` (free) shows whether it is set up
   and what is left; if it is not set up, used up, or has less left than the price, tell the user in
