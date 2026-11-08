@@ -105,14 +105,14 @@ kpass opens the browser itself and returns `status: "pending"` with a `request_i
 kpass login status --wait 50 --output json
 ```
 
-This blocks server-side for up to 50 seconds and then answers. Read the sign-in state from `login_status`, or from `status` when the response has no `login_status` field, and act on it:
+This blocks server-side for up to 50 seconds and then answers. **The sign-in state is the `login_status` field.** If a response carries no `login_status`, read the envelope's `status` instead and map it: `success` means `signed_in`, `pending` means `pending`, `expired` means `expired`, and `error` means `failed`. Then act on the state:
 
 | State | What it means | What you do |
 |---|---|---|
 | `pending` | The user has not approved yet | Run `kpass login status --wait 50 --output json` again. Repeat while it stays `pending`. Repeat the `approve_url` in your reply every few rounds so the user still has it. |
 | `signed_in` | Done | Display the Welcome Back card with the `email` and `user_id` from the response, and stop. **No email was sent and no code is needed. Do not run `login init`.** |
 | `expired` | Nobody approved it in time | Run `kpass login --output json` once more and go back to step 1. The browser is usually signed in by now, so it is one click. |
-| `failed` | The browser sign-in did not complete | Same as `expired`: run `kpass login --output json` once more. If the second attempt also comes back `failed`, use the email code below. |
+| `failed` | The browser sign-in did not complete | Same as `expired`: run `kpass login --output json` once more. If the second attempt also comes back `failed`, say so and ask the user whether to send them a code by email instead. Do not switch to the email code on your own — that costs them an email this flow is meant to save. |
 
 **The sign-in does not depend on you waiting.** If your run stops between those two commands, the approval still lands server-side. When you come back, run `kpass login status --wait 50 --output json` first — do not start a fresh `kpass login`, and do not assume the attempt was lost.
 

@@ -34,13 +34,19 @@ dashboard's, and are here so one table covers both surfaces.
 | Row | What the skill runs |
 | -- | -- |
 | New user, CLI, browser on the machine | `kpass login`, then `kpass login status` until it says `signed_in`. The dashboard does the sign-up in the browser, and the first spending key is approved from the `user_message` link. |
-| New user, CLI, no browser on the machine | `kpass login` exits `browser_unavailable`, so the skill runs `login init` then `login verify`. One email, one code, for a new address as much as an existing one. |
+| New user, CLI, no browser on the machine | `kpass login` exits `browser_unavailable`, so the skill runs `login init` then `login verify`. One email and one code for the sign-in. |
 | Returning, CLI, dashboard signed in | `kpass login`, then `kpass login status`. No email, no code. |
 | Returning, CLI, dashboard not signed in | The same two commands. The dashboard asks for the email and code itself, and that sign-in leaves it signed in for next time. |
 | Returning, CLI, no browser on the machine | `login init` then `login verify`. One email, one code, no browser. |
 
-The skill never runs `kpass signup`, and never asks for a second code. A new email
-and a known email take the same path.
+The skill never runs `kpass signup`, and never asks for a second code for the
+sign-in. A new email and a known email take the same path.
+
+The two new-user rows run "to first spending approval", so their counts cover more
+than the sign-in: approving the first allowance key is a step of its own, and it is
+why those rows are higher than the sign-in alone. What this skill owns is the
+sign-in part, plus handing the user the approve link that
+`allowance_key_approval_pending` carries.
 
 The CLI rows are counted per machine, not per repo. With a global install `kpass`
 keeps one login in the home folder, so a second repo on the same machine needs no

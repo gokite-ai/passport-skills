@@ -63,7 +63,7 @@ Output:
 
 Done. Display the Welcome Back card. If the dashboard was already signed in, that was one click and nothing else: no email, no code. If it was not, the dashboard asked for the email and code itself, and it stays signed in for next time.
 
-If `login_status` comes back `expired` or `failed`, run `kpass login --output json` again and give the user the new link. The browser is signed in by then, so it is one click.
+If `login_status` comes back `expired` or `failed`, run `kpass login --output json` again and give the user the new link. The browser is signed in by then, so it is one click. If the second attempt fails too, ask the user whether to send a code by email rather than switching on your own.
 
 ---
 
@@ -200,7 +200,7 @@ Output:
   "next_command": "KPASS_SIGNUP_CODE=<CODE> kpass signup exchange --signup-id signup_abc123 --output json"
 }
 ```
-Use the mandatory ordered wording from `SKILL.md`'s "Messaging After `signup init`" section — click the link (and, for a new account, create the passkey it leads to), then share the 8-character code. Do not phrase these as two alternative ways to finish.
+Use the mandatory ordered wording from `SKILL.md`'s "Messaging After `signup init` (Older kpass Only)" section — click the link (and, for a new account, create the passkey it leads to), then share the 8-character code. Do not phrase these as two alternative ways to finish.
 
 Right after sending that message, also start `kpass signup poll --signup-id signup_abc123 --wait --output json` **in the background** — do not wait for the user to say "verified" first. It runs in parallel with waiting for the code below and reports the link click on its own; see `signup poll` in `commands.md`.
 

@@ -1,6 +1,6 @@
 # Authenticate User — Command Reference
 
-Full command reference for the `authenticate-user` skill. SKILL.md carries the trigger logic, the login-vs-signup decision, the security note on passing codes via environment variables, and the mandatory display cards; this file has the command-level detail (flags, validation, full JSON output shapes, and the exhaustive error-scenario list). Worked end-to-end examples live in `examples.md`.
+Full command reference for the `authenticate-user` skill. SKILL.md carries the trigger logic, the sign-in order (browser first, email code second, the older-kpass flow last), the security note on passing codes via environment variables, and the mandatory display cards; this file has the command-level detail (flags, validation, full JSON output shapes, and the exhaustive error-scenario list). Worked end-to-end examples live in `examples.md`.
 
 **Common envelope.** All commands return this envelope structure when `--output json` is used:
 
@@ -100,11 +100,11 @@ kpass login status --wait 50 --output json
 | Wait seconds | `--wait` | Yes (for agent use) | Always pass `50` | Positive integer |
 | Output format | `--output json` | Yes | Always pass | Literal value `json` |
 
-There is no `--request-id`. kpass tracks the pending request locally, which is why this command still works in a later agent run.
+Run it exactly as written; you do not pass the `request_id` back. The approval itself lives on the backend, so this command still answers in a later agent run, after the one that started the sign-in has ended.
 
 ### Output
 
-Read the sign-in state from `login_status`, or from the envelope's `status` when the response carries no `login_status` field.
+The sign-in state is the `login_status` field. If a response carries no `login_status`, read the envelope's `status` instead and map it: `success` means `signed_in`, `pending` means `pending`, `expired` means `expired`, and `error` means `failed`.
 
 ```json
 {
@@ -123,7 +123,7 @@ Read the sign-in state from `login_status`, or from the envelope's `status` when
 | `pending` | Not approved yet | Run the same command again. Repeat the `approve_url` in your reply every few rounds. |
 | `signed_in` | Done; `email` and `user_id` are in the response | Display the Welcome Back card. No email was sent and no code is needed. |
 | `expired` | Nobody approved in time | Run `kpass login --output json` again. The browser is usually signed in by then, so it is one click. |
-| `failed` | The sign-in did not complete | Run `kpass login --output json` again. If that also fails, use `login init`. |
+| `failed` | The sign-in did not complete | Run `kpass login --output json` again. If that also fails, ask the user whether to send a code by email instead of switching to `login init` yourself. |
 
 ### What to Do After This Command
 
@@ -172,7 +172,7 @@ kpass signup init --email <EMAIL> --client agent --output json --no-interactive
 
 ### What to Do After This Command
 
-See the **"Messaging After `signup init` — MANDATORY"** section in `SKILL.md` for the exact, ordered wording to use — clicking the link and sharing the code are sequential steps, not alternatives ("whichever is easier"), because `signup exchange` will fail with "not verified" if the link hasn't been opened yet regardless of whether the code is correct. That wording also covers the "Create a passkey" page a brand-new signup lands on after clicking the link — mention it proactively, not as a surprise afterward.
+See the **"Messaging After `signup init` (Older kpass Only) — MANDATORY"** section in `SKILL.md` for the exact, ordered wording to use — clicking the link and sharing the code are sequential steps, not alternatives ("whichever is easier"), because `signup exchange` will fail with "not verified" if the link hasn't been opened yet regardless of whether the code is correct. That wording also covers the "Create a passkey" page a brand-new signup lands on after clicking the link — mention it proactively, not as a surprise afterward.
 
 1. Tell the user to click the verification link first, then share the 8-character code.
 2. **In the background** (`run_in_background`), start `signup poll --signup-id <signup_id> --wait --output json` right away — do not wait for the user to say "verified" first. It detects the link click on its own; see `signup poll` below.

@@ -48,11 +48,30 @@ must_not_contain() {
   fi
 }
 
+browser_flow_comes_first() {
+  local browser signup
+  browser=$(grep -n -m1 -E '^## Sign In' "$SKILL" | cut -d: -f1)
+  signup=$(grep -n -m1 -E '^## .*(Login vs Signup|Messaging After)' "$SKILL" | cut -d: -f1)
+  if [[ -z "$browser" ]]; then
+    echo "  FAIL: authenticate-user/SKILL.md has no '## Sign In' section"
+    ERRORS=$((ERRORS + 1))
+  elif [[ -z "$signup" || "$browser" -lt "$signup" ]]; then
+    echo "  [OK] the browser sign-in section (line $browser) comes before the signup sections"
+  else
+    echo "  FAIL: a signup section (line $signup) comes before the browser sign-in (line $browser)"
+    ERRORS=$((ERRORS + 1))
+  fi
+}
+
 if require_file "$SKILL"; then
   must_contain "$SKILL" "kpass login --output json"
   must_contain "$SKILL" "kpass login status"
   must_contain "$SKILL" "browser_unavailable"
   must_not_contain "$SKILL" "sends both emails"
+  # The four checks above all pass against the pre-change skill, so on their own
+  # they would not catch a revert. An agent reads top to bottom: the browser flow
+  # has to be the first one it meets.
+  browser_flow_comes_first
 fi
 
 if require_file "$COUNTS"; then
