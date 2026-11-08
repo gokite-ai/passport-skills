@@ -79,6 +79,14 @@ With a global install, kpass keeps one login in the home folder (`.kite-passport
 
 **There is no separate sign-up step.** A new user and a returning user take the same path. The browser registers whoever is not registered yet, and so does the email code. Never ask the user whether they already have an account, and never ask for a second code.
 
+### Step 0: Check whether they are already signed in
+
+```bash
+kpass me --output json
+```
+
+If it succeeds, the user is signed in already: display the Welcome Back card and stop. With a global install the login lives in the home folder, so a second project on the same machine needs no sign-in at all. Exit code 3 here means nobody is signed in — go to step 1.
+
 ### Step 1: Start the browser sign-in
 
 ```bash
@@ -117,7 +125,7 @@ kpass login init --email <EMAIL> --client agent --output json --no-interactive
 KPASS_LOGIN_CODE=<CODE> kpass login verify --login-id <login_id> --output json
 ```
 
-**One email, one code, for a new address as much as a known one.** Ask the user for the 8-character code from the "Sign in to Kite Passport" email and pass it to `login verify`. Then display the Welcome Back card.
+**One email, one code, for a new address as much as a known one.** Ask the user for the 8-character code from that email and pass it to `login verify`. Then display the Welcome Back card.
 
 Do **not** run `kpass signup` anywhere in this path. Do **not** tell the user to expect a second email: there is only one, and it carries the code.
 
