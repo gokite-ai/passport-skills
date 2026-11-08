@@ -1,10 +1,159 @@
 # Authenticate User — Worked Examples
 
-End-to-end walkthroughs for the `authenticate-user` skill. Per-command syntax, flags, and JSON shapes live in `commands.md`; the login-vs-signup decision, the mandatory signup messaging, the security note on passing codes via environment variables, and the mandatory display cards live in `SKILL.md`.
+End-to-end walkthroughs for the `authenticate-user` skill. Per-command syntax, flags, and JSON shapes live in `commands.md`; the sign-in order, the security note on passing codes via environment variables, and the mandatory display cards live in `SKILL.md`.
+
+The first three examples are the current flow. The rest are the older-kpass flow, reached only when `kpass login` is not available.
 
 ---
 
-## Complete Worked Example: New User Signup
+## Complete Worked Example: Browser Sign-In (New or Returning User)
+
+```
+Agent                                  CLI                              User
+  |                                     |                                |
+  |-- kpass login --output json ------->|                                |
+  |<- {status:"pending",                |                                |
+  |    request_id:"req_abc123",         |                                |
+  |    approve_url:"https://..."}       |                                |
+  |                                     |                                |
+  |-- "Approve the sign-in in your   ---------------------------------->|
+  |    browser: https://..."            |                     [approves  |
+  |-- kpass login status --wait 50 ---->|                      in the    |
+  |                                     |                      browser]  |
+  |<- {login_status:"signed_in",        |                                |
+  |    email:"user@example.com",        |                                |
+  |    user_id:"user_789xyz"}           |                                |
+  |                                     |                                |
+  |-- "Welcome back" card ---------------------------------------------->|
+```
+
+**Step 1:** Start the sign-in. The same command serves a user who has never signed up.
+```bash
+kpass login --output json
+```
+Output:
+```json
+{
+  "request_id": "req_abc123",
+  "approve_url": "https://passport.gokite.ai/approve/req_abc123",
+  "_version": "1",
+  "status": "pending",
+  "hint": "Approve the sign-in in your browser.",
+  "next_command": "kpass login status --wait 50 --output json"
+}
+```
+Say, with the real link in it: "Approve the sign-in in your browser: <https://passport.gokite.ai/approve/req_abc123>". Do not ask the user to tell you when they are done.
+
+**Step 2:** Read the result. Run this again, unchanged, for as long as it answers `pending`.
+```bash
+kpass login status --wait 50 --output json
+```
+Output:
+```json
+{
+  "login_status": "signed_in",
+  "email": "user@example.com",
+  "user_id": "user_789xyz",
+  "_version": "1",
+  "status": "success",
+  "hint": "Signed in as user@example.com.",
+  "next_command": ""
+}
+```
+
+Done. Display the Welcome Back card. If the dashboard was already signed in, that was one click and nothing else: no email, no code. If it was not, the dashboard asked for the email and code itself, and it stays signed in for next time.
+
+If `login_status` comes back `expired` or `failed`, run `kpass login --output json` again and give the user the new link. The browser is signed in by then, so it is one click.
+
+---
+
+## Complete Worked Example: The Run Stopped Mid-Sign-In
+
+**Context:** You ran `kpass login`, gave the user the link, and your turn ended before `login status` answered. The user approved it in the meantime.
+
+**Step 1:** Ask for the result, not for a new sign-in.
+```bash
+kpass login status --wait 50 --output json
+```
+Output:
+```json
+{
+  "login_status": "signed_in",
+  "email": "user@example.com",
+  "user_id": "user_789xyz",
+  "_version": "1",
+  "status": "success",
+  "hint": "Signed in as user@example.com.",
+  "next_command": ""
+}
+```
+
+The approval lives on the backend, not in your process, so it survived the gap. Display the Welcome Back card.
+
+**Do not open with `kpass login` here.** A second request makes the user click a second time for a sign-in they already finished.
+
+---
+
+## Complete Worked Example: No Browser on the Machine
+
+**Context:** A container, an SSH session or a CI box. Works the same for a brand-new email address.
+
+**Step 1:** Try the browser first anyway — the check is the command.
+```bash
+kpass login --output json
+```
+Output (exit code 9):
+```json
+{
+  "_version": "1",
+  "status": "error",
+  "error": "no browser available to open",
+  "error_code": "browser_unavailable",
+  "hint": "Use the email code flow instead.",
+  "next_command": "kpass login init --email <EMAIL> --client agent --output json --no-interactive"
+}
+```
+Do not report this to the user as a failure. Ask for their email address if you do not have it.
+
+**Step 2:** Send the one code.
+```bash
+kpass login init --email user@example.com --client agent --output json --no-interactive
+```
+Output:
+```json
+{
+  "action": "enter_otp",
+  "login_id": "login_xyz789",
+  "expires_at": "2026-03-17T12:10:00Z",
+  "_version": "1",
+  "status": "human_action_required",
+  "hint": "An 8-character code was sent to user@example.com. Ask the user to share it.",
+  "next_command": "KPASS_LOGIN_CODE=<OTP_CODE> kpass login verify --login-id login_xyz789 --output json"
+}
+```
+Say: "I sent an 8-character code to **<user@example.com>**. Share it with me when it arrives." One email, one code — do not mention a link, a second email, or a sign-up step.
+
+**Step 3:** Finish.
+```bash
+KPASS_LOGIN_CODE=A1B2C3D4 kpass login verify --login-id login_xyz789 --output json
+```
+Output:
+```json
+{
+  "user_id": "user_789xyz",
+  "email": "user@example.com",
+  "_version": "1",
+  "status": "success",
+  "hint": "Logged in as user@example.com.",
+  "next_command": ""
+}
+```
+
+Done, whether or not that address had an account before. Display the Welcome Back card.
+
+---
+
+## Complete Worked Example: New User Signup (Older kpass)
 
 ```
 Agent                                  CLI                              User
@@ -75,7 +224,7 @@ Done. The user is authenticated. Display the account-created card.
 
 ---
 
-## Complete Worked Example: Returning User Login
+## Complete Worked Example: Returning User Login (Older kpass)
 
 **Step 1:** Start login.
 ```bash
@@ -115,9 +264,9 @@ Done. The user is authenticated.
 
 ---
 
-## Complete Worked Example: Login Fallback to Signup (New User Says "Sign In")
+## Complete Worked Example: Login Fallback to Signup (Older kpass)
 
-**Context:** The user says "sign me in" but does not have an account yet. Per the Decision section, try login first, then fall back to signup.
+**Context:** The user says "sign me in" but does not have an account yet. Per "Older kpass: Login vs Signup" in SKILL.md, try login first, then fall back to signup.
 
 **Step 1:** Try login first.
 ```bash
@@ -176,11 +325,11 @@ Done. The user is authenticated. Display the account-created card.
 
 ---
 
-## Complete Worked Example: Signup Blocked by Existing Account (User Explicitly Asked to Register)
+## Complete Worked Example: Signup Blocked by Existing Account (Older kpass)
 
 **Context:** The user says "create a new account for me" / "sign me up" / "register me" — an explicit signup request, not an ambiguous "sign in". The email they give you already has an account.
 
-**Step 1:** Go straight to signup, per the Decision section — an explicit signup request skips the login-first check.
+**Step 1:** Go straight to signup, per "Older kpass: Login vs Signup" in SKILL.md — an explicit signup request skips the login-first check.
 ```bash
 kpass signup init --email user@example.com --client agent --output json --no-interactive
 ```
