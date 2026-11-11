@@ -10,6 +10,7 @@ user-invocable: true
 allowed-tools:
   - "Bash(bash */setup.sh*)"
   - "Bash(kpass signup *)"
+  - "Bash(kpass login)"
   - "Bash(kpass login *)"
   - "Bash(kpass logout*)"
   - "Bash(kpass me*)"
@@ -23,8 +24,9 @@ allowed-tools:
 Sign up a new user or log in a returning user to Kite Passport. This skill is a prerequisite for all other Passport skills (`request-session`, `x402-execute`, `wallet-send`).
 
 > **Reference files** (read when you need exact detail):
-> - `@references/commands.md` — full command reference: every flag, validation rule, and JSON output shape for `signup init`, `signup poll`, `signup exchange`, `login init`, `login verify`, `logout`, and `me`, plus the exhaustive Error Handling reference and Input Validation Checklist.
-> - `@references/examples.md` — complete worked examples (new user signup, returning user login, login fallback to signup).
+> - `@references/commands.md` — full command reference: every flag, validation rule, and JSON output shape for `login`, `login status`, `login init`, `login verify`, `logout`, `me`, and the older-kpass `signup init`, `signup poll` and `signup exchange`, plus the exhaustive Error Handling reference and Input Validation Checklist.
+> - `@references/examples.md` — complete worked examples (browser sign-in, the email-code fallback, and the older-kpass two-email flow).
+> - `../docs/login-step-counts.md` — how many emails, codes, redirects and tabs each flow costs the user. The CLI rows are what this skill has to deliver.
 
 ## Step 0: Ensure CLI is Installed — MANDATORY
 
@@ -59,6 +61,8 @@ This script ensures `kpass` is installed and available on PATH. It will attempt 
 | Caller surface | `--client agent` | Always pass this flag on `signup init` and `login init`. It tells the backend an agent is acting on the user's behalf so the email copy reads "Share this code with your agent" instead of "Enter this code in your terminal". Never omit this flag. |
 | Base URL | Omit (uses built-in default) | Only pass `--base-url` if the user explicitly provides a custom backend URL. |
 
+**Exception — the two browser-login commands take no other flags.** Run `kpass login --output json` and `kpass login status --wait 50 --output json` exactly as written. `--client` and `--no-interactive` belong to `login init` and `signup init`, not to these two.
+
 **Note on `next_command`:** The CLI's `next_command` field may show `kpass signup init` or `kpass login init` *without* `--client agent`. You must still add `--client agent` when running it. The Defaults table above is authoritative; CLI hints are starting points, not literal commands.
 
 ## Display Cards — MANDATORY
@@ -71,7 +75,73 @@ If a command succeeds and has a display card template below, you MUST output tha
 
 With a global install, kpass keeps one login in the home folder (`.kite-passport/` there) and uses it from every folder, so run `kpass me` before asking for a new code. With a local (project) install, each project keeps its own login in its `.kite-passport/` folder.
 
-## Decision: Login vs Signup
+## Sign In: Browser First, Email Code Second
+
+**There is no separate sign-up step.** A new user and a returning user take the same path. The browser registers whoever is not registered yet, and so does the email code. Never ask the user whether they already have an account, and never ask for a second code.
+
+### Step 0: Check whether they are already signed in
+
+```bash
+kpass me --output json
+```
+
+If it succeeds, the user is signed in already: display the Welcome Back card and stop. With a global install the login lives in the home folder, so a second project on the same machine needs no sign-in at all. Exit code 3 here means nobody is signed in — go to step 1.
+
+### Step 1: Start the browser sign-in
+
+```bash
+kpass login --output json
+```
+
+kpass opens the browser itself and returns `status: "pending"` with a `request_id` and an `approve_url`.
+
+**Put the `approve_url` in your reply before you run anything else.** The user sees your message, not kpass output:
+
+> Approve the sign-in in your browser: {approve_url}
+
+### Step 2: Ask kpass what happened
+
+```bash
+kpass login status --wait 50 --output json
+```
+
+This blocks server-side for up to 50 seconds and then answers. **The sign-in state is the `login_status` field.** If a response carries no `login_status`, read the envelope's `status` instead and map it: `success` means `signed_in`, `pending` means `pending`, `expired` means `expired`, and `error` means `failed`. Then act on the state:
+
+| State | What it means | What you do |
+|---|---|---|
+| `pending` | The user has not approved yet | Run `kpass login status --wait 50 --output json` again. Repeat while it stays `pending`. Repeat the `approve_url` in your reply every few rounds so the user still has it. |
+| `signed_in` | Done | Display the Welcome Back card with the `email` and `user_id` from the response, and stop. **No email was sent and no code is needed. Do not run `login init`.** |
+| `expired` | Nobody approved it in time | Run `kpass login --output json` once more and go back to step 1. The browser is usually signed in by now, so it is one click. |
+| `failed` | The browser sign-in did not complete | Same as `expired`: run `kpass login --output json` once more. If the second attempt also comes back `failed`, say so and ask the user whether to send them a code by email instead. Do not switch to the email code on your own — that costs them an email this flow is meant to save. |
+
+**The sign-in does not depend on you waiting.** If your run stops between those two commands, the approval still lands server-side. When you come back, run `kpass login status --wait 50 --output json` first — do not start a fresh `kpass login`, and do not assume the attempt was lost.
+
+### Step 3 (only if there is no browser): the email code
+
+`kpass login` exits **9** when the machine has no browser it can open. That is the `browser_unavailable` case, and it is the normal answer inside a container, an SSH session or a CI box.
+
+**Detect it by the exit code 9.** The exit code is the only signal kpass gives you here. The response carries `status: "error"` and an `error` that starts "No browser can be opened here", it has **no `error_code` field**, and its `next_command` is empty. An agent that waits for an `error_code` never switches, so the user on a headless machine never gets their code.
+
+Switch to the email code:
+
+```bash
+kpass login init --email <EMAIL> --client agent --output json --no-interactive
+KPASS_LOGIN_CODE=<CODE> kpass login verify --login-id <login_id> --output json
+```
+
+**One email, one code, for a new address as much as a known one.** Ask the user for the 8-character code from that email and pass it to `login verify`. Then display the Welcome Back card.
+
+Do **not** run `kpass signup` anywhere in this path. Do **not** tell the user to expect a second email: there is only one, and it carries the code.
+
+### Older kpass without browser sign-in
+
+If `kpass login --output json` prints the login command group's help text, or an unknown-command error, instead of JSON, this kpass predates browser sign-in. Fall back to "Older kpass: Login vs Signup" below and run today's flow unchanged. Do not raise this as an error to the user.
+
+---
+
+## Older kpass: Login vs Signup
+
+**This section applies only when `kpass login` is not available** (see "Older kpass without browser sign-in" above). On a current kpass, the section above is the whole flow.
 
 If the user says "sign in" or "authenticate" without specifying whether they have an existing account:
 
@@ -85,7 +155,9 @@ If the user says "sign in" or "authenticate" without specifying whether they hav
 
 ---
 
-## Messaging After `signup init` — MANDATORY
+## Messaging After `signup init` (Older kpass Only) — MANDATORY
+
+**Reached only through "Older kpass: Login vs Signup".** A current kpass never runs `signup init`, so none of this messaging applies to it.
 
 **CRITICAL: Do not present "click the verification link" and "share the sign-up code" as two independent, equally-valid ways to finish ("whichever is easier"). They are not alternatives.** For a brand-new signup, `signup exchange` fails with "signup session not verified" until the link has been opened — the click is what marks the session verified server-side; the code only completes the exchange afterward. Pasting the code without opening the link first will not work, no matter how correct the code is.
 
@@ -139,7 +211,7 @@ KPASS_LOGIN_CODE=<OTP_CODE> kpass login verify --login-id <login_id> --output js
 | `{email}` | From JSON response field `email` |
 | `{user_id}` | From JSON response field `user_id` |
 
-**MANDATORY — After `login verify` succeeds, you MUST display this card. Do not skip this. Do not summarize. Do not replace with plain text:**
+**MANDATORY — As soon as the user is signed in, you MUST display this card. That is when `kpass login status` reports `signed_in`, or when `login verify` succeeds. Do not skip this. Do not summarize. Do not replace with plain text:**
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -160,6 +232,16 @@ KPASS_LOGIN_CODE=<OTP_CODE> kpass login verify --login-id <login_id> --output js
 
 ---
 
+## When kpass Asks for a New Key to Be Approved
+
+A command that needs a new spending key comes back with `error_code: "allowance_key_approval_pending"` and a `user_message` that carries the approve link.
+
+**Put that `user_message` in your reply as it is, link included, and then stop and wait.** The user sees your reply, not kpass output, so a summary without the link leaves them with nothing to click. Once the user says they approved it, run the **same command again** — do not start the sign-in over.
+
+`allowance_key_approval_expired` and `allowance_key_approval_denied` arrive the same way. Give the user the `user_message`, and only on their go-ahead run the command again to raise a fresh request. Match on `error_code`; do not key this off the exit code.
+
+---
+
 ## Error Handling
 
 | Exit Code | Meaning | Error Message Pattern | Recovery Action |
@@ -167,10 +249,12 @@ KPASS_LOGIN_CODE=<OTP_CODE> kpass login verify --login-id <login_id> --output js
 | 0 | Success or human action required | `status: "human_action_required"` | Follow the `next_command` field. This is NOT an error. |
 | 1 | Network error | `network error: ...` | Check connectivity. Retry after a brief pause. |
 | 2 | Usage error | `--email is required`, `unknown option` | Fix the command syntax. Check required flags. |
-| 3 | Auth error | `invalid OTP`, `verification expired`, `already consumed`, `email already registered` | For invalid OTP: ask user to re-check email and provide code again. For expired: restart the flow. For "email already registered" from `signup init`: do NOT auto-login — see the Decision section above. |
-| 4 | Not found | `email not registered`, `not found` | If trying login: fall back to signup. If unexpected: inform user. |
+| 3 | Auth error | `invalid OTP`, `verification expired`, `already consumed`, `email already registered` | For invalid OTP: ask user to re-check email and provide code again. For expired: restart the flow. For "email already registered" from `signup init`: do NOT auto-login — see "Older kpass: Login vs Signup" above. |
+| 4 | Not found | `email not registered`, `not found` | On a current kpass this does not come up: `login init` registers a new address too. On an older kpass, fall back to `signup init`. |
 | 5 | Rate limited | `rate limit` | Wait 30 seconds, then retry. |
 | 6 | Session policy violation | N/A for authenticate-user | This exit code is not expected from authentication commands. If encountered, it indicates a session delegation issue — use **`request-session`** to create a new session. |
+| 9 | No browser on this machine, the `browser_unavailable` case | `status: "error"` from `kpass login` with an `error` starting `No browser can be opened here`. This response has no `error_code` field. | Key off the exit code 9 itself. Switch to the email code: `login init`, then `login verify`. One email, one code. Not a failure to report to the user. |
+| Non-zero | A new spending key needs approval | `error_code: "allowance_key_approval_pending"`, `_expired`, `_denied` | Give the user the response's `user_message` with its approve link, then re-run the same command. See the section above. Match on `error_code`, not on the number. |
 
 See `@references/commands.md` for the exact JSON error envelope of every command and the full Specific Error Scenarios reference (wrong OTP, expired verification link, already-consumed signup session, email not registered).
 
@@ -181,13 +265,13 @@ See `@references/commands.md` for the exact JSON error envelope of every command
 Do NOT attempt any of the following. They will fail:
 
 - `kpass signup` (without a sub-command) -- must use `signup init`, `signup poll`, or `signup exchange`
-- `kpass login` (without a sub-command) -- must use `login init` or `login verify`
 - `kpass signup verify` -- does not exist; signup uses `exchange` with `KPASS_SIGNUP_CODE` env var (or `--code` flag)
-- `kpass login poll` -- does not exist; login uses `verify` with `KPASS_LOGIN_CODE` env var (or `--code` flag), not polling
+- `kpass login poll` -- does not exist; check the browser sign-in with `login status`, and finish the email code with `verify`
 - `kpass login exchange` -- does not exist
-- `kpass register` -- does not exist; use `signup init` for user registration
+- `kpass login approve` -- does not exist; the user approves in the browser, you only read `login status`
+- `kpass register` -- does not exist; `kpass login` registers a new user, and so does `login init`
 - `kpass auth` -- does not exist
-- `kpass signin` -- does not exist; use `login init`
+- `kpass signin` -- does not exist; use `kpass login`
 - Any command with `--json` -- the correct flag is `--output json` (two separate tokens)
 - Any command with `--interactive` -- the correct flag is `--no-interactive`
 - Any command with `--exchange-token` -- this flag was removed; use `KPASS_SIGNUP_CODE` env var (or `--code` flag) instead
