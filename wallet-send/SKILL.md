@@ -22,7 +22,7 @@ allowed-tools:
 
 Check a wallet balance across chains, send tokens **on a specific chain**, list per-chain wallet addresses, and request test tokens from the faucet. These commands use the user's own JWT (not an agent session) and do NOT require a spending session.
 
-Kite is **multichain**. Every send targets one chain — on mainnet one of **`base`**, **`polygon`**, **`avalanche`**, **`tempo`**, **`solana`**, **`robinhood`**, or **`arc`** (Arc mainnet, chainId 5042) — and `--chain` is **required** (there is no default; `kite` is rejected). Balances are aggregated across all chains the environment serves. **The chain set is environment-specific**: the backend only serves the chains in its asset registry, and the **dev environment serves `arc` as Arc testnet (chainId 5042002, Circle USDC) and nothing else** — no cross-chain routing on dev, and Kite's faucet cannot fund arc (Passport-deployment restrictions, not Arc limitations). A wallet send normally requires a **passkey approval in the browser** (step-up), so `wallet send` hands you an approval URL and you poll the result with `wallet send-status`.
+Kite is **multichain**. Every send targets one chain — on mainnet one of **`base`**, **`polygon`**, **`avalanche`**, **`tempo`**, **`solana`**, **`robinhood`**, or **`arc`** (Arc mainnet, chainId 5042) — and `--chain` is **required** (there is no default). **Kite Chain is not a Passport chain: never offer it for deposits, sends or balances, and never share a Kite Chain address or balance.** Balances are aggregated across all chains the environment serves. **The chain set is environment-specific**: the backend only serves the chains in its asset registry, and the **dev environment serves `arc` as Arc testnet (chainId 5042002, Circle USDC) and nothing else** — no cross-chain routing on dev, and Kite's faucet cannot fund arc (Passport-deployment restrictions, not Arc limitations). A wallet send normally requires a **passkey approval in the browser** (step-up), so `wallet send` hands you an approval URL and you poll the result with `wallet send-status`.
 
 > **Reference files** (read when you need exact detail):
 > - `@references/commands.md` — full per-command flag tables, validation rules, and every JSON shape.
@@ -235,6 +235,8 @@ base + polygon + avalanche + tempo + robinhood + arc share one EVM address.
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
+**Kite Chain is not a Passport chain: never offer it for deposits, sends or balances, and never share a Kite Chain address or balance.**
+
 The safety notice and supported-assets block are mandatory and must appear **before** the address rows. Show only guidance and address rows for chains present in `wallets[]`. Show the shared-address note only when two chains report the same address. The same EVM address does not imply cross-chain asset support.
 
 ## Proactively Suggest the Faucet on a Low Testnet Balance
@@ -295,7 +297,7 @@ Do NOT attempt any of the following — they will fail:
 
 - `kpass wallet` (no sub-command) — use `wallet balance`, `wallet send`, `wallet send-status`, or `wallet address`.
 - `kpass wallet send` **without `--chain`** — `--chain` is required (`base|polygon|avalanche|tempo|solana|robinhood|arc`).
-- `kpass wallet send --chain kite` — `kite` is not a supported chain.
+- `kpass wallet send --chain kite` — Kite Chain is not a Passport chain, so `--chain kite` fails validation (exit 2).
 - `kpass wallet transfer` / `kpass send` / `kpass balance` — use `wallet send` / `wallet balance`.
 - `kpass wallet send --recipient` — the flag is `--to`. `--token` / `--currency` — the flag is `--asset`.
 - `kpass wallet fund` / `wallet deposit` / `wallet withdraw` — do not exist; use `faucet drop` for test tokens.
