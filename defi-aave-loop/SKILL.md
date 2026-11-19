@@ -224,9 +224,11 @@ and returning USDC to your Passport wallet. I'll check it with
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
+A second `unwind` while one is already closing answers the same way `open` does, with `status: "success"` at exit 0 from `loop_run_in_progress`. That is the same unwind still running. Read `status` instead of unwinding again.
+
 ### Refused (exit 11) → hand it back to the user
 
-`mandate_required` means there is no mandate to act under. `outside_mandate` means the action asked for more than the user approved: higher leverage, a bigger principal, a health factor below the floor, a borrow rate above the cap, or an asset this market does not hold. **Nothing was sent onchain.** The reason is in `details.reason`; the renewal or approval link is in `details.approval_url`, and only when there is something to approve.
+`mandate_required` means there is no mandate to act under. `outside_mandate` means the action asked for more than the user approved: higher leverage, a bigger principal, a health factor below the floor, or a borrow rate above the cap. The user cannot be moved to a different asset either, because the market is fixed and no flag names one. **Nothing was sent onchain.** The reason is in `details.reason`; the renewal or approval link is in `details.approval_url`, and only when there is something to approve.
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -267,7 +269,7 @@ back to me on my next refused action, and I'll pass it straight on.
 | Exit | `error_code` | Meaning | Recovery |
 |------|--------------|---------|----------|
 | 0 | | Success, `pending`, or `human_action_required` on `mandate create` | Continue the flow |
-| 0 | `loop_run_in_progress` | A run is already going (`run_status: "running"`) | Not a failure. Report it and check `status` |
+| 0 | `loop_run_in_progress` | A run is already going. `run_status` is `running` after `open`, `closing` after `unwind` | Not a failure. Report it and check `status`. Do not run the command again |
 | 11 | `mandate_required`, `outside_mandate` | **Refused.** No mandate, or outside the approved limits. Nothing went onchain | Show `details.reason` and `details.approval_url` if present, then **stop**. Never retry with changed terms |
 | 2 | | A required flag is missing or invalid | All four of `--amount`, `--max-leverage`, `--min-health-factor`, `--max-borrow-rate` are required; check them against `market`'s `limits` |
 | 3 | | Not logged in, or `--wait` timed out while still `pending` | **`authenticate-user`**, or re-run `mandate get <id> --wait` |
@@ -275,7 +277,7 @@ back to me on my next refused action, and I'll pass it straight on.
 | 3 | `loop_mandate_closed`, `loop_mandate_revoked` | The mandate is finished | `preview`, then a new `mandate create` |
 | 4 | `mandate_not_found` | That id is not the current mandate | Run `status` and read the current mandate from it |
 | 4 | `aave_loop_disabled` | "DeFi loop is not available in this environment." | Tell the user. Do **not** change `--base-url` or retry elsewhere |
-| any | `mandate_already_open` | HTTP 409 from `mandate create`: a mandate is already open, including an expired one | Branch on the `error_code`, not the exit code. Read the mandate with `status`; renew an expired one instead of creating a second |
+| n/a | `mandate_already_open` | HTTP 409 from `mandate create`. A mandate is already open, including an expired one | ATE-450 documents no exit code, so branch on the `error_code`. Read the mandate with `status`; renew an expired one instead of creating a second |
 
 ## Commands That DO NOT Exist
 

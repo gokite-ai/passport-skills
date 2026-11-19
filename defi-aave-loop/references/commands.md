@@ -147,8 +147,8 @@ An id that is not the current mandate exits **4** with `mandate_not_found`.
 
 | Flag | Required | Notes |
 |------|----------|-------|
-| `--mandate` | yes | Mandate id. It must be `active` |
-| `--target-leverage` | no | Below the mandate's leverage. Above it is refused (exit 11, `outside_mandate`) |
+| `--mandate` | yes | Mandate id. Acting with no active mandate is refused as `mandate_required` (exit 11) |
+| `--target-leverage` | no | Target leverage for this run. Expect more than the mandate approved to be refused as `outside_mandate` (exit 11), the same as any other term outside it |
 
 ```json
 {
@@ -202,6 +202,8 @@ On `loop_phase: "failed"`, report what the events say and ask the user what they
 
 Shaped like `open`, with `run_status: "closing"`, exit 0. Passport repays the USDt debt, withdraws the USDe collateral and returns **USDC** to the Passport wallet. Run it **only** when the user asks to exit.
 
+Being shaped like `open` includes the 409: a second `unwind` while one is already closing comes back as `status: "success"`, exit 0, from `loop_run_in_progress`. That is the **same** unwind still running, not a second one. Read `status` instead of unwinding again.
+
 ## Refusals: exit 11
 
 This is the path the acceptance test exercises. A refusal is an **error** and exits **11** (`PERMISSION`). It is not the `human_action_required` hand-off that `defi-auto-repay` uses, and it is not exit 0.
@@ -225,7 +227,7 @@ This is the path the acceptance test exercises. A refusal is an **error** and ex
 | `error_code` | Cause |
 |--------------|-------|
 | `mandate_required` | No mandate to act under: none was ever approved, or the only one is expired, closed or revoked |
-| `outside_mandate` | The action asked for more than the user approved: higher leverage, a bigger principal, a health factor below the floor, a borrow rate above the cap, or an asset this market does not hold |
+| `outside_mandate` | The action asked for more than the user approved: higher leverage, a bigger principal, a health factor below the floor, or a borrow rate above the cap. A different asset is not expressible, because the market is fixed and no flag names one |
 
 **Nothing is sent onchain when a command exits 11.** What you do:
 
@@ -237,20 +239,21 @@ This is the path the acceptance test exercises. A refusal is an **error** and ex
 
 ## Error codes
 
-| `error_code` | Exit | Cause |
-|--------------|------|-------|
-| `mandate_required` | 11 | Refused: no mandate to act under |
-| `outside_mandate` | 11 | Refused: outside the approved limits |
-| (none documented) | 2 | A required flag is missing or invalid. Branch on the exit code |
-| `loop_mandate_expired` | 3 | The mandate expired; the user renews it |
-| `loop_mandate_closed` | 3 | The mandate is closed |
-| `loop_mandate_revoked` | 3 | The mandate was revoked |
-| `mandate_not_found` | 4 | That id is not the current mandate |
-| `aave_loop_disabled` | 4 | "DeFi loop is not available in this environment." The loop is off here |
-| `mandate_already_open` | see note | HTTP 409 from `mandate create`: a mandate is already open, including an expired one. The exit code is not documented, so branch on the `error_code` |
-| `loop_run_in_progress` | 0 | 409 upstream, but `status: "success"` with `run_status: "running"`. Still running, not a failure |
+HTTP status is given where ATE-450 documents one, and `n/a` where it does not. Branch on the exit code, and on the `error_code` for the two 409s.
 
-Exit **3** with "Not logged in" is the shared Passport auth failure: use **`authenticate-user`**, then retry.
+| `error_code` | HTTP | Exit | Cause |
+|--------------|------|------|-------|
+| `mandate_required` | n/a | 11 | Refused: no mandate to act under |
+| `outside_mandate` | n/a | 11 | Refused: outside the approved limits |
+| (none documented) | n/a | 2 | A required flag is missing or invalid |
+| `loop_mandate_expired` | n/a | 3 | The mandate expired; the user renews it |
+| `loop_mandate_closed` | n/a | 3 | The mandate is closed |
+| `loop_mandate_revoked` | n/a | 3 | The mandate was revoked |
+| `mandate_not_found` | n/a | 4 | That id is not the current mandate |
+| `aave_loop_disabled` | 404 | 4 | "DeFi loop is not available in this environment." The loop is off here |
+| `mandate_already_open` | 409 | n/a | `mandate create` while a mandate is open, including an expired one. No exit code is documented, so branch on the `error_code` |
+| `loop_run_in_progress` | 409 | 0 | Comes back as `status: "success"`, with `run_status` still `running` after `open` or `closing` after `unwind`. Still running, not a failure |
+| (not logged in) | 401 | 3 | The shared Passport auth failure. Use **`authenticate-user`**, then retry |
 
 ## Version
 

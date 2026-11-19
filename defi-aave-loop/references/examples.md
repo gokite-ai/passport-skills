@@ -70,7 +70,7 @@ kpass defi loop open --mandate aave_loop_mandate_abc --target-leverage 4 --outpu
 
 Exits **11** with `error_code: "outside_mandate"` and `details.reason` naming the 3x limit. Nothing went onchain. Show the Refused card with the reason and the `details.approval_url`, and tell the user that raising the leverage needs their passkey.
 
-**Do not** retry at 3x to "get something done", and do not re-run at 4x hoping it goes through. A borrow rate above the mandate's cap, a principal above it, and a health factor below its floor all refuse the same way, and so does anything naming an asset this market does not hold. Terms the user did not ask for are not yours to pick.
+**Do not** retry at 3x to "get something done", and do not re-run at 4x hoping it goes through. A borrow rate above the mandate's cap, a principal above it, and a health factor below its floor all refuse the same way. A different asset is not even expressible, because the market is fixed. Terms the user did not ask for are not yours to pick.
 
 ## 4. The mandate expired
 
