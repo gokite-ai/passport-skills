@@ -31,6 +31,7 @@ Each skill is a `SKILL.md` file that gets injected into an AI agent's context at
 | **x402-execute** | `x402-execute/` | Execute HTTP requests through approved sessions. The backend handles x402 payment negotiation. |
 | **wallet-send** | `wallet-send/` | Direct wallet-to-wallet token transfers and testnet faucet. No spending session required. |
 | **defi-auto-repay** | `defi-auto-repay/` | Arm a one-shot Aave v3 auto-repay on Base: when a position's health factor drops below the user's threshold, Kite repays its USDC debt once from the Passport wallet. Passkey-approved. |
+| **defi-aave-loop** | `defi-aave-loop/` | Run the Aave v4 leveraged stablecoin loop on Avalanche (USDe collateral, USDt debt, funded in USDC): preview it, get the user's mandate approved by passkey, open, report and unwind. Passport refuses anything outside the mandate. |
 | **manage-agents** | `manage-agents/` | List and inspect registered agents and sessions from the user's perspective. Diagnostics and debugging. |
 | **shopping** | `shopping/` | Search and buy physical products, manage a shopping cart, collect shipping details, and checkout with crypto. |
 | **activity** | `activity/` | View recent account activity including wallet transfers, faucet drops, API payments, agent registrations, session approvals, and shopping checkouts. |
@@ -81,6 +82,8 @@ attach-session   (bind an existing attachable session by ID -- e.g. created
        |
        +----> defi-auto-repay (Aave health-factor auto-repay, passkey-armed)
        |
+       +----> defi-aave-loop  (Aave v4 Avalanche leverage loop, passkey-mandated)
+       |
        +----> shopping       (search + buy physical products)
 
 upgrade-passport  (standalone -- detect and apply kpass CLI updates; no auth, no deps)
@@ -113,6 +116,7 @@ npx skills add gokite-ai/passport-skills/manage-agents
 
 # DeFi (uses kpass defi):
 npx skills add gokite-ai/passport-skills/defi-auto-repay
+npx skills add gokite-ai/passport-skills/defi-aave-loop
 
 # Shopping (uses kpass shop:* CLI):
 npx skills add gokite-ai/passport-skills/shopping
@@ -187,6 +191,8 @@ passport-skills/
     SKILL.md                     Check balance, send tokens, request test tokens
   defi-auto-repay/
     SKILL.md                     Arm, check and cancel one-shot Aave auto-repay triggers
+  defi-aave-loop/
+    SKILL.md                     Preview, mandate, open, report and unwind the Aave v4 Avalanche loop
   manage-agents/
     SKILL.md                     List/inspect agents and sessions (user perspective)
   shopping/
