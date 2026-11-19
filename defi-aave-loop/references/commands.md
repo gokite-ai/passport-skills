@@ -241,13 +241,13 @@ This is the path the acceptance test exercises. A refusal is an **error** and ex
 |--------------|------|-------|
 | `mandate_required` | 11 | Refused: no mandate to act under |
 | `outside_mandate` | 11 | Refused: outside the approved limits |
-| `invalid_request` | 2 | A required flag is missing or invalid |
+| (none documented) | 2 | A required flag is missing or invalid. Branch on the exit code |
 | `loop_mandate_expired` | 3 | The mandate expired; the user renews it |
 | `loop_mandate_closed` | 3 | The mandate is closed |
 | `loop_mandate_revoked` | 3 | The mandate was revoked |
 | `mandate_not_found` | 4 | That id is not the current mandate |
 | `aave_loop_disabled` | 4 | "DeFi loop is not available in this environment." The loop is off here |
-| `mandate_already_open` | 409 | A mandate is already open, including an expired one |
+| `mandate_already_open` | see note | HTTP 409 from `mandate create`: a mandate is already open, including an expired one. The exit code is not documented, so branch on the `error_code` |
 | `loop_run_in_progress` | 0 | 409 upstream, but `status: "success"` with `run_status: "running"`. Still running, not a failure |
 
 Exit **3** with "Not logged in" is the shared Passport auth failure: use **`authenticate-user`**, then retry.

@@ -76,7 +76,7 @@ If `kpass defi loop market` fails with an **unknown-command** error, the install
 | `kpass defi loop status --output json` | Position, mandate, 10 newest events, loop phase |
 | `kpass defi loop unwind --mandate <id> --output json` | Close the position and return USDC |
 
-All four of `--amount`, `--max-leverage`, `--min-health-factor` and `--max-borrow-rate` are **required** on `preview` and on `mandate create`, and must match between them: a mandate approves the terms the user saw. `--max-borrow-rate` is a **percent** (`8.5` means 8.5%), while the JSON reports rates in **bps** (`850` means 8.5%).
+All four of `--amount`, `--max-leverage`, `--min-health-factor` and `--max-borrow-rate` are **required** on `preview` and on `mandate create`. Pass the same four values to both, because the mandate approves the terms the user saw in the preview. `--max-borrow-rate` is a **percent** (`8.5` means 8.5%), while the JSON reports rates in **bps** (`850` means 8.5%).
 
 ## Display Cards — MANDATORY
 
@@ -269,13 +269,13 @@ back to me on my next refused action, and I'll pass it straight on.
 | 0 | | Success, `pending`, or `human_action_required` on `mandate create` | Continue the flow |
 | 0 | `loop_run_in_progress` | A run is already going (`run_status: "running"`) | Not a failure. Report it and check `status` |
 | 11 | `mandate_required`, `outside_mandate` | **Refused.** No mandate, or outside the approved limits. Nothing went onchain | Show `details.reason` and `details.approval_url` if present, then **stop**. Never retry with changed terms |
-| 2 | `invalid_request` | A required flag is missing or invalid | All four of `--amount`, `--max-leverage`, `--min-health-factor`, `--max-borrow-rate` are required; check them against `market`'s `limits` |
+| 2 | | A required flag is missing or invalid | All four of `--amount`, `--max-leverage`, `--min-health-factor`, `--max-borrow-rate` are required; check them against `market`'s `limits` |
 | 3 | | Not logged in, or `--wait` timed out while still `pending` | **`authenticate-user`**, or re-run `mandate get <id> --wait` |
 | 3 | `loop_mandate_expired` | The mandate expired | The user **renews** it. Do not `mandate create` |
 | 3 | `loop_mandate_closed`, `loop_mandate_revoked` | The mandate is finished | `preview`, then a new `mandate create` |
 | 4 | `mandate_not_found` | That id is not the current mandate | Run `status` and read the current mandate from it |
 | 4 | `aave_loop_disabled` | "DeFi loop is not available in this environment." | Tell the user. Do **not** change `--base-url` or retry elsewhere |
-| 409 | `mandate_already_open` | A mandate is already open, including an expired one | Read it with `status`; renew an expired one instead of creating a second |
+| any | `mandate_already_open` | HTTP 409 from `mandate create`: a mandate is already open, including an expired one | Branch on the `error_code`, not the exit code. Read the mandate with `status`; renew an expired one instead of creating a second |
 
 ## Commands That DO NOT Exist
 
