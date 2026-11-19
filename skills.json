@@ -224,6 +224,28 @@
       ]
     },
     {
+      "slug": "defi-aave-loop",
+      "name": "DeFi Aave Loop",
+      "description": "Run the Aave v4 leveraged stablecoin loop on Avalanche (USDe collateral, USDt debt, funded in USDC) through the user's Passport wallet: preview the total borrowed, the liquidation point and the expected net yield (negative at current rates), have the user approve a mandate with their passkey, then open the loop, report its status and unwind it back to USDC. Passport enforces the mandate: anything outside it is refused (mandate_required / outside_mandate, exit 11) with nothing sent onchain, and the refusal goes back to the user. Invoke when the user wants to loop, lever up, leverage or unwind a stablecoin position on Aave v4, or asks about their loop position, leverage or health factor on Avalanche.",
+      "path": "defi-aave-loop/SKILL.md",
+      "group": "user",
+      "tags": [
+        "defi",
+        "loop",
+        "leverage",
+        "looping",
+        "aave",
+        "avalanche",
+        "usde",
+        "usdt",
+        "mandate",
+        "unwind"
+      ],
+      "dependencies": [
+        "authenticate-user"
+      ]
+    },
+    {
       "slug": "manage-agents",
       "name": "Manage Agents",
       "description": "Inspect registered agents and spending sessions on the user's account. Invoke for diagnostics, debugging \"agent not registered\" errors, reviewing active or expired sessions, checking a separate session's budget remaining, or when the user asks what agents or sessions exist. Read-only -- does not create or modify anything. For the account allowance (set up or not, left, reset) use `kpass allowance status` instead.",
