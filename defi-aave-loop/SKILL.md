@@ -93,7 +93,7 @@ All four of `--amount`, `--max-leverage`, `--min-health-factor` and `--max-borro
 📈 Borrow APR:     {borrow_apr_bps} bps
 💧 Debt liquidity: {available_debt_liquidity}
 
-Your limits: principal ${limits.min_principal_usd}–${limits.max_principal_usd},
+Your limits: principal ${limits.min_principal_usd} to ${limits.max_principal_usd},
 leverage up to {limits.max_leverage_cap}x, health factor at or above
 {limits.min_health_factor_floor}, mandate up to {limits.max_mandate_days} days.
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -202,12 +202,12 @@ target leverage. I'll check it with `kpass defi loop status`.
 📈 Borrow APR:   {position.effective_borrow_apr_bps} bps
 📉 Net yield:    {position.net_yield_apr_bps} bps
 
-Recent events:
- • {events[].kind} — {events[].…}
+Recent events (10 newest):
+ • {events[].kind}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
-`loop_phase` is `idle`, `looping`, `failed`, `closed` or `finished`. On `failed`, report it from the events and ask the user what they want to do; do **not** unwind or re-open on your own. Events with `kind: "deleveraged"` are **Passport defending the health factor by itself**. Report them as that, and never try to trigger one.
+`loop_phase` is `idle`, `looping`, `failed`, `closed` or `finished`. List each event by its `kind` with whatever detail that event carries. On `failed`, report it from the events and ask the user what they want to do; do **not** unwind or re-open on your own. Events with `kind: "deleveraged"` are **Passport defending the health factor by itself**. Report them as that, and never try to trigger one.
 
 ### Step 7: `loop unwind` → closing
 

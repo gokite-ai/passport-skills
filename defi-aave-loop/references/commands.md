@@ -8,7 +8,7 @@ Every response uses the shared envelope: `{"_version": …, "status": …, "hint
 
 ## `kpass defi loop market`
 
-No flags. Read this first: it names the market and carries the `limits` every input must satisfy. **Never hard-code the limits into a prompt or a message** — they come from here.
+No flags. Read this first: it names the market and carries the `limits` every input must satisfy. **Never hard-code the limits into a prompt or a message.** They come from here.
 
 ```json
 {
