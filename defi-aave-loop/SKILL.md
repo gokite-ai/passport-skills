@@ -277,7 +277,7 @@ back to me on my next refused action, and I'll pass it straight on.
 | 3 | `loop_mandate_closed`, `loop_mandate_revoked` | The mandate is finished | `preview`, then a new `mandate create` |
 | 4 | `mandate_not_found` | That id is not the current mandate | Run `status` and read the current mandate from it |
 | 4 | `aave_loop_disabled` | "DeFi loop is not available in this environment." | Tell the user. Do **not** change `--base-url` or retry elsewhere |
-| n/a | `mandate_already_open` | HTTP 409 from `mandate create`. A mandate is already open, including an expired one | ATE-450 documents no exit code, so branch on the `error_code`. Read the mandate with `status`; renew an expired one instead of creating a second |
+| n/a | `mandate_already_open` | HTTP 409 from `mandate create`. A mandate is already open, including an expired one | No exit code is documented for it, so branch on the `error_code`. Read the mandate with `status`; renew an expired one instead of creating a second |
 
 ## Commands That DO NOT Exist
 

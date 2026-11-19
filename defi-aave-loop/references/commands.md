@@ -239,7 +239,7 @@ This is the path the acceptance test exercises. A refusal is an **error** and ex
 
 ## Error codes
 
-HTTP status is given where ATE-450 documents one, and `n/a` where it does not. Branch on the exit code, and on the `error_code` for the two 409s.
+HTTP status is given where the CLI documents one, and `n/a` where it does not. Branch on the exit code, and on the `error_code` for the two 409s.
 
 | `error_code` | HTTP | Exit | Cause |
 |--------------|------|------|-------|
