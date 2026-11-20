@@ -1,0 +1,52 @@
+name: Eval transcript replay
+
+on:
+  push:
+    branches: ['codex/eval-transcript-replay']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  repository-checks:
+    name: Repository validation and Markdown
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run validate
+      - run: npm run lint
+      - run: npx markdownlint-cli2 evals/REPLAY.md evals/README.md
+
+  replay-contract:
+    name: Replay contract (Node ${{ matrix.node }}, ${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        node: [20, 22]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ matrix.node }}
+      # These synthetic fixtures validate the replayer, not live agent behavior.
+      - name: Test transcript replay against the entire eval suite
+        run: node --test test/replay-evals.test.mjs
+      - name: Generate labeled regression evidence
+        run: node test/fixtures/replay-evidence.mjs
+      - name: Upload synthetic replay reports
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: synthetic-replay-${{ matrix.os }}-node${{ matrix.node }}
+          path: tmp/replay-evidence/
+          if-no-files-found: error
