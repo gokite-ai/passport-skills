@@ -1,6 +1,6 @@
 # Skill setup installer advisory
 
-Every release in the list below shipped a skill setup script that could run an installer from a host the user did not choose. An outside security researcher reported the problem. Thank you for the report.
+Every release in the list below shipped a skill setup script that could be made to run code the user did not choose. An outside security researcher reported the problem, and we thank them for the report.
 
 ## What was wrong
 
