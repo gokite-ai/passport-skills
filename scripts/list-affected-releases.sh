@@ -39,35 +39,62 @@ readonly RULE_ALLOWLIST='^https://cli(\.staging)?\.gokite\.ai$'
 # curl's output piped into a shell. Anchored at command position, because the
 # hardened copy prints this same text in its --help echo and in its JSON error
 # envelope and neither must count. Any shell counts and so do the usual wrappers,
-# so "| sh", "| /bin/bash", "| sudo bash" and "| VAR=x bash" all land.
+# so "| sh", "| /bin/bash", "| sudo bash" and "| VAR=x bash" all land, and either
+# command may be reached by a path.
 # Not covered: curl inside a shell's own code argument, as in eval "$(curl ...)"
 # or bash <(curl ...). No release used either shape, and folding them into this
 # rule would widen the published classification, which is Engineering's call.
+# Also not covered: a wrapper option that takes a value, as in "sudo -u kite curl",
+# because the rule cannot tell such an option from the command name after it.
 readonly WRAPPER='(([^[:space:]]*/)?(sudo|env|exec|command|nohup|time|timeout)|-[^[:space:]]+|[0-9]+[smhd]?|[A-Za-z_][A-Za-z0-9_]*=[^[:space:]]*)'
-readonly RULE_CURL_PIPE_SHELL='(^|[;&|({)`]|[$][(])[[:space:]]*(([!({]|if|then|else|elif|while|until|do)[[:space:]]+|'"$WRAPPER"'[[:space:]]+)*curl[[:space:]].*\|&?[[:space:]]*('"$WRAPPER"'[[:space:]]+)*([^[:space:]]*/)?(ba|da|k|z)?sh([[:space:]]|;|&|[)]|$)'
+readonly RULE_CURL_PIPE_SHELL='(^|[;&|({)`]|[$][(])[[:space:]]*(([!({]|if|then|else|elif|while|until|do)[[:space:]]+|'"$WRAPPER"'[[:space:]]+)*([^[:space:]]*/)?curl[[:space:]].*\|&?[[:space:]]*('"$WRAPPER"'[[:space:]]+)*([^[:space:]]*/)?(ba|da|k|z)?sh([[:space:]]|[;&)`<>|]|$)'
 
 # $SKILLS_JSON spliced into the interpreter's code rather than passed as its own
-# argument. The leading group consumes whole quoted words, so it reaches across
-# the "'...'" "$X" "'...'" splicing trick, and the trailing group stops at the
-# closing quote, so the hardened form that passes the path as a separate argv
-# entry does not match.
-readonly RULE_CODE_PASTE="(node[[:space:]]+(--?(eval|print)|-(pe?|ep?))|python[0-9.]*[[:space:]]+-c)[[:space:]]+(('([^'\\]|\\\\.)*'|\"([^\"\\]|\\\\.)*\"|[^[:space:]'\"])*)('([^'\\]|\\\\.)*|\"([^\"\\]|\\\\.)*)?[\$]\{?SKILLS_JSON"
+# argument. The word group consumes whole quoted runs but never crosses
+# whitespace, so it reaches across the "'...'" "$X" "'...'" splicing trick while
+# the hardened form, which passes the path as a separate argv entry, stays out of
+# reach behind a space. Either interpreter may be reached by a path, carry options
+# before the code option, and attach the code with "=" or with no space at all.
+readonly INTERPRETER_CODE_OPTION='(([^[:space:]]*/)?node(js)?[[:space:]]+(-[^[:space:]]+[[:space:]]+)*(--?(eval|print)|-(pe?|ep?))|([^[:space:]]*/)?python[0-9.]*[[:space:]]+(-[^[:space:]]+[[:space:]]+)*-c)[[:space:]]*=?[[:space:]]*'
+readonly RULE_CODE_PASTE="$INTERPRETER_CODE_OPTION(('([^'\\]|\\\\.)*'|\"([^\"\\]|\\\\.)*\"|[^[:space:]'\"])*)('([^'\\]|\\\\.)*|\"([^\"\\]|\\\\.)*)?[\$]\{?SKILLS_JSON"
+
+# grep answers 0 for a match, 1 for no match and 2 or more for a real error.
+# Reading an error as "no match" would call a vulnerable copy fixed, so the
+# error stops the run instead.
+matches() {
+  local status=0
+  grep -Eq -e "$1" -- "$2" || status=$?
+  case "$status" in
+    0) return 0 ;;
+    1) return 1 ;;
+    *) die "grep exited $status while scanning $2" ;;
+  esac
+}
 
 rule_unconstrained_base_url() {
-  grep -Eq -e "$RULE_READS_BASE_URL" -- "$1" || return 1
-  # A commented-out allowlist is not an allowlist. One awk rather than a
-  # grep pipeline, so a short-circuiting reader cannot SIGPIPE the writer
-  # and turn a live allowlist into a vulnerable verdict.
-  ! awk -v pat="$RULE_ALLOWLIST" '
+  matches "$RULE_READS_BASE_URL" "$1" || return 1
+  # A commented-out allowlist is not an allowlist. One awk rather than a grep
+  # pipeline, so a short-circuiting reader cannot SIGPIPE the writer and turn a
+  # live allowlist into a vulnerable verdict. The pattern arrives through the
+  # environment because awk's -v applies escape processing to the value, which
+  # would eat the backslashes in the allowlist and match nothing.
+  local status=0
+  ALLOWLIST_PATTERN="$RULE_ALLOWLIST" awk '
+    BEGIN { pat = ENVIRON["ALLOWLIST_PATTERN"] }
     index($0, pat) && $0 !~ /^[ \t]*#/ { found = 1; exit }
     END { exit !found }
-  ' "$1"
+  ' "$1" || status=$?
+  case "$status" in
+    0) return 1 ;;
+    1) return 0 ;;
+    *) die "awk exited $status while scanning $1 for the allowlist" ;;
+  esac
 }
 rule_curl_pipe_shell() {
-  grep -Eq -e "$RULE_CURL_PIPE_SHELL" -- "$1"
+  matches "$RULE_CURL_PIPE_SHELL" "$1"
 }
 rule_code_paste() {
-  grep -Eq -e "$RULE_CODE_PASTE" -- "$1"
+  matches "$RULE_CODE_PASTE" "$1"
 }
 
 VULN_RULES=(
@@ -114,14 +141,25 @@ classify_ref() {
     git -C "$REPO" show "$ref:$path" >"$SCRATCH/raw" ||
       die "cannot read $path at $ref"
     # A pipeline split across a line continuation is one command, so the rules
-    # must see it as one line. A trailing "|" continues a line the same way a
-    # trailing backslash does.
+    # must see it as one line. The two continuations differ in how bash reads a
+    # comment on the line that follows: a backslash splices the text before
+    # comments are found, so a comment there comments out the rest of the
+    # command, while after a trailing "|" or "|&" the comment is its own line and
+    # the pipeline resumes below it. A comment line continues nothing itself.
     awk '
       {
-        while (sub(/\\$/, "") || /(^|[^|])\|[[:space:]]*$/) {
-          if ((getline nxt) > 0) $0 = $0 nxt; else break
+        line = $0
+        while (line !~ /^[[:space:]]*#/) {
+          if (sub(/\\$/, "", line)) {
+            if ((getline nxt) <= 0) break
+            line = line nxt
+          } else if (line ~ /(^|[^|])\|&?[[:space:]]*$/) {
+            do { got = getline nxt } while (got > 0 && nxt ~ /^[[:space:]]*#/)
+            if (got <= 0) break
+            line = line nxt
+          } else break
         }
-        print
+        print line
       }
     ' "$SCRATCH/raw" >"$SCRATCH/copy" ||
       die "cannot normalize $path at $ref"
