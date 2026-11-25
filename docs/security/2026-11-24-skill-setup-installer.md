@@ -100,7 +100,13 @@ These tags shipped at least one vulnerable copy of the three scripts above. That
 
 A release is `affected` when any copy that exists is vulnerable. It is `not-shipped` when none of the three paths exists. Otherwise it is `fixed`.
 
-The rules are a text scan, not a shell parser, so each can be wrong in either direction. The known cases are listed here rather than left to be found. The scan over-reports on quoted text: it skips the pipeline these scripts print in their own help and error output, which is the shape the rule was built around, but a pipeline written inside other quoted text, such as a here-document of usage instructions, is still counted even though nothing runs it. It under-reports on three shapes that would really execute a download or splice the path into code, `eval "$(curl ...)"`, `bash <(curl ...)` and a wrapper option that takes a value as in `sudo -u kite curl`. No release used any of the three, and folding them in would change what this advisory publishes, which is a decision for Engineering rather than for this script. A reader checking a new shape should read the copy rather than trust the verdict alone.
+The rules are a text scan, not a shell parser, so each can be wrong in either direction. What follows is a set of examples, not a closed list.
+
+The scan can over-report. It reads only the text bash would run, so a comment is dropped and a comment that quotes the old command does not count, but a pipeline written inside other quoted text, such as a here-document of usage instructions, is still counted even though nothing runs it.
+
+It can also under-report, and rule 1 is the case worth knowing. It asks whether the allowlist pattern appears in the copy, not whether the copy enforces it, so a copy that loses the check in a refactor while keeping the pattern in a help message reads as fixed. Rule 2 misses shells it cannot see as shells, among them `eval "$(curl ...)"`, `bash <(curl ...)`, a quoted or indirect name as in `| "bash"` or `| $SHELL`, a wrapper outside the handful it knows as in `nice curl ... | bash`, a wrapper option that takes a value as in `sudo -u kite curl`, and a pipeline fed by a group as in `{ curl ...; } | bash`.
+
+No release used any of those shapes, which is why they are limitations rather than corrections. Widening a rule changes what this advisory publishes, so that is a decision for Engineering rather than for this script, and a reader checking a new shape should read the copy rather than trust the verdict alone.
 
 Run the script from a full clone with tags.
 
