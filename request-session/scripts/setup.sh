@@ -2,7 +2,7 @@
 # Kite Passport CLI Bootstrap Script
 #
 # Ensures the kpass CLI is installed, on PATH, and at least MIN_KPASS_VERSION.
-# Installs via the official bundle installer (https://cli.gokite.ai/install.sh)
+# Installs via the official bundle installer (KPASS_BASE_URL overrides .installer-base)
 # when missing or stale.
 #
 # Usage: bash setup.sh [--help]
@@ -40,9 +40,9 @@ read_skills_json_field() {
   if command -v jq &>/dev/null; then
     jq -r ".${field}" "$SKILLS_JSON"
   elif command -v node &>/dev/null; then
-    node -p "require('$SKILLS_JSON').${field}"
+    node -e 'console.log(require(process.argv[1])[process.argv[2]])' "$SKILLS_JSON" "$field"
   elif command -v python3 &>/dev/null; then
-    python3 -c "import json; print(json.load(open('$SKILLS_JSON'))['${field}'])"
+    python3 -c "import json, sys; print(json.load(open(sys.argv[1]))[sys.argv[2]])" "$SKILLS_JSON" "$field"
   else
     return 1
   fi
@@ -55,10 +55,27 @@ if [[ -n "$SKILLS_JSON" ]]; then
   fi
 fi
 
-# ---------------------------------------------------------------------------
-# Help
-# ---------------------------------------------------------------------------
+# Read installer base URL with fallback chain: KPASS_BASE_URL env var > .installer-base file > hardcoded default
+get_installer_base() {
+  local base=""
+  if [[ -n "${KPASS_BASE_URL:-}" ]]; then
+    base="$KPASS_BASE_URL"
+  else
+    local base_file
+    base_file="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/.installer-base"
+    if [[ -f "$base_file" ]]; then
+      base="$(tr -d '[:space:]' < "$base_file" 2>/dev/null)"
+    fi
+  fi
+  if [[ -z "$base" ]]; then
+    base="https://cli.gokite.ai"
+  fi
+  [[ $base =~ ^https://cli(\.staging)?\.gokite\.ai$ ]] || { echo "bad installer base: $base" >&2; exit 1; }
+  printf '%s' "$base"
+}
+
 if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+  INSTALLER_BASE="$(get_installer_base)" || exit 1
   echo "Kite Passport CLI Bootstrap"
   echo ""
   echo "Ensures kpass >= ${MIN_KPASS_VERSION} is installed and available on PATH."
@@ -68,7 +85,7 @@ if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
   echo ""
   echo "Installation order:"
   echo "  1. Check if kpass >= ${MIN_KPASS_VERSION} is already on PATH"
-  echo "  2. Try: curl -fsSL https://cli.gokite.ai/install.sh | bash"
+  echo "  2. Try: curl -fsSL ${INSTALLER_BASE}/install.sh | bash"
   echo "  3. Fail with installation instructions"
   echo ""
   echo "Output: JSON to stdout"
@@ -164,15 +181,21 @@ fi
 # ---------------------------------------------------------------------------
 # Step 2: Install via the official bundle installer
 # ---------------------------------------------------------------------------
-INSTALLER_BASE="${KPASS_BASE_URL:-https://cli.gokite.ai}"
+INSTALLER_BASE="$(get_installer_base)" || exit 1
 echo "Installing kpass via the official installer (${INSTALLER_BASE}/install.sh)..." >&2
-if curl -fsSL "${INSTALLER_BASE}/install.sh" | bash >&2; then
-  # The installer typically only updates shell startup files (.bashrc/.zshrc),
-  # which this non-interactive script never sources. Export the standard bundle
-  # locations directly so the recheck below finds a fresh install even before
-  # PATH has been refreshed in any shell.
-  export PATH="${KPASS_INSTALL_DIR:-$HOME/.kpass}/bin:$HOME/.local/bin:$PATH"
-  report_if_suitable "installer" || true
+INSTALL_SCRIPT="$(mktemp)"
+trap 'rm -f "$INSTALL_SCRIPT"' EXIT
+if curl -fsSL --proto '=https' --proto-redir '=https' --max-redirs 0 "${INSTALLER_BASE}/install.sh" -o "$INSTALL_SCRIPT" && \
+   [[ -s "$INSTALL_SCRIPT" ]] && \
+   [[ "$(head -1 "$INSTALL_SCRIPT")" == '#!'* ]]; then
+  if bash "$INSTALL_SCRIPT" >&2; then
+    # The installer typically only updates shell startup files (.bashrc/.zshrc),
+    # which this non-interactive script never sources. Export the standard bundle
+    # locations directly so the recheck below finds a fresh install even before
+    # PATH has been refreshed in any shell.
+    export PATH="${KPASS_INSTALL_DIR:-$HOME/.kpass}/bin:$HOME/.local/bin:$PATH"
+    report_if_suitable "installer" || true
+  fi
 fi
 echo "Installer did not produce a kpass >= ${MIN_KPASS_VERSION} on PATH." >&2
 
