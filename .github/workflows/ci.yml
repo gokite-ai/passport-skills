@@ -78,3 +78,18 @@ jobs:
       - name: Test set-installer-base.sh
         run: bash scripts/test-set-installer-base.sh
 
+      # scripts/test-setup-drift.sh runs validate.sh inside a copy of the repo,
+      # and validate.sh needs js-yaml. The other jobs get it from their own
+      # npm ci; this one had no Node step because nothing here needed deps.
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Skill setup copies refuse hostile input
+        run: bash scripts/test-skill-setup-safety.sh
+
+      - name: A drifted skill setup copy fails validation
+        run: bash scripts/test-setup-drift.sh
+
+      - name: Installer base resolution
+        run: bash scripts/test-installer-base.sh
+

@@ -32,6 +32,9 @@ for entry in "$REPO_ROOT"/*; do
   cp -R "$entry" "$COPY/"
 done
 shopt -u dotglob nullglob
+# validate.sh Check 5 needs js-yaml, and a dangling symlink here would surface
+# as the undrifted copy failing to validate, which reads like the wrong bug.
+[[ -d "$REPO_ROOT/node_modules" ]] || fail "node_modules is missing; run npm ci first"
 ln -s "$REPO_ROOT/node_modules" "$COPY/node_modules"
 [[ -f "$COPY/$DRIFTED" ]] || fail "copy is missing $DRIFTED"
 
