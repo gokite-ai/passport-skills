@@ -164,6 +164,50 @@ LINE
       hardened_copy
       echo "python3 -c \"import json; print(json.load(open('\$SKILLS_JSON'))['min_kpass_version'])\""
       ;;
+    curl-pipe-sudo)
+      hardened_copy
+      cat <<'LINE'
+curl -fsSL "${INSTALLER_BASE}/install.sh" | sudo -E bash -
+LINE
+      ;;
+    curl-pipe-env)
+      hardened_copy
+      cat <<'LINE'
+curl -fsSL "${INSTALLER_BASE}/install.sh" | /usr/bin/env bash
+LINE
+      ;;
+    curl-pipe-after-semicolon)
+      hardened_copy
+      cat <<'LINE'
+cd "$HOME"; curl -fsSL "${INSTALLER_BASE}/install.sh" | bash
+LINE
+      ;;
+    code-paste-node-e)
+      hardened_copy
+      echo "node -e \"require('\$SKILLS_JSON').min_kpass_version\""
+      ;;
+    code-paste-braced)
+      hardened_copy
+      echo "node -p \"require('\${SKILLS_JSON}').min_kpass_version\""
+      ;;
+    code-paste-escaped-quote)
+      hardened_copy
+      echo "node -p \"require(\\\"\$SKILLS_JSON\\\").min_kpass_version\""
+      ;;
+    code-paste-spliced-quote)
+      hardened_copy
+      echo "node -p 'require(\"'\"\$SKILLS_JSON\"'\").min_kpass_version'"
+      ;;
+    code-paste-python2)
+      hardened_copy
+      echo "python -c \"import json; print(json.load(open('\$SKILLS_JSON')))\""
+      ;;
+    allowlist-only-in-a-comment)
+      hardened_copy | sed 's|^  \[\[ |  # TODO validate the base against |'
+      ;;
+    no-base-url-no-allowlist)
+      hardened_copy | grep -vF -e 'KPASS_BASE_URL' -e "$ALLOWLIST"
+      ;;
     *) echo "test bug: unknown variant '$1'" >&2; return 1 ;;
   esac
 }
@@ -213,8 +257,18 @@ release v1.5.0 curl-pipe-abspath curl-pipe-abspath curl-pipe-abspath
 release v1.6.0 curl-pipe-stderr-too curl-pipe-stderr-too curl-pipe-stderr-too
 release v1.7.0 curl-pipe-in-substitution curl-pipe-in-substitution curl-pipe-in-substitution
 release v1.8.0 curl-pipe-continued curl-pipe-continued curl-pipe-continued
+release v1.9.0 curl-pipe-sudo curl-pipe-sudo curl-pipe-sudo
+release v1.9.1 curl-pipe-env curl-pipe-env curl-pipe-env
+release v1.9.2 curl-pipe-after-semicolon curl-pipe-after-semicolon curl-pipe-after-semicolon
 release v1.10.0 code-paste-node code-paste-node code-paste-node
 release v1.11.0 code-paste-python code-paste-python code-paste-python
+release v1.12.0 code-paste-node-e code-paste-node-e code-paste-node-e
+release v1.13.0 code-paste-braced code-paste-braced code-paste-braced
+release v1.14.0 code-paste-escaped-quote code-paste-escaped-quote code-paste-escaped-quote
+release v1.15.0 code-paste-spliced-quote code-paste-spliced-quote code-paste-spliced-quote
+release v1.16.0 code-paste-python2 code-paste-python2 code-paste-python2
+release v1.17.0 allowlist-only-in-a-comment allowlist-only-in-a-comment allowlist-only-in-a-comment
+release v1.18.0 no-base-url-no-allowlist no-base-url-no-allowlist no-base-url-no-allowlist
 release v2.0.0 hardened hardened hardened
 release v2.1.0 code-paste-node hardened hardened
 release v2.2.0 hardened curl-pipe-if hardened
@@ -226,7 +280,8 @@ git -C "$REPO" tag nightly-2026
 
 # Listed in version order, which differs from the order of the tag names as text.
 EXPECTED=(
-  v1.0.0 v1.2.0 v1.3.0 v1.4.0 v1.5.0 v1.6.0 v1.7.0 v1.8.0 v1.10.0 v1.11.0
+  v1.0.0 v1.2.0 v1.3.0 v1.4.0 v1.5.0 v1.6.0 v1.7.0 v1.8.0 v1.9.0 v1.9.1
+  v1.9.2 v1.10.0 v1.11.0 v1.12.0 v1.13.0 v1.14.0 v1.15.0 v1.16.0 v1.17.0
   v2.1.0 v2.2.0 v2.3.0 v3.1.0
 )
 
@@ -240,6 +295,16 @@ expect_ref "rule 2: a pipe into bash inside a command substitution is affected" 
 expect_ref "rule 2: a pipeline split over backslash continuations is affected" v1.8.0 affected
 expect_ref "rule 3 alone: node -p with \$SKILLS_JSON inside the code is affected" v1.10.0 affected
 expect_ref "rule 3 alone: python3 -c with \$SKILLS_JSON inside the code is affected" v1.11.0 affected
+expect_ref "rule 2: a pipe into sudo bash is affected" v1.9.0 affected
+expect_ref "rule 2: a pipe into env bash by absolute path is affected" v1.9.1 affected
+expect_ref "rule 2: curl at command position after a semicolon is affected" v1.9.2 affected
+expect_ref "rule 3: node -e with \$SKILLS_JSON inside the code is affected" v1.12.0 affected
+expect_ref "rule 3: a braced \${SKILLS_JSON} inside the code is affected" v1.13.0 affected
+expect_ref "rule 3: \$SKILLS_JSON behind escaped quotes is affected" v1.14.0 affected
+expect_ref "rule 3: \$SKILLS_JSON spliced between quoted runs is affected" v1.15.0 affected
+expect_ref "rule 3: python -c without a version suffix is affected" v1.16.0 affected
+expect_ref "rule 1: an allowlist that survives only in a comment is affected" v1.17.0 affected
+expect_ref "rule 1: no allowlist and no KPASS_BASE_URL read is fixed" v1.18.0 fixed
 expect_ref "hardened copy with printed curl | bash decoys and argv forms is fixed" v2.0.0 fixed
 expect_ref "no copy path exists is not-shipped" v0.9.0 not-shipped
 expect_ref "only the first copy vulnerable is affected" v2.1.0 affected
@@ -272,6 +337,11 @@ commit_copies "$REAL_REPO" v9.9.9 real real real
 git -C "$REAL_REPO" tag v9.9.9
 run_in "$REAL_REPO" --ref v9.9.9
 expect "the three setup copies in this checkout are fixed" "exit 0, stdout: fixed" "$(summary)"
+
+SHALLOW_REPO="$WORK/shallow"
+git clone -q --depth 1 --no-local "file://$REPO" "$SHALLOW_REPO"
+run_in "$SHALLOW_REPO"
+expect_loud_failure "a shallow clone fails rather than listing the few tags it has"
 
 NO_TAGS_REPO="$WORK/no-tags"
 new_repo "$NO_TAGS_REPO"

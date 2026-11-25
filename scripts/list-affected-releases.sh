@@ -20,7 +20,8 @@
 #
 # Exit codes:
 #   0  success (--check: the advisory matches the tags)
-#   1  bad usage, no v* tags, unresolvable ref, or --check found a difference
+#   1  bad usage, a shallow clone, no v* tags, an unresolvable ref, or --check
+#      found a difference
 set -euo pipefail
 
 COPY_PATHS=(
@@ -37,20 +38,24 @@ readonly RULE_ALLOWLIST='^https://cli(\.staging)?\.gokite\.ai$'
 
 # curl's output piped into a shell. Anchored at command position, because the
 # hardened copy prints this same text in its --help echo and in its JSON error
-# envelope and neither must count. Any shell on the right of the pipe counts, so
-# writing "| sh" instead of "| bash" does not slip past.
+# envelope and neither must count. Any shell counts and so do the usual wrappers,
+# so "| sh", "| /bin/bash", "| sudo bash" and "| VAR=x bash" all land.
 # Not covered: curl inside a shell's own code argument, as in eval "$(curl ...)"
 # or bash <(curl ...). No release used either shape, and folding them into this
 # rule would widen the published classification, which is Engineering's call.
-readonly RULE_CURL_PIPE_SHELL='(^|[;&|(]|[$][(])[[:space:]]*(([!(]|if|then|else|elif|while|until|do)[[:space:]]+)*curl[[:space:]].*\|&?[[:space:]]*([^[:space:]]*/)?(ba|da|k|z)?sh([[:space:]]|;|&|[)]|$)'
+readonly RULE_CURL_PIPE_SHELL='(^|[;&|({)`]|[$][(])[[:space:]]*(([!({]|if|then|else|elif|while|until|do|[A-Za-z_][A-Za-z0-9_]*=[^[:space:]]*)[[:space:]]+)*curl[[:space:]].*\|&?[[:space:]]*((([^[:space:]]*/)?(sudo|env|exec|command|nohup|time|timeout)|-[^[:space:]]+|[0-9]+[smhd]?|[A-Za-z_][A-Za-z0-9_]*=[^[:space:]]*)[[:space:]]+)*([^[:space:]]*/)?(ba|da|k|z)?sh([[:space:]]|;|&|[)]|$)'
 
-# $SKILLS_JSON interpolated inside the interpreter's code argument. The run of
-# non-quote characters cannot cross the closing quote, so the hardened form that
-# passes the path as a separate argv entry does not match.
-readonly RULE_CODE_PASTE="(node[[:space:]]+-[pe]|python3[[:space:]]+-c)[[:space:]]+(\"[^\"]*|'[^']*)[\$]\{?SKILLS_JSON"
+# $SKILLS_JSON spliced into the interpreter's code rather than passed as its own
+# argument. The leading group consumes whole quoted words, so it reaches across
+# the "'...'" "$X" "'...'" splicing trick, and the trailing group stops at the
+# closing quote, so the hardened form that passes the path as a separate argv
+# entry does not match.
+readonly RULE_CODE_PASTE="(node[[:space:]]+(--?(eval|print)|-(pe?|ep?))|python[0-9.]*[[:space:]]+-c)[[:space:]]+(('([^'\\]|\\\\.)*'|\"([^\"\\]|\\\\.)*\"|[^[:space:]'\"])*)('([^'\\]|\\\\.)*|\"([^\"\\]|\\\\.)*)[\$]\{?SKILLS_JSON"
 
 rule_unconstrained_base_url() {
-  grep -Eq -e "$RULE_READS_BASE_URL" -- "$1" && ! grep -qF -e "$RULE_ALLOWLIST" -- "$1"
+  grep -Eq -e "$RULE_READS_BASE_URL" -- "$1" || return 1
+  # A commented-out allowlist is not an allowlist.
+  ! grep -F -e "$RULE_ALLOWLIST" -- "$1" | grep -qv '^[[:space:]]*#'
 }
 rule_curl_pipe_shell() {
   grep -Eq -e "$RULE_CURL_PIPE_SHELL" -- "$1"
@@ -157,11 +162,17 @@ while (($#)); do
   esac
 done
 
-REPO="$(git -C "$REPO" rev-parse --show-toplevel 2>/dev/null)" ||
+TOPLEVEL="$(git -C "$REPO" rev-parse --show-toplevel 2>/dev/null)" ||
   die "not a git work tree: $REPO"
+REPO="$TOPLEVEL"
+
+# A shallow or single-tag clone answers the tag query without failing, and the
+# short list it produces reads exactly like a real one.
+[[ "$(git -C "$REPO" rev-parse --is-shallow-repository)" == false ]] ||
+  die "$REPO is a shallow clone, so its tag list is incomplete. Run 'git fetch --tags --unshallow' first."
 TAGS="$(git -C "$REPO" tag -l 'v*' --sort=v:refname)"
 [[ -n "$TAGS" ]] ||
-  die "no v* tags in $REPO. A shallow clone drops tags, so run 'git fetch --tags' first."
+  die "no v* tags in $REPO. Run 'git fetch --tags' first."
 
 SCRATCH="$(mktemp -d)"
 trap 'rm -rf "$SCRATCH"' EXIT
