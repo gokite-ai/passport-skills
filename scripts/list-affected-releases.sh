@@ -20,8 +20,8 @@
 #
 # Exit codes:
 #   0  success (--check: the advisory matches the tags)
-#   1  bad usage, a shallow clone, no v* tags, an unresolvable ref, or --check
-#      found a difference
+#   1  bad usage, a shallow clone, no v* tags, an unresolvable ref, a copy that
+#      cannot be read, or --check found a difference
 set -euo pipefail
 
 COPY_PATHS=(
@@ -43,19 +43,25 @@ readonly RULE_ALLOWLIST='^https://cli(\.staging)?\.gokite\.ai$'
 # Not covered: curl inside a shell's own code argument, as in eval "$(curl ...)"
 # or bash <(curl ...). No release used either shape, and folding them into this
 # rule would widen the published classification, which is Engineering's call.
-readonly RULE_CURL_PIPE_SHELL='(^|[;&|({)`]|[$][(])[[:space:]]*(([!({]|if|then|else|elif|while|until|do|[A-Za-z_][A-Za-z0-9_]*=[^[:space:]]*)[[:space:]]+)*curl[[:space:]].*\|&?[[:space:]]*((([^[:space:]]*/)?(sudo|env|exec|command|nohup|time|timeout)|-[^[:space:]]+|[0-9]+[smhd]?|[A-Za-z_][A-Za-z0-9_]*=[^[:space:]]*)[[:space:]]+)*([^[:space:]]*/)?(ba|da|k|z)?sh([[:space:]]|;|&|[)]|$)'
+readonly WRAPPER='(([^[:space:]]*/)?(sudo|env|exec|command|nohup|time|timeout)|-[^[:space:]]+|[0-9]+[smhd]?|[A-Za-z_][A-Za-z0-9_]*=[^[:space:]]*)'
+readonly RULE_CURL_PIPE_SHELL='(^|[;&|({)`]|[$][(])[[:space:]]*(([!({]|if|then|else|elif|while|until|do)[[:space:]]+|'"$WRAPPER"'[[:space:]]+)*curl[[:space:]].*\|&?[[:space:]]*('"$WRAPPER"'[[:space:]]+)*([^[:space:]]*/)?(ba|da|k|z)?sh([[:space:]]|;|&|[)]|$)'
 
 # $SKILLS_JSON spliced into the interpreter's code rather than passed as its own
 # argument. The leading group consumes whole quoted words, so it reaches across
 # the "'...'" "$X" "'...'" splicing trick, and the trailing group stops at the
 # closing quote, so the hardened form that passes the path as a separate argv
 # entry does not match.
-readonly RULE_CODE_PASTE="(node[[:space:]]+(--?(eval|print)|-(pe?|ep?))|python[0-9.]*[[:space:]]+-c)[[:space:]]+(('([^'\\]|\\\\.)*'|\"([^\"\\]|\\\\.)*\"|[^[:space:]'\"])*)('([^'\\]|\\\\.)*|\"([^\"\\]|\\\\.)*)[\$]\{?SKILLS_JSON"
+readonly RULE_CODE_PASTE="(node[[:space:]]+(--?(eval|print)|-(pe?|ep?))|python[0-9.]*[[:space:]]+-c)[[:space:]]+(('([^'\\]|\\\\.)*'|\"([^\"\\]|\\\\.)*\"|[^[:space:]'\"])*)('([^'\\]|\\\\.)*|\"([^\"\\]|\\\\.)*)?[\$]\{?SKILLS_JSON"
 
 rule_unconstrained_base_url() {
   grep -Eq -e "$RULE_READS_BASE_URL" -- "$1" || return 1
-  # A commented-out allowlist is not an allowlist.
-  ! grep -F -e "$RULE_ALLOWLIST" -- "$1" | grep -qv '^[[:space:]]*#'
+  # A commented-out allowlist is not an allowlist. One awk rather than a
+  # grep pipeline, so a short-circuiting reader cannot SIGPIPE the writer
+  # and turn a live allowlist into a vulnerable verdict.
+  ! awk -v pat="$RULE_ALLOWLIST" '
+    index($0, pat) && $0 !~ /^[ \t]*#/ { found = 1; exit }
+    END { exit !found }
+  ' "$1"
 }
 rule_curl_pipe_shell() {
   grep -Eq -e "$RULE_CURL_PIPE_SHELL" -- "$1"
@@ -89,14 +95,36 @@ copy_is_vulnerable() {
   return 1
 }
 
+# Every step inside classify_ref checks its own status. list_affected calls it
+# on the left of a ||, which suspends set -e for the whole subshell.
 classify_ref() {
-  local ref="$1" path verdict=not-shipped
+  local ref="$1" path entry mode type verdict=not-shipped
   for path in "${COPY_PATHS[@]}"; do
-    git -C "$REPO" show "$ref:$path" 2>/dev/null >"$SCRATCH/raw" || continue
-    # A pipeline split across a backslash continuation is one command, so the
-    # rules must see it as one line.
-    awk '{ while (sub(/\\$/, "")) { if ((getline nxt) > 0) $0 = $0 nxt; else break } print }' \
-      "$SCRATCH/raw" >"$SCRATCH/copy"
+    # ls-tree separates "no such path" from "the read failed", which git show
+    # reports the same way. A partial clone missing its blobs would otherwise
+    # answer not-shipped for a release that did ship a vulnerable copy.
+    entry="$(git -C "$REPO" ls-tree --full-tree "$ref" -- "$path")" ||
+      die "cannot read $path at $ref"
+    [[ -n "$entry" ]] || continue
+    read -r mode type _ <<<"$entry"
+    [[ "$type" == blob ]] ||
+      die "$path at $ref is a $type, not a file, so no rule can judge it"
+    [[ "$mode" != 120000 ]] ||
+      die "$path at $ref is a symlink, so its text is not the script"
+    git -C "$REPO" show "$ref:$path" >"$SCRATCH/raw" ||
+      die "cannot read $path at $ref"
+    # A pipeline split across a line continuation is one command, so the rules
+    # must see it as one line. A trailing "|" continues a line the same way a
+    # trailing backslash does.
+    awk '
+      {
+        while (sub(/\\$/, "") || /(^|[^|])\|[[:space:]]*$/) {
+          if ((getline nxt) > 0) $0 = $0 nxt; else break
+        }
+        print
+      }
+    ' "$SCRATCH/raw" >"$SCRATCH/copy" ||
+      die "cannot normalize $path at $ref"
     verdict=fixed
     if copy_is_vulnerable "$SCRATCH/copy"; then
       verdict=affected
@@ -107,11 +135,13 @@ classify_ref() {
 }
 
 list_affected() {
-  local tag
+  local tag verdict
   while IFS= read -r tag; do
-    if [[ "$(classify_ref "refs/tags/$tag")" == affected ]]; then
-      printf '%s\n' "$tag"
-    fi
+    # Command substitution swallows the exit status inside a condition, so the
+    # verdict is taken first. An empty one would otherwise read as "not affected".
+    verdict="$(classify_ref "refs/tags/$tag")" || die "cannot classify tag $tag"
+    [[ "$verdict" == affected ]] || continue
+    printf '%s\n' "$tag"
   done <<<"$TAGS"
 }
 
@@ -152,6 +182,7 @@ while (($#)); do
       (($# >= 2)) || die "-C needs a directory"
       REPO="$2"; shift 2 ;;
     --ref)
+      [[ "$mode" != ref ]] || die "give --ref once"
       [[ "$mode" == list ]] || die "give at most one of --ref and --check"
       (($# >= 2)) || die "--ref needs a ref"
       mode=ref; ref="$2"; shift 2 ;;
@@ -168,8 +199,11 @@ REPO="$TOPLEVEL"
 
 # A shallow or single-tag clone answers the tag query without failing, and the
 # short list it produces reads exactly like a real one.
-[[ "$(git -C "$REPO" rev-parse --is-shallow-repository)" == false ]] ||
-  die "$REPO is a shallow clone, so its tag list is incomplete. Run 'git fetch --tags --unshallow' first."
+case "$(git -C "$REPO" rev-parse --is-shallow-repository 2>/dev/null)" in
+  false) ;;
+  true) die "$REPO is a shallow clone, so its tag list is incomplete. Run 'git fetch --tags --unshallow' first." ;;
+  *) die "this git cannot report whether $REPO is shallow, so the tag list cannot be trusted. Needs git 2.15 or newer." ;;
+esac
 TAGS="$(git -C "$REPO" tag -l 'v*' --sort=v:refname)"
 [[ -n "$TAGS" ]] ||
   die "no v* tags in $REPO. Run 'git fetch --tags' first."
