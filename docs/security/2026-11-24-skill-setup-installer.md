@@ -28,7 +28,7 @@ The `kite-discovery` skill bundles its own `kite-discovery/scripts/setup-ksearch
 
 ## Affected releases
 
-These tags shipped at least one vulnerable copy of the three scripts above. That is every release cut so far. The list comes from `scripts/list-affected-releases.sh`, and `--check` fails when the two disagree. To update it, paste that script's output rather than editing entries by hand.
+These tags shipped at least one vulnerable copy of the three scripts above. That is every `v*` tag in the repository, so every release cut so far is affected. The `bot-release/*` tags are dispatch markers rather than releases and are not listed. The list comes from `scripts/list-affected-releases.sh`, and `--check` fails when the two disagree. To update it, paste that script's output rather than editing entries by hand.
 
 <!-- affected-releases:start -->
 
@@ -95,12 +95,12 @@ These tags shipped at least one vulnerable copy of the three scripts above. That
 `scripts/list-affected-releases.sh` reads the three copies at each `v*` tag. It marks a copy vulnerable when any one of these rules matches.
 
 1. The copy reads `KPASS_BASE_URL` and does not contain the allowlist test `^https://cli(\.staging)?\.gokite\.ai$`.
-2. A command pipes `curl` output into a shell. `| sh` counts the same as `| bash`, as do an absolute path to the shell, a wrapper such as `sudo` or `env` or a variable assignment on either side of the pipe, a pipeline split over a continuation (a trailing `\` or a trailing `|`), and a pipeline inside a command substitution. The same text printed by an `echo`, or sitting inside the JSON error message, does not count.
-3. `$SKILLS_JSON` is spliced into the code argument of `node` or `python`, rather than passed as a separate argument. This covers `-p`, `-e`, `-pe`, `--eval` and `--print` for node and `-c` for a `python`, `python3` or `python3.12` name, and it covers a braced `${SKILLS_JSON}`, escaped quotes, and both splicing forms, `'...'"$X"'...'` and the unquoted `'...'$X'...'`.
+2. A command pipes `curl` output into a shell. `| sh` counts the same as `| bash`, as do a path to either command, a wrapper such as `sudo` or `env` or a variable assignment on either side of the pipe, a pipeline split over a continuation (a trailing `\`, `|` or `|&`), and a pipeline inside a command substitution or backticks. The pipeline has to start where a command can start, which is what keeps the `curl ... | bash` text in these scripts' own `--help` output and JSON error message from counting. A wrapper option that takes a value, as in `sudo -u kite curl`, is not covered, because the rule cannot tell such an option from the command name after it.
+3. `$SKILLS_JSON` is spliced into the code argument of `node` or `python`, rather than passed as a separate argument. This covers `-p`, `-e`, `-pe`, `--eval` and `--print` for a `node` or `nodejs` name and `-c` for a `python`, `python3` or `python3.12` name, each reachable by a path and each allowed other options first, with the code attached by a space, by `=` or by nothing at all. It covers a braced `${SKILLS_JSON}`, escaped quotes, and both splicing forms, `'...'"$X"'...'` and the unquoted `'...'$X'...'`.
 
 A release is `affected` when any copy that exists is vulnerable. It is `not-shipped` when none of the three paths exists. Otherwise it is `fixed`.
 
-The rules are a text scan, not a shell parser. They are tuned to the shapes these scripts actually used, and they are deliberately conservative about what counts as executing a download, so `eval "$(curl ...)"` and `bash <(curl ...)` are not matched. A reader checking a new shape should read the copy rather than trust the verdict alone.
+The rules are a text scan, not a shell parser, and where they are wrong they are built to be wrong in the direction of reporting a release affected. Quoted text is one example: the scan skips the pipeline these scripts print in their own help and error output, but a pipeline written inside other quoted text, such as a here-document of usage instructions, can still be counted even though nothing runs it. Two shapes that would execute a download are not matched, `eval "$(curl ...)"` and `bash <(curl ...)`, because no release used either and folding them in would change what this advisory publishes. A reader checking a new shape should read the copy rather than trust the verdict alone.
 
 Run the script from a full clone with tags.
 
