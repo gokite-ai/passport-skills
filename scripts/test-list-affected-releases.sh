@@ -313,6 +313,65 @@ LINE
 node --no-warnings -e 'console.log(require(process.argv[1]).v)' "$SKILLS_JSON"
 LINE
       ;;
+    curl-pipe-trailing-comment)
+      hardened_copy
+      cat <<'LINE'
+curl -fsSL "${INSTALLER_BASE}/install.sh" | # run the installer
+  bash
+LINE
+      ;;
+    curl-pipe-backslash-comment)
+      hardened_copy
+      cat <<'LINE'
+curl -fsSL "${INSTALLER_BASE}/install.sh" | \
+# run the installer
+  bash
+LINE
+      ;;
+    curl-pipe-then-redirect-in)
+      hardened_copy
+      cat <<'LINE'
+curl -fsSL "${INSTALLER_BASE}/install.sh" | bash</dev/null
+LINE
+      ;;
+    curl-pipe-then-second-stage)
+      hardened_copy
+      cat <<'LINE'
+curl -fsSL "${INSTALLER_BASE}/install.sh" | bash|tee /tmp/install.log
+LINE
+      ;;
+    curl-pipe-after-indented-comment-backslash)
+      hardened_copy
+      cat <<'LINE'
+  # the installer moved \
+  curl -fsSL "${INSTALLER_BASE}/install.sh" | bash
+LINE
+      ;;
+    curl-pipe-blank-line)
+      hardened_copy
+      cat <<'LINE'
+curl -fsSL "${INSTALLER_BASE}/install.sh" |
+
+  bash
+LINE
+      ;;
+    hardened-or-fallback-naming-a-shell)
+      hardened_copy
+      # Runs a shell when the download fails rather than feeding it the
+      # download. Two pipe characters, and neither is a pipeline.
+      cat <<'LINE'
+curl -fsSL "${INSTALLER_BASE}/install.sh" -o "$INSTALL_SCRIPT" || bash recover.sh
+LINE
+      ;;
+    hardened-comment-quoting-the-command)
+      hardened_copy
+      # The comment a security fix writes. Nothing here runs, so the copy is
+      # still hardened, and reading it as the command would publish the fixed
+      # release as an affected one.
+      cat <<'LINE'
+# It used to run `curl -fsSL "${INSTALLER_BASE}/install.sh" | bash`, not any more.
+LINE
+      ;;
     hardened-many-allowlist-lines)
       hardened_copy
       # Enough live allowlist lines that a reader which stops at the first
@@ -376,6 +435,12 @@ release v1.5.0 curl-pipe-abspath curl-pipe-abspath curl-pipe-abspath
 release v1.6.0 curl-pipe-stderr-too curl-pipe-stderr-too curl-pipe-stderr-too
 release v1.7.0 curl-pipe-in-substitution curl-pipe-in-substitution curl-pipe-in-substitution
 release v1.8.0 curl-pipe-continued curl-pipe-continued curl-pipe-continued
+release v1.8.8 curl-pipe-trailing-comment curl-pipe-trailing-comment curl-pipe-trailing-comment
+release v1.8.9 curl-pipe-backslash-comment curl-pipe-backslash-comment curl-pipe-backslash-comment
+release v1.8.10 curl-pipe-then-redirect-in curl-pipe-then-redirect-in curl-pipe-then-redirect-in
+release v1.8.11 curl-pipe-then-second-stage curl-pipe-then-second-stage curl-pipe-then-second-stage
+release v1.8.12 curl-pipe-after-indented-comment-backslash curl-pipe-after-indented-comment-backslash curl-pipe-after-indented-comment-backslash
+release v1.8.13 curl-pipe-blank-line curl-pipe-blank-line curl-pipe-blank-line
 release v1.9.0 curl-pipe-sudo curl-pipe-sudo curl-pipe-sudo
 release v1.9.1 curl-pipe-env curl-pipe-env curl-pipe-env
 release v1.9.2 curl-pipe-after-semicolon curl-pipe-after-semicolon curl-pipe-after-semicolon
@@ -406,6 +471,8 @@ release v1.16.5 code-paste-attached-c code-paste-attached-c code-paste-attached-
 release v1.16.6 code-paste-nodejs code-paste-nodejs code-paste-nodejs
 release v1.18.2 hardened-many-allowlist-lines hardened-many-allowlist-lines hardened-many-allowlist-lines
 release v1.18.3 hardened-argv-behind-a-flag hardened-argv-behind-a-flag hardened-argv-behind-a-flag
+release v1.18.4 hardened-comment-quoting-the-command hardened-comment-quoting-the-command hardened-comment-quoting-the-command
+release v1.18.5 hardened-or-fallback-naming-a-shell hardened-or-fallback-naming-a-shell hardened-or-fallback-naming-a-shell
 release v2.0.0 hardened hardened hardened
 release v2.1.0 code-paste-node hardened hardened
 release v2.2.0 hardened curl-pipe-if hardened
@@ -418,7 +485,8 @@ git -C "$REPO" tag nightly-2026
 # Listed in version order, which differs from the order of the tag names as text.
 EXPECTED=(
   v1.0.0 v1.2.0 v1.3.0 v1.4.0 v1.5.0 v1.6.0 v1.7.0 v1.8.0 v1.8.1 v1.8.2
-  v1.8.3 v1.8.4 v1.8.5 v1.8.6 v1.8.7 v1.9.0 v1.9.1 v1.9.2 v1.9.3 v1.10.0
+  v1.8.3 v1.8.4 v1.8.5 v1.8.6 v1.8.7 v1.8.8 v1.8.9 v1.8.10 v1.8.11 v1.8.12
+  v1.8.13 v1.9.0 v1.9.1 v1.9.2 v1.9.3 v1.10.0
   v1.11.0 v1.12.0 v1.13.0 v1.14.0 v1.15.0 v1.15.1 v1.16.0 v1.16.1 v1.16.2
   v1.16.3 v1.16.4 v1.16.5 v1.16.6 v1.17.0 v2.1.0 v2.2.0 v2.3.0 v3.1.0
 )
@@ -442,6 +510,14 @@ expect_ref "rule 3: \$SKILLS_JSON behind escaped quotes is affected" v1.14.0 aff
 expect_ref "rule 3: \$SKILLS_JSON spliced between quoted runs is affected" v1.15.0 affected
 expect_ref "rule 3: python -c without a version suffix is affected" v1.16.0 affected
 expect_ref "rule 2: a pipeline continued by a trailing pipe is affected" v1.8.1 affected
+expect_ref "rule 2: a blank line does not end a pending pipeline" v1.8.13 affected
+expect_ref "rule 2: a trailing comment does not hide the pipeline" v1.8.8 affected
+expect_ref "rule 2: a comment between a continued pipe and the shell is affected" v1.8.9 affected
+expect_ref "rule 2: a redirect with no space after the shell is affected" v1.8.10 affected
+expect_ref "rule 2: a second pipe stage after the shell is affected" v1.8.11 affected
+expect_ref "rule 2: an indented comment ending in a backslash hides nothing" v1.8.12 affected
+expect_ref "a comment quoting the old command leaves the copy fixed" v1.18.4 fixed
+expect_ref "a || fallback naming a shell is not a pipeline into one" v1.18.5 fixed
 expect_ref "rule 2: a sudo prefix before curl is affected" v1.9.3 affected
 expect_ref "rule 3: an unquoted '...'\$SKILLS_JSON'...' splice is affected" v1.15.1 affected
 expect_ref "rule 3: the same unquoted splice under python3 -c is affected" v1.16.1 affected
@@ -494,18 +570,38 @@ chmod +x "$GREP_STUB_BIN/grep"
 run_in_with_path "$REPO" "$GREP_STUB_BIN" --ref v1.3.0
 expect_loud_failure "a rule whose grep errors fails instead of reporting fixed" "grep exited"
 
+# Rule 1 answers first, so a grep that fails everything only ever proves rule
+# 1's call site. This stub lets rule 1's own pattern through and fails the rest,
+# which reaches rule 2 on a copy rule 1 has cleared.
+RULE2_GREP_STUB_BIN="$WORK/rule2-grep-stub-bin"
+mkdir -p "$RULE2_GREP_STUB_BIN"
+REAL_GREP="$(command -v grep)"
+cat >"$RULE2_GREP_STUB_BIN/grep" <<STUB
+#!/bin/sh
+for arg in "\$@"; do
+  case "\$arg" in
+    *KPASS_BASE_URL*) exec $REAL_GREP "\$@" ;;
+  esac
+done
+exit 2
+STUB
+chmod +x "$RULE2_GREP_STUB_BIN/grep"
+run_in_with_path "$REPO" "$RULE2_GREP_STUB_BIN" --ref v2.0.0
+expect_loud_failure "a later rule whose grep errors also fails loudly" "grep exited"
+
 # Only the allowlist awk fails here. The joiner's awk has to keep working, or
 # the run would stop before any rule is reached.
 AWK_RULE_STUB_BIN="$WORK/awk-rule-stub-bin"
 mkdir -p "$AWK_RULE_STUB_BIN"
-cat >"$AWK_RULE_STUB_BIN/awk" <<'STUB'
+REAL_AWK="$(command -v awk)"
+cat >"$AWK_RULE_STUB_BIN/awk" <<STUB
 #!/bin/sh
-for arg in "$@"; do
-  case "$arg" in
+for arg in "\$@"; do
+  case "\$arg" in
     *ALLOWLIST_PATTERN*) exit 2 ;;
   esac
 done
-exec /usr/bin/awk "$@"
+exec $REAL_AWK "\$@"
 STUB
 chmod +x "$AWK_RULE_STUB_BIN/awk"
 run_in_with_path "$REPO" "$AWK_RULE_STUB_BIN" --ref v1.0.0

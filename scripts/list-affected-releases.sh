@@ -41,13 +41,15 @@ readonly RULE_ALLOWLIST='^https://cli(\.staging)?\.gokite\.ai$'
 # envelope and neither must count. Any shell counts and so do the usual wrappers,
 # so "| sh", "| /bin/bash", "| sudo bash" and "| VAR=x bash" all land, and either
 # command may be reached by a path.
+# The matched pipe may not be half of a "||", so a fallback that happens to name
+# a shell, as in "curl ... -o f || bash recover.sh", is not a pipeline into one.
 # Not covered: curl inside a shell's own code argument, as in eval "$(curl ...)"
 # or bash <(curl ...). No release used either shape, and folding them into this
 # rule would widen the published classification, which is Engineering's call.
 # Also not covered: a wrapper option that takes a value, as in "sudo -u kite curl",
 # because the rule cannot tell such an option from the command name after it.
 readonly WRAPPER='(([^[:space:]]*/)?(sudo|env|exec|command|nohup|time|timeout)|-[^[:space:]]+|[0-9]+[smhd]?|[A-Za-z_][A-Za-z0-9_]*=[^[:space:]]*)'
-readonly RULE_CURL_PIPE_SHELL='(^|[;&|({)`]|[$][(])[[:space:]]*(([!({]|if|then|else|elif|while|until|do)[[:space:]]+|'"$WRAPPER"'[[:space:]]+)*([^[:space:]]*/)?curl[[:space:]].*\|&?[[:space:]]*('"$WRAPPER"'[[:space:]]+)*([^[:space:]]*/)?(ba|da|k|z)?sh([[:space:]]|[;&)`<>|]|$)'
+readonly RULE_CURL_PIPE_SHELL='(^|[;&|({)`]|[$][(])[[:space:]]*(([!({]|if|then|else|elif|while|until|do)[[:space:]]+|'"$WRAPPER"'[[:space:]]+)*([^[:space:]]*/)?curl[[:space:]].*[^|]\|&?[[:space:]]*('"$WRAPPER"'[[:space:]]+)*([^[:space:]]*/)?(ba|da|k|z)?sh([[:space:]]|[;&)`<>|]|$)'
 
 # $SKILLS_JSON spliced into the interpreter's code rather than passed as its own
 # argument. The word group consumes whole quoted runs but never crosses
@@ -55,7 +57,10 @@ readonly RULE_CURL_PIPE_SHELL='(^|[;&|({)`]|[$][(])[[:space:]]*(([!({]|if|then|e
 # the hardened form, which passes the path as a separate argv entry, stays out of
 # reach behind a space. Either interpreter may be reached by a path, carry options
 # before the code option, and attach the code with "=" or with no space at all.
-readonly INTERPRETER_CODE_OPTION='(([^[:space:]]*/)?node(js)?[[:space:]]+(-[^[:space:]]+[[:space:]]+)*(--?(eval|print)|-(pe?|ep?))|([^[:space:]]*/)?python[0-9.]*[[:space:]]+(-[^[:space:]]+[[:space:]]+)*-c)[[:space:]]*=?[[:space:]]*'
+# No command-position anchor here, so the interpreter matches inside a path as a
+# plain substring and an "=" after the option is eaten by the word group below.
+# Neither needs its own alternative, and adding one would read as load-bearing.
+readonly INTERPRETER_CODE_OPTION='(node(js)?[[:space:]]+(-[^[:space:]]+[[:space:]]+)*(--?(eval|print)|-(pe?|ep?))|python[0-9.]*[[:space:]]+(-[^[:space:]]+[[:space:]]+)*-c)[[:space:]]*'
 readonly RULE_CODE_PASTE="$INTERPRETER_CODE_OPTION(('([^'\\]|\\\\.)*'|\"([^\"\\]|\\\\.)*\"|[^[:space:]'\"])*)('([^'\\]|\\\\.)*|\"([^\"\\]|\\\\.)*)?[\$]\{?SKILLS_JSON"
 
 # grep answers 0 for a match, 1 for no match and 2 or more for a real error.
@@ -73,15 +78,16 @@ matches() {
 
 rule_unconstrained_base_url() {
   matches "$RULE_READS_BASE_URL" "$1" || return 1
-  # A commented-out allowlist is not an allowlist. One awk rather than a grep
-  # pipeline, so a short-circuiting reader cannot SIGPIPE the writer and turn a
-  # live allowlist into a vulnerable verdict. The pattern arrives through the
-  # environment because awk's -v applies escape processing to the value, which
-  # would eat the backslashes in the allowlist and match nothing.
+  # One awk rather than a grep pipeline, so a short-circuiting reader cannot
+  # SIGPIPE the writer and turn a live allowlist into a vulnerable verdict. The
+  # pattern arrives through the environment because awk's -v applies escape
+  # processing to the value, which would eat the backslashes in the allowlist and
+  # match nothing. A commented-out allowlist needs no test here: the normalizer
+  # kept only the text bash would run, so the comment is already gone.
   local status=0
   ALLOWLIST_PATTERN="$RULE_ALLOWLIST" awk '
     BEGIN { pat = ENVIRON["ALLOWLIST_PATTERN"] }
-    index($0, pat) && $0 !~ /^[ \t]*#/ { found = 1; exit }
+    index($0, pat) { found = 1; exit }
     END { exit !found }
   ' "$1" || status=$?
   case "$status" in
@@ -140,26 +146,41 @@ classify_ref() {
       die "$path at $ref is a symlink, so its text is not the script"
     git -C "$REPO" show "$ref:$path" >"$SCRATCH/raw" ||
       die "cannot read $path at $ref"
-    # A pipeline split across a line continuation is one command, so the rules
-    # must see it as one line. The two continuations differ in how bash reads a
-    # comment on the line that follows: a backslash splices the text before
-    # comments are found, so a comment there comments out the rest of the
-    # command, while after a trailing "|" or "|&" the comment is its own line and
-    # the pipeline resumes below it. A comment line continues nothing itself.
+    # The rules read one logical line at a time, holding only the text bash
+    # would run. Two things have to happen first.
+    #
+    # Comment text goes, because nothing in it executes. Leaving it in made a
+    # comment that quotes the old command, which is what a security fix writes,
+    # look like the command itself. The cut is at a "#" that starts a word, so a
+    # fragment such as install.sh#frag survives; a "#" inside a quoted string is
+    # cut too, which can only lose text and never invent a command.
+    #
+    # Continuations are joined, because a split pipeline is still one command.
+    # A "||" is not one of them. No test pins that, because rule 2 also refuses a
+    # pipe that is half of a "||", so the two agree and removing either one alone
+    # changes no verdict.
+    # A trailing "\", "|" or "|&" continues the line, and after a pipe bash keeps
+    # reading past comment and blank lines for the command that follows, so the
+    # join does too.
     awk '
+      function code(s) {
+        sub(/(^|[[:space:]])#.*$/, "", s)
+        return s
+      }
       {
-        line = $0
-        while (line !~ /^[[:space:]]*#/) {
+        line = code($0)
+        while (1) {
           if (sub(/\\$/, "", line)) {
             if ((getline nxt) <= 0) break
-            line = line nxt
+            line = line code(nxt)
           } else if (line ~ /(^|[^|])\|&?[[:space:]]*$/) {
-            do { got = getline nxt } while (got > 0 && nxt ~ /^[[:space:]]*#/)
+            got = getline nxt
+            nxt = code(nxt)
             if (got <= 0) break
-            line = line nxt
+            line = line " " nxt
           } else break
         }
-        print line
+        if (line ~ /[^[:space:]]/) print line
       }
     ' "$SCRATCH/raw" >"$SCRATCH/copy" ||
       die "cannot normalize $path at $ref"
