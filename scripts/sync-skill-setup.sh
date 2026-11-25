@@ -4,9 +4,8 @@
 # Each of attach-session, authenticate-user and request-session ships its own
 # setup.sh because a standalone skill install has no shared library to source.
 # Hand-editing those copies is how the installer hardening landed in
-# scripts/setup.sh and nowhere else, leaving three copies piping an
-# attacker-supplied URL into bash. The copies are produced by cp and never
-# edited in place; scripts/validate.sh fails the build when one drifts.
+# scripts/setup.sh and nowhere else. The copies are produced by cp, never
+# edited in place; scripts/validate.sh Check 8 fails the build when one drifts.
 #
 # Usage: bash scripts/sync-skill-setup.sh [--check]
 #   (no args)  overwrite every copy with scripts/setup.sh

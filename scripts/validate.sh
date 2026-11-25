@@ -188,8 +188,7 @@ done < <(find "$REPO_ROOT" -maxdepth 3 -name "setup.sh" -path "*/scripts/*" -not
 # The copies exist because a standalone skill install has no shared library to
 # source, not because they are allowed to differ. When they did, the installer
 # hardening reached scripts/setup.sh alone and three skills kept piping an
-# unvalidated URL into bash. Byte equality is the only check a copy cannot pass
-# by merely looking similar.
+# unvalidated URL into bash.
 SETUP_SOURCE="$REPO_ROOT/scripts/setup.sh"
 
 while IFS= read -r script; do

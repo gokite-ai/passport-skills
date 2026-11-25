@@ -54,14 +54,16 @@ if [[ "$status" -ne 1 ]]; then
 fi
 echo "PASS: drifted copy fails validation"
 
-if ! grep -qE "FAIL.*$DRIFTED" <<< "$out"; then
+# Anchored on Check 8's own wording so this stays a Check 8 test even if
+# Check 7, which reports on the same paths, changes the shape of its message.
+if ! grep -qF "FAIL: $DRIFTED differs from scripts/setup.sh" <<< "$out"; then
   printf '%s\n' "$out" | sed 's/^/    /'
   fail "validate.sh failed but did not name $DRIFTED"
 fi
 echo "PASS: failure names $DRIFTED"
 
 for other in authenticate-user/scripts/setup.sh request-session/scripts/setup.sh; do
-  if grep -qE "FAIL.*$other" <<< "$out"; then
+  if grep -qF "FAIL: $other differs" <<< "$out"; then
     printf '%s\n' "$out" | sed 's/^/    /'
     fail "validate.sh blamed undrifted $other"
   fi
