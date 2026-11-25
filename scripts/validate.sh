@@ -5,6 +5,12 @@
 #   1. skills.json exists and is valid JSON
 #   2. Every skill listed in skills.json has a non-empty SKILL.md
 #   3. No orphan skill directories (directories with SKILL.md not in skills.json)
+#   4. Every skill in skills.json carries the required fields
+#   5. SKILL.md frontmatter parses and references/ links resolve
+#   6. Skill groups are consistent with the groups map
+#   7. setup.sh fallback version pins match skills.json
+#   8. Every skill-bundled setup.sh is byte-identical to scripts/setup.sh
+#   9. Every version_at_least copy passes the shared case table
 #
 # Usage: bash scripts/validate.sh
 # Exit codes:
@@ -177,6 +183,24 @@ while IFS= read -r script; do
 done < <(find "$REPO_ROOT" -maxdepth 3 -name "setup.sh" -path "*/scripts/*" -not -path "*/node_modules/*" | grep -v "setup-ksearch")
 
 # kagent check removed: min_kagent_version and setup-kagent.sh scripts no longer exist
+
+# ---- Check 8: skill setup.sh copies are byte-identical to the shared source ----
+# The copies exist because a standalone skill install has no shared library to
+# source, not because they are allowed to differ. When they did, the installer
+# hardening reached scripts/setup.sh alone and three skills kept piping an
+# unvalidated URL into bash.
+SETUP_SOURCE="$REPO_ROOT/scripts/setup.sh"
+
+while IFS= read -r script; do
+  [[ "$script" == "$SETUP_SOURCE" ]] && continue
+  rel="${script#"$REPO_ROOT"/}"
+  if cmp -s "$SETUP_SOURCE" "$script"; then
+    echo "  [OK] $rel matches scripts/setup.sh"
+  else
+    echo "  FAIL: $rel differs from scripts/setup.sh (run bash scripts/sync-skill-setup.sh)"
+    ERRORS=$((ERRORS + 1))
+  fi
+done < <(find "$REPO_ROOT" -maxdepth 3 -name "setup.sh" -path "*/scripts/*" -not -path "*/node_modules/*" | grep -v "setup-ksearch")
 
 # ---- Summary ----
 echo ""
