@@ -100,7 +100,7 @@ These tags shipped at least one vulnerable copy of the three scripts above. That
 
 A release is `affected` when any copy that exists is vulnerable. It is `not-shipped` when none of the three paths exists. Otherwise it is `fixed`.
 
-The rules are a text scan, not a shell parser, and where they are wrong they are built to be wrong in the direction of reporting a release affected. Quoted text is one example: the scan skips the pipeline these scripts print in their own help and error output, but a pipeline written inside other quoted text, such as a here-document of usage instructions, can still be counted even though nothing runs it. Two shapes that would execute a download are not matched, `eval "$(curl ...)"` and `bash <(curl ...)`, because no release used either and folding them in would change what this advisory publishes. A reader checking a new shape should read the copy rather than trust the verdict alone.
+The rules are a text scan, not a shell parser, so each can be wrong in either direction. The known cases are listed here rather than left to be found. The scan over-reports on quoted text: it skips the pipeline these scripts print in their own help and error output, which is the shape the rule was built around, but a pipeline written inside other quoted text, such as a here-document of usage instructions, is still counted even though nothing runs it. It under-reports on three shapes that would really execute a download or splice the path into code, `eval "$(curl ...)"`, `bash <(curl ...)` and a wrapper option that takes a value as in `sudo -u kite curl`. No release used any of the three, and folding them in would change what this advisory publishes, which is a decision for Engineering rather than for this script. A reader checking a new shape should read the copy rather than trust the verdict alone.
 
 Run the script from a full clone with tags.
 
@@ -114,7 +114,7 @@ The first command prints the affected tags in version order. The second prints o
 
 ## Fix
 
-The fix is the hardened copies of the three scripts above. They ship in the first tagged release cut after those copies reach `main`. The #security post names that release. No tagged release carries them yet, which is why every tag below is affected.
+The fix is the hardened copies of the three scripts above. They ship in the first tagged release cut after those copies reach `main`. The #security post names that release. No tagged release carries them yet, which is why every tag in the list above is affected.
 
 ## What to do
 
