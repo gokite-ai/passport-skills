@@ -32,7 +32,6 @@ readonly ADVISORY_PATH=docs/security/2026-11-24-skill-setup-installer.md
 readonly START_MARKER='<!-- affected-releases:start -->'
 readonly END_MARKER='<!-- affected-releases:end -->'
 
-# A copy that reads KPASS_BASE_URL but never constrains it to the two known hosts.
 readonly RULE_READS_BASE_URL='[$]\{?KPASS_BASE_URL'
 readonly RULE_ALLOWLIST='^https://cli(\.staging)?\.gokite\.ai$'
 
@@ -45,7 +44,6 @@ readonly RULE_CURL_PIPE_BASH='^[[:space:]]*(([!(]|if|then|else|elif|while|until|
 # passes the path as a separate argv entry does not match.
 readonly RULE_CODE_PASTE="(node[[:space:]]+-[pe]|python3[[:space:]]+-c)[[:space:]]+(\"[^\"]*|'[^']*)[\$]\{?SKILLS_JSON"
 
-# Each rule takes a file path and returns 0 when that copy is vulnerable.
 rule_unconstrained_base_url() {
   grep -Eq -e "$RULE_READS_BASE_URL" -- "$1" && ! grep -qF -e "$RULE_ALLOWLIST" -- "$1"
 }
@@ -81,7 +79,6 @@ copy_is_vulnerable() {
   return 1
 }
 
-# classify_ref <ref> prints affected, fixed or not-shipped.
 classify_ref() {
   local ref="$1" path verdict=not-shipped
   for path in "${COPY_PATHS[@]}"; do
@@ -104,8 +101,6 @@ list_affected() {
   done <<<"$TAGS"
 }
 
-# Prints the tags between the markers, one per line. A bullet marker, backticks,
-# and blank lines are dropped. Exits 3 unless exactly one start/end pair exists.
 advisory_tags() {
   awk -v start="$START_MARKER" -v end="$END_MARKER" '
     { t = $0; sub(/^[ \t\r]+/, "", t); sub(/[ \t\r]+$/, "", t) }
@@ -116,7 +111,7 @@ advisory_tags() {
       sub(/^[ \t]+/, "", t); sub(/[ \t]+$/, "", t)
       print t
     }
-    END { exit (state == 2 && !bad) ? 0 : 3 }
+    END { exit (state == 2 && !bad) ? 0 : 1 }
   ' "$1"
 }
 

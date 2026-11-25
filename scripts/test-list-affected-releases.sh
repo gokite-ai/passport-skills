@@ -59,7 +59,6 @@ expect() {
   if [[ "$3" == "$2" ]]; then ok "$1"; else bad "$1" "$2" "$3"; fi
 }
 
-# run_in <repo> <args...> leaves stdout in $OUT, stderr in $ERR, the exit code in $RC.
 # It runs from a directory outside every repository on purpose.
 run_in() {
   local repo="$1"
@@ -85,7 +84,6 @@ expect_loud_failure() {
   fi
 }
 
-# The hardened copy, decoys included.
 hardened_copy() {
   cat <<'COPY'
 #!/usr/bin/env bash
@@ -146,8 +144,6 @@ new_repo() {
   git -C "$1" config tag.gpgsign false
 }
 
-# commit_copies <repo> <message> <variant x3> commits one copy per path.
-# A variant is a render_copy name, "absent" (no file), or "real" (this checkout's file).
 commit_copies() {
   local repo="$1" message="$2" variant path i=0
   shift 2
@@ -265,7 +261,6 @@ else
   bad "--help prints usage and exits 0" "exit 0, stdout containing Usage:" "$(summary)"
 fi
 
-# write_advisory <line>... writes a marker block, one line per argument.
 write_advisory() {
   mkdir -p "$REPO/$(dirname "$ADVISORY")"
   {
