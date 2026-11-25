@@ -96,7 +96,7 @@ These tags shipped at least one vulnerable copy of the three scripts above. That
 
 1. The copy reads `KPASS_BASE_URL` and does not contain the allowlist test `^https://cli(\.staging)?\.gokite\.ai$`.
 2. A command pipes `curl` output into a shell. `| sh` counts the same as `| bash`, as do an absolute path to the shell, a prefix such as `sudo` or a variable assignment, a pipeline split over backslash continuations, and a pipeline inside a command substitution. The same text printed by an `echo`, or sitting inside the JSON error message, does not count.
-3. `$SKILLS_JSON` appears inside the quoted code argument of `node -p`, `node -e`, or `python3 -c`.
+3. `$SKILLS_JSON` is spliced into the code argument of `node` or `python`, rather than passed as a separate argument. This covers `-p`, `-e`, `-pe`, `--eval` and `--print` for node and `-c` for any `python` name, and it covers a braced `${SKILLS_JSON}`, escaped quotes, and the `'...'"$X"'...'` splicing trick.
 
 A release is `affected` when any copy that exists is vulnerable. It is `not-shipped` when none of the three paths exists. Otherwise it is `fixed`.
 
@@ -110,7 +110,7 @@ bash scripts/list-affected-releases.sh --ref <tag>
 bash scripts/list-affected-releases.sh --check
 ```
 
-The first command prints the affected tags in version order. The second prints one verdict for a single ref. The third compares the list above with the tags and exits 1 when they differ. The script also exits 1 when the clone has no `v*` tags, so run `git fetch --tags` first in a shallow clone.
+The first command prints the affected tags in version order. The second prints one verdict for a single ref. The third compares the list above with the tags and exits 1 when they differ. The script refuses to answer from a shallow clone or from one with no `v*` tags, because a partial tag list reads exactly like a complete one, so run `git fetch --tags --unshallow` first.
 
 ## Fix
 
