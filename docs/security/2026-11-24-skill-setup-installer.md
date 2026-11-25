@@ -28,7 +28,7 @@ The `kite-discovery` skill bundles its own `kite-discovery/scripts/setup-ksearch
 
 ## Affected releases
 
-These tags shipped at least one vulnerable copy of the three scripts above. That is every release cut so far. A script generates the list from the git tags, so do not edit it by hand.
+These tags shipped at least one vulnerable copy of the three scripts above. That is every release cut so far. The list comes from `scripts/list-affected-releases.sh`, and `--check` fails when the two disagree. To update it, paste that script's output rather than editing entries by hand.
 
 <!-- affected-releases:start -->
 
@@ -95,8 +95,8 @@ These tags shipped at least one vulnerable copy of the three scripts above. That
 `scripts/list-affected-releases.sh` reads the three copies at each `v*` tag. It marks a copy vulnerable when any one of these rules matches.
 
 1. The copy reads `KPASS_BASE_URL` and does not contain the allowlist test `^https://cli(\.staging)?\.gokite\.ai$`.
-2. A command pipes `curl` output into a shell. `| sh` counts the same as `| bash`, as do an absolute path to the shell, a prefix such as `sudo` or a variable assignment, a pipeline split over backslash continuations, and a pipeline inside a command substitution. The same text printed by an `echo`, or sitting inside the JSON error message, does not count.
-3. `$SKILLS_JSON` is spliced into the code argument of `node` or `python`, rather than passed as a separate argument. This covers `-p`, `-e`, `-pe`, `--eval` and `--print` for node and `-c` for any `python` name, and it covers a braced `${SKILLS_JSON}`, escaped quotes, and the `'...'"$X"'...'` splicing trick.
+2. A command pipes `curl` output into a shell. `| sh` counts the same as `| bash`, as do an absolute path to the shell, a wrapper such as `sudo` or `env` or a variable assignment on either side of the pipe, a pipeline split over a continuation (a trailing `\` or a trailing `|`), and a pipeline inside a command substitution. The same text printed by an `echo`, or sitting inside the JSON error message, does not count.
+3. `$SKILLS_JSON` is spliced into the code argument of `node` or `python`, rather than passed as a separate argument. This covers `-p`, `-e`, `-pe`, `--eval` and `--print` for node and `-c` for a `python`, `python3` or `python3.12` name, and it covers a braced `${SKILLS_JSON}`, escaped quotes, and both splicing forms, `'...'"$X"'...'` and the unquoted `'...'$X'...'`.
 
 A release is `affected` when any copy that exists is vulnerable. It is `not-shipped` when none of the three paths exists. Otherwise it is `fixed`.
 
@@ -114,8 +114,8 @@ The first command prints the affected tags in version order. The second prints o
 
 ## Fix
 
-The fix is the hardened copies of the three scripts above, which land on `main` ahead of this advisory. They ship in the first tagged release cut after that. Release names that release in the #security post.
+The fix is the hardened copies of the three scripts above. They ship in the first tagged release cut after those copies reach `main`. The #security post names that release. No tagged release carries them yet, which is why every tag below is affected.
 
 ## What to do
 
-Install the fixed release. Until then, leave `KPASS_BASE_URL` unset, or set it only to `https://cli.gokite.ai`. That removes the attacker-chosen host, which is the only one of the three defects a user can mitigate. On an affected release the installer is still piped into bash and `$SKILLS_JSON` is still interpolated into interpreter code, so upgrading is the fix.
+Leave `KPASS_BASE_URL` unset, or set it only to `https://cli.gokite.ai`. That removes the attacker-chosen host, which is the only one of the three defects a user can mitigate. Install the fixed release once it is cut. On an affected release the installer is still piped into bash and `$SKILLS_JSON` is still interpolated into interpreter code, so upgrading is the fix.
