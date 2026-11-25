@@ -75,6 +75,7 @@ chmod +x "$WORK/bin/curl"
 export PATH="$WORK/bin:$PATH"
 
 FAILED=0
+SKIPPED=0
 COPY=""
 CASE=""
 
@@ -157,25 +158,64 @@ for COPY in "${COPIES[@]}"; do
   expect "asked for https://cli.staging.gokite.ai/install.sh" grep -qE '(^| )https://cli\.staging\.gokite\.ai/install\.sh( |$)' "$CURL_LOG"
 done
 
-# The directory name carries a slash-free marker because a path component
-# cannot contain '/', so the run's cwd is where a shell expansion would land it.
+# Markers for the hostile-path cases. A directory-name payload can run only a
+# RELATIVE `touch`, because a path component cannot hold a '/', so its effect
+# lands in the run's cwd; a `touch` symlink is added to every variant bin below
+# and the marker is checked both there and anywhere under $WORK.
 DIR_MARKER_NAME="dir-marker"
 JSON_MARKER="$WORK/json-marker"
-HOSTILE_PARENT="$WORK/it's \"x\"; \$(touch $DIR_MARKER_NAME)"
+
+# min_kpass_version is never spliced into code in either version — only the PATH
+# is — so this value-level marker is an inert forward guard, not a catch for the
+# old interpolation bug. It still must carry quotes and $(...) per the ticket,
+# and every run must echo it verbatim, which is what proves the parser actually
+# read the hostile-named path instead of silently falling back to the default.
 HOSTILE_VERSION="6.8.9'\"; \$(touch $JSON_MARKER)"
-mkdir -p "$HOSTILE_PARENT"
-printf '{"min_kpass_version": "%s"}\n' "${HOSTILE_VERSION//\"/\\\"}" > "$HOSTILE_PARENT/skills.json"
+
+# A shell payload ($(touch ...)) is inert inside a JS or Python string literal,
+# so it cannot catch a reintroduced path interpolation; each parser needs a
+# payload in ITS OWN language that breaks out of the single-quoted string the
+# pre-hardening code spliced the path into. node and python3 cannot share one
+# directory name: the parser compiles the whole program first, so whichever ran
+# second would throw before its touch once the first had already fired. jq takes
+# the path as argv in both versions, so no executable payload is possible and it
+# keeps a shell-metacharacter-only name. The ticket-required ', ", ; and
+# $(touch <marker>) ride in a trailing single-quoted literal so the spliced
+# program still parses and the injected touch runs. Each name holds all four and
+# no '/'.
+SHELL_META="it's \"x\"; \$(touch $DIR_MARKER_NAME)"
+declare -A HOSTILE_DIRNAME=(
+  [jq]="$SHELL_META"
+  [node]="x'+require(\"child_process\").execSync(\"touch $DIR_MARKER_NAME\")+'; \"\$(touch $DIR_MARKER_NAME)\" y"
+  [python3]="x'+__import__(\"os\").system(\"touch $DIR_MARKER_NAME\")+'; \"\$(touch $DIR_MARKER_NAME)\" y"
+)
+
+# One hostile parent per variant, each with its own skills.json carrying the
+# hostile version. The copies ship no skills.json, so setup.sh resolves the
+# ../../skills.json candidate here, whose PATH carries the variant's payload.
+declare -A HOSTILE_PARENT_DIR
+for variant in jq node python3; do
+  parent="$WORK/${HOSTILE_DIRNAME[$variant]}"
+  mkdir -p "$parent"
+  printf '{"min_kpass_version": "%s"}\n' "${HOSTILE_VERSION//\"/\\\"}" > "$parent/skills.json"
+  HOSTILE_PARENT_DIR[$variant]="$parent"
+done
 
 BASH_BIN="$(command -v bash)"
 DIRNAME_BIN="$(command -v dirname)"
+TOUCH_BIN="$(command -v touch)"
 
-# variant_bin NAME TOOL... builds $WORK/path-NAME holding only dirname and the
-# listed tools, so PATH alone decides which parser branch setup.sh takes.
+# variant_bin NAME TOOL... builds $WORK/path-NAME holding only dirname, touch,
+# and the listed tools, so PATH alone decides which parser branch setup.sh takes.
+# touch is present so a payload's relative `touch` CAN run: its absent marker is
+# the proof the path was read as data. setup.sh's own --help path never calls
+# touch, so adding it does not change which parser branch is chosen.
 variant_bin() {
   local name="$1"; shift
   local dir="$WORK/path-$name" tool
   mkdir -p "$dir"
   ln -sf "$DIRNAME_BIN" "$dir/dirname"
+  ln -sf "$TOUCH_BIN" "$dir/touch"
   for tool in "$@"; do
     ln -sf "$(command -v "$tool")" "$dir/$tool"
   done
@@ -198,27 +238,30 @@ no_marker_anywhere() { [[ -z "$(find "$WORK" -name "$DIR_MARKER_NAME" -print -qu
 
 for COPY in "${COPIES[@]}"; do
   skill_dir="$(dirname "$(dirname "$COPY")")"
-  rm -rf "${HOSTILE_PARENT:?}/$skill_dir"
-  cp -R "$REPO_ROOT/$skill_dir" "$HOSTILE_PARENT/"
-  copy_script="$HOSTILE_PARENT/$skill_dir/scripts/setup.sh"
-
   for variant in jq node python3; do
     CASE="hostile path + skills.json via $variant"
     if ! command -v "$variant" &>/dev/null; then
       echo "SKIP: $COPY | $CASE | $variant is not installed"
+      SKIPPED=$((SKIPPED + 1))
       continue
     fi
+    parent="${HOSTILE_PARENT_DIR[$variant]}"
+    rm -rf "${parent:?}/$skill_dir"
+    cp -R "$REPO_ROOT/$skill_dir" "$parent/"
+    copy_script="$parent/$skill_dir/scripts/setup.sh"
     run_help_restricted "$copy_script" "$(variant_bin "$variant" "$variant")"
     expect "exit status 0 (got $STATUS)" test "$STATUS" -eq 0
     expect "help shows the hostile min_kpass_version verbatim" grep -qF -- "$HOSTILE_VERSION" "$OUT"
     expect "skills.json value not expanded as code" test ! -e "$JSON_MARKER"
+    expect "directory name not expanded as code in cwd" test ! -e "$RUN_CWD/$DIR_MARKER_NAME"
     expect "directory name not expanded as code" no_marker_anywhere
   done
 done
 
 echo ""
-if [[ "$FAILED" -gt 0 ]]; then
-  echo "FAILED: $FAILED check(s) failed"
+echo "summary: $FAILED failed, $SKIPPED skipped"
+if [[ "$FAILED" -gt 0 || "$SKIPPED" -gt 0 ]]; then
+  echo "FAILED: $FAILED check(s) failed, $SKIPPED variant(s) skipped"
   exit 1
 fi
 echo "PASSED"
