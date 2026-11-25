@@ -35,9 +35,14 @@ readonly END_MARKER='<!-- affected-releases:end -->'
 readonly RULE_READS_BASE_URL='[$]\{?KPASS_BASE_URL'
 readonly RULE_ALLOWLIST='^https://cli(\.staging)?\.gokite\.ai$'
 
-# curl's output executed by bash. Anchored at command position so the same text
-# inside the --help echo and the JSON error envelope does not count.
-readonly RULE_CURL_PIPE_BASH='^[[:space:]]*(([!(]|if|then|else|elif|while|until|do|&&|\|\|)[[:space:]]+)*curl[[:space:]].*\|[[:space:]]*bash'
+# curl's output piped into a shell. Anchored at command position, because the
+# hardened copy prints this same text in its --help echo and in its JSON error
+# envelope and neither must count. Any shell on the right of the pipe counts, so
+# writing "| sh" instead of "| bash" does not slip past.
+# Not covered: curl inside a shell's own code argument, as in eval "$(curl ...)"
+# or bash <(curl ...). No release used either shape, and folding them into this
+# rule would widen the published classification, which is Engineering's call.
+readonly RULE_CURL_PIPE_SHELL='(^|[;&|(]|[$][(])[[:space:]]*(([!(]|if|then|else|elif|while|until|do)[[:space:]]+)*curl[[:space:]].*\|&?[[:space:]]*([^[:space:]]*/)?(ba|da|k|z)?sh([[:space:]]|;|&|[)]|$)'
 
 # $SKILLS_JSON interpolated inside the interpreter's code argument. The run of
 # non-quote characters cannot cross the closing quote, so the hardened form that
@@ -47,8 +52,8 @@ readonly RULE_CODE_PASTE="(node[[:space:]]+-[pe]|python3[[:space:]]+-c)[[:space:
 rule_unconstrained_base_url() {
   grep -Eq -e "$RULE_READS_BASE_URL" -- "$1" && ! grep -qF -e "$RULE_ALLOWLIST" -- "$1"
 }
-rule_curl_pipe_bash() {
-  grep -Eq -e "$RULE_CURL_PIPE_BASH" -- "$1"
+rule_curl_pipe_shell() {
+  grep -Eq -e "$RULE_CURL_PIPE_SHELL" -- "$1"
 }
 rule_code_paste() {
   grep -Eq -e "$RULE_CODE_PASTE" -- "$1"
@@ -56,7 +61,7 @@ rule_code_paste() {
 
 VULN_RULES=(
   rule_unconstrained_base_url
-  rule_curl_pipe_bash
+  rule_curl_pipe_shell
   rule_code_paste
 )
 
@@ -82,7 +87,11 @@ copy_is_vulnerable() {
 classify_ref() {
   local ref="$1" path verdict=not-shipped
   for path in "${COPY_PATHS[@]}"; do
-    git -C "$REPO" show "$ref:$path" >"$SCRATCH/copy" 2>/dev/null || continue
+    git -C "$REPO" show "$ref:$path" 2>/dev/null >"$SCRATCH/raw" || continue
+    # A pipeline split across a backslash continuation is one command, so the
+    # rules must see it as one line.
+    awk '{ while (sub(/\\$/, "")) { if ((getline nxt) > 0) $0 = $0 nxt; else break } print }' \
+      "$SCRATCH/raw" >"$SCRATCH/copy"
     verdict=fixed
     if copy_is_vulnerable "$SCRATCH/copy"; then
       verdict=affected

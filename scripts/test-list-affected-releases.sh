@@ -124,6 +124,38 @@ LINE
 curl -fsSL "${INSTALLER_BASE}/install.sh" | bash
 LINE
       ;;
+    curl-pipe-sh)
+      hardened_copy
+      cat <<'LINE'
+curl -fsSL "${INSTALLER_BASE}/install.sh" | sh
+LINE
+      ;;
+    curl-pipe-abspath)
+      hardened_copy
+      cat <<'LINE'
+curl -fsSL "${INSTALLER_BASE}/install.sh" | /bin/bash -s --
+LINE
+      ;;
+    curl-pipe-stderr-too)
+      hardened_copy
+      cat <<'LINE'
+curl -fsSL "${INSTALLER_BASE}/install.sh" |& bash
+LINE
+      ;;
+    curl-pipe-in-substitution)
+      hardened_copy
+      cat <<'LINE'
+out=$(curl -fsSL "${INSTALLER_BASE}/install.sh" | bash)
+LINE
+      ;;
+    curl-pipe-continued)
+      hardened_copy
+      cat <<'LINE'
+curl -fsSL \
+  "${INSTALLER_BASE}/install.sh" \
+  | bash
+LINE
+      ;;
     code-paste-node)
       hardened_copy
       echo "node -p \"require('\$SKILLS_JSON').min_kpass_version\""
@@ -176,6 +208,11 @@ release v0.9.0 absent absent absent
 release v1.0.0 unconstrained-base unconstrained-base unconstrained-base
 release v1.2.0 curl-pipe-if curl-pipe-if curl-pipe-if
 release v1.3.0 curl-pipe-bare curl-pipe-bare curl-pipe-bare
+release v1.4.0 curl-pipe-sh curl-pipe-sh curl-pipe-sh
+release v1.5.0 curl-pipe-abspath curl-pipe-abspath curl-pipe-abspath
+release v1.6.0 curl-pipe-stderr-too curl-pipe-stderr-too curl-pipe-stderr-too
+release v1.7.0 curl-pipe-in-substitution curl-pipe-in-substitution curl-pipe-in-substitution
+release v1.8.0 curl-pipe-continued curl-pipe-continued curl-pipe-continued
 release v1.10.0 code-paste-node code-paste-node code-paste-node
 release v1.11.0 code-paste-python code-paste-python code-paste-python
 release v2.0.0 hardened hardened hardened
@@ -188,11 +225,19 @@ commit_copies "$REPO" nightly curl-pipe-if curl-pipe-if curl-pipe-if
 git -C "$REPO" tag nightly-2026
 
 # Listed in version order, which differs from the order of the tag names as text.
-EXPECTED=(v1.0.0 v1.2.0 v1.3.0 v1.10.0 v1.11.0 v2.1.0 v2.2.0 v2.3.0 v3.1.0)
+EXPECTED=(
+  v1.0.0 v1.2.0 v1.3.0 v1.4.0 v1.5.0 v1.6.0 v1.7.0 v1.8.0 v1.10.0 v1.11.0
+  v2.1.0 v2.2.0 v2.3.0 v3.1.0
+)
 
 expect_ref "rule 1 alone: reads KPASS_BASE_URL with no allowlist is affected" v1.0.0 affected
 expect_ref "rule 2 alone: 'if curl ... | bash' is affected" v1.2.0 affected
 expect_ref "rule 2 alone: a bare 'curl ... | bash' line is affected" v1.3.0 affected
+expect_ref "rule 2: a pipe into sh rather than bash is affected" v1.4.0 affected
+expect_ref "rule 2: a pipe into an absolute shell path is affected" v1.5.0 affected
+expect_ref "rule 2: a stderr-and-stdout pipe into bash is affected" v1.6.0 affected
+expect_ref "rule 2: a pipe into bash inside a command substitution is affected" v1.7.0 affected
+expect_ref "rule 2: a pipeline split over backslash continuations is affected" v1.8.0 affected
 expect_ref "rule 3 alone: node -p with \$SKILLS_JSON inside the code is affected" v1.10.0 affected
 expect_ref "rule 3 alone: python3 -c with \$SKILLS_JSON inside the code is affected" v1.11.0 affected
 expect_ref "hardened copy with printed curl | bash decoys and argv forms is fixed" v2.0.0 fixed
@@ -288,12 +333,13 @@ run --check
 expect "--check passes when the marker block matches, ignoring bullets, backticks and blank lines" \
   "exit 0" "exit $RC"
 
+omitted="${EXPECTED[3]}"
 write_advisory "${bullets[@]:0:3}" "${bullets[@]:4}"
 run --check
-if [[ "$RC" -eq 1 && "$(cat "$OUT")" == *v1.10.0* ]]; then
+if [[ "$RC" -eq 1 && "$(cat "$OUT")" == *"$omitted"* ]]; then
   ok "--check fails and prints the difference when the advisory omits a tag"
 else
-  bad "--check fails and prints the difference when the advisory omits a tag" "exit 1, stdout naming v1.10.0" "$(summary)"
+  bad "--check fails and prints the difference when the advisory omits a tag" "exit 1, stdout naming $omitted" "$(summary)"
 fi
 
 write_advisory "${bullets[@]}" "- v2.0.0"

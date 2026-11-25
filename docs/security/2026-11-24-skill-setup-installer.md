@@ -91,7 +91,7 @@ These tags shipped at least one vulnerable copy. A script generates the list fro
 `scripts/list-affected-releases.sh` reads the three copies at each `v*` tag. It marks a copy vulnerable when any one of these rules matches.
 
 1. The copy reads `KPASS_BASE_URL` and does not contain the allowlist test `^https://cli(\.staging)?\.gokite\.ai$`.
-2. A line runs `curl` and pipes its output to `bash`. The same text printed by an `echo` or inside the JSON error message does not count.
+2. A command pipes `curl` output into a shell. Any shell counts, so `| sh` is treated the same as `| bash`, and a pipeline split over backslash continuations or wrapped in a command substitution still counts. The same text printed by an `echo`, or sitting inside the JSON error message, does not.
 3. `$SKILLS_JSON` appears inside the quoted code argument of `node -p`, `node -e`, or `python3 -c`.
 
 A release is `affected` when any copy that exists is vulnerable. It is `not-shipped` when none of the three paths exists. Otherwise it is `fixed`.
