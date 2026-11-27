@@ -90,6 +90,7 @@ These tags shipped at least one vulnerable copy of the four scripts above. That 
 - `v3.6.12`
 - `v3.6.13`
 - `v3.6.14`
+- `v3.6.15`
 
 <!-- affected-releases:end -->
 
