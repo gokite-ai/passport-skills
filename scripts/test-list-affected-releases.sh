@@ -24,6 +24,7 @@ COPIES=(
   attach-session/scripts/setup.sh
   authenticate-user/scripts/setup.sh
   request-session/scripts/setup.sh
+  kite-discovery/scripts/setup-ksearch.sh
 )
 
 WORK="$(mktemp -d)"
@@ -398,11 +399,19 @@ new_repo() {
   git -C "$1" config tag.gpgsign false
 }
 
+# commit_copies REPO MESSAGE VARIANT... renders one variant per entry of
+# COPIES, in order. A path with no variant of its own is absent, so a case
+# names only the copies it is about.
 commit_copies() {
   local repo="$1" message="$2" variant path i=0
   shift 2
-  for variant in "$@"; do
-    path="${COPIES[$i]}"
+  local variants=("$@")
+  if ((${#variants[@]} > ${#COPIES[@]})); then
+    echo "test bug: ${#variants[@]} variants for ${#COPIES[@]} copy paths" >&2
+    return 1
+  fi
+  for path in "${COPIES[@]}"; do
+    variant="${variants[$i]-absent}"
     i=$((i + 1))
     case "$variant" in
       absent) rm -f "${repo:?}/${path:?}" ;;
@@ -429,7 +438,7 @@ new_repo "$REPO"
 release v0.9.0 absent absent absent
 release v1.0.0 unconstrained-base unconstrained-base unconstrained-base
 release v1.2.0 curl-pipe-if curl-pipe-if curl-pipe-if
-release v1.3.0 curl-pipe-bare curl-pipe-bare curl-pipe-bare
+release v1.3.0 curl-pipe-bare curl-pipe-bare curl-pipe-bare curl-pipe-bare
 release v1.4.0 curl-pipe-sh curl-pipe-sh curl-pipe-sh
 release v1.5.0 curl-pipe-abspath curl-pipe-abspath curl-pipe-abspath
 release v1.6.0 curl-pipe-stderr-too curl-pipe-stderr-too curl-pipe-stderr-too
@@ -473,10 +482,11 @@ release v1.18.2 hardened-many-allowlist-lines hardened-many-allowlist-lines hard
 release v1.18.3 hardened-argv-behind-a-flag hardened-argv-behind-a-flag hardened-argv-behind-a-flag
 release v1.18.4 hardened-comment-quoting-the-command hardened-comment-quoting-the-command hardened-comment-quoting-the-command
 release v1.18.5 hardened-or-fallback-naming-a-shell hardened-or-fallback-naming-a-shell hardened-or-fallback-naming-a-shell
-release v2.0.0 hardened hardened hardened
-release v2.1.0 code-paste-node hardened hardened
-release v2.2.0 hardened curl-pipe-if hardened
-release v2.3.0 hardened hardened unconstrained-base
+release v2.0.0 hardened hardened hardened hardened
+release v2.1.0 code-paste-node hardened hardened hardened
+release v2.2.0 hardened curl-pipe-if hardened hardened
+release v2.3.0 hardened hardened unconstrained-base hardened
+release v2.4.0 hardened hardened hardened curl-pipe-if
 release v3.0.0 absent absent hardened
 release v3.1.0 absent absent code-paste-python
 commit_copies "$REPO" nightly curl-pipe-if curl-pipe-if curl-pipe-if
@@ -488,7 +498,7 @@ EXPECTED=(
   v1.8.3 v1.8.4 v1.8.5 v1.8.6 v1.8.7 v1.8.8 v1.8.9 v1.8.10 v1.8.11 v1.8.12
   v1.8.13 v1.9.0 v1.9.1 v1.9.2 v1.9.3 v1.10.0
   v1.11.0 v1.12.0 v1.13.0 v1.14.0 v1.15.0 v1.15.1 v1.16.0 v1.16.1 v1.16.2
-  v1.16.3 v1.16.4 v1.16.5 v1.16.6 v1.17.0 v2.1.0 v2.2.0 v2.3.0 v3.1.0
+  v1.16.3 v1.16.4 v1.16.5 v1.16.6 v1.17.0 v2.1.0 v2.2.0 v2.3.0 v2.4.0 v3.1.0
 )
 
 expect_ref "rule 1 alone: reads KPASS_BASE_URL with no allowlist is affected" v1.0.0 affected
@@ -528,9 +538,10 @@ expect_ref "hardened copy with printed curl | bash decoys and argv forms is fixe
 expect_ref "no copy path exists is not-shipped" v0.9.0 not-shipped
 expect_ref "only the first copy vulnerable is affected" v2.1.0 affected
 expect_ref "only the middle copy vulnerable is affected" v2.2.0 affected
-expect_ref "only the last copy vulnerable is affected" v2.3.0 affected
-expect_ref "one hardened copy and two absent paths is fixed" v3.0.0 fixed
-expect_ref "one vulnerable copy and two absent paths is affected" v3.1.0 affected
+expect_ref "only the last setup.sh copy vulnerable is affected" v2.3.0 affected
+expect_ref "only the kite-discovery ksearch copy vulnerable is affected" v2.4.0 affected
+expect_ref "one hardened copy and three absent paths is fixed" v3.0.0 fixed
+expect_ref "one vulnerable copy and three absent paths is affected" v3.1.0 affected
 expect_ref "a non-v tag resolves by --ref" nightly-2026 affected
 expect_ref "a branch head resolves by --ref" HEAD affected
 expect_ref "a commit id resolves by --ref" "$(git -C "$REPO" rev-parse v2.0.0)" fixed
@@ -624,10 +635,10 @@ expect "without -C it reads the repository that holds the script, from any direc
 
 REAL_REPO="$WORK/real-copies"
 new_repo "$REAL_REPO"
-commit_copies "$REAL_REPO" v9.9.9 real real real
+commit_copies "$REAL_REPO" v9.9.9 real real real real
 git -C "$REAL_REPO" tag v9.9.9
 run_in "$REAL_REPO" --ref v9.9.9
-expect "the three setup copies in this checkout are fixed" "exit 0, stdout: fixed" "$(summary)"
+expect "the four setup copies in this checkout are fixed" "exit 0, stdout: fixed" "$(summary)"
 
 # Cloned at a v* tag on purpose. A shallow clone of the branch tip carries no
 # v* tag at all, so the no-tags guard would answer for the shallow guard and

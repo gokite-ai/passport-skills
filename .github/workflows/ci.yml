@@ -86,6 +86,9 @@ jobs:
       - name: Skill setup copies refuse hostile input
         run: bash scripts/test-skill-setup-safety.sh
 
+      - name: ksearch setup copies refuse hostile input
+        run: bash scripts/test-ksearch-setup-safety.sh
+
       - name: A drifted skill setup copy fails validation
         run: bash scripts/test-setup-drift.sh
 
