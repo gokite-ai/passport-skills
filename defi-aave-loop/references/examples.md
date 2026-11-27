@@ -1,6 +1,6 @@
 # DeFi Aave Loop — Worked Examples
 
-The staging market is Aave v4 on Avalanche: USDe collateral, USDt debt, funded in USDC. The example inputs below sit inside the staging limits (principal $20 to $10,000, leverage up to 5x).
+The market is Aave v4 on Avalanche: USDe collateral, USDt debt, funded in USDC. The example inputs below sit inside the market's limits (principal $20 to $10,000, leverage up to 5x).
 
 ## 1. "Loop my USDC on Aave at 3x"
 
@@ -112,7 +112,7 @@ kpass defi loop unwind --mandate aave_loop_mandate_abc --output json
 
 Any loop command returns `aave_loop_disabled` (exit 4) with "DeFi loop is not available in this environment."
 
-The loop is staging only. Tell the user it is not available here and stop. Never pass or change `--base-url`, and never retry against another environment.
+The loop is switched off here. Tell the user it is not available in this environment and stop. Never pass or change `--base-url`, and never retry against another environment.
 
 ## 10. The user's kpass is too old
 
