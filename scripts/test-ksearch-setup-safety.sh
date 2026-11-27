@@ -7,6 +7,8 @@
 # and a throwaway HOME. The stub logs its full argv and, per STUB_MODE, writes a
 # would-be installer whose only effect is to create a marker file, so "the
 # installer ran" is a file that exists and "it did not" is a file that does not.
+# The redirect case reads the argv it was given, so it serves the installer to a
+# caller that follows redirects and refuses only one that passed --max-redirs 0.
 #
 # Usage: bash scripts/test-ksearch-setup-safety.sh
 # Exit codes:
@@ -71,7 +73,12 @@ body="#!/usr/bin/env bash"$'\n'"touch \"$INSTALLER_MARKER\""$'\n'
 case "${STUB_MODE:-}" in
   ok) rc=0 ;;
   download-fails) rc=22 ;;
-  redirect-refused) rc=47 ;;
+  redirect-refused)
+    # Emulates a 301 to another host. curl exits 47 only because the caller passed
+    # --max-redirs 0; a caller that still follows redirects gets the installer
+    # body and a clean status, so dropping the flag fails this case.
+    if [[ " $* " == *" --max-redirs 0 "* ]]; then rc=47; body=""; else rc=0; fi
+    ;;
   non-script) body="touch \"$INSTALLER_MARKER\""$'\n'; rc=0 ;;
   *) echo "stub curl: unknown STUB_MODE '${STUB_MODE:-}'" >&2; exit 99 ;;
 esac
@@ -136,9 +143,10 @@ for COPY in "${COPIES[@]}"; do
   expect "installer did not run" test ! -e "$INSTALLER_MARKER"
   expect "stdout says Install manually" grep -qF 'Install manually' "$OUT"
 
-  CASE="redirect refused (curl exit 47)"
+  CASE="redirect refused (--max-redirs 0)"
   run_setup redirect-refused ""
   expect "exit status 1 (got $STATUS)" test "$STATUS" -eq 1
+  expect "curl invoked once ($(curl_calls) calls)" test "$(curl_calls)" -eq 1
   expect "installer did not run" test ! -e "$INSTALLER_MARKER"
   expect "stdout says Install manually" grep -qF 'Install manually' "$OUT"
 
