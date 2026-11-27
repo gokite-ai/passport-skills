@@ -540,8 +540,8 @@ expect_ref "only the first copy vulnerable is affected" v2.1.0 affected
 expect_ref "only the middle copy vulnerable is affected" v2.2.0 affected
 expect_ref "only the last setup.sh copy vulnerable is affected" v2.3.0 affected
 expect_ref "only the kite-discovery ksearch copy vulnerable is affected" v2.4.0 affected
-expect_ref "one hardened copy and two absent paths is fixed" v3.0.0 fixed
-expect_ref "one vulnerable copy and two absent paths is affected" v3.1.0 affected
+expect_ref "one hardened copy and three absent paths is fixed" v3.0.0 fixed
+expect_ref "one vulnerable copy and three absent paths is affected" v3.1.0 affected
 expect_ref "a non-v tag resolves by --ref" nightly-2026 affected
 expect_ref "a branch head resolves by --ref" HEAD affected
 expect_ref "a commit id resolves by --ref" "$(git -C "$REPO" rev-parse v2.0.0)" fixed
