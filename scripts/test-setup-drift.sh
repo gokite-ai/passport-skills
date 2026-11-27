@@ -6,12 +6,13 @@
 # scripts/setup-ksearch.sh then did the same to kite-discovery's copy. Those
 # checks are the guard against a repeat; this test is the guard against them
 # silently ceasing to work. Each case takes an untouched copy of the repo, runs
-# validate.sh on it (must pass), appends one line to one skill copy, and runs it
-# again (must fail, name that file, and blame nothing else).
+# validate.sh on it (must pass), appends one line to one skill copy, runs it
+# again (must fail, name that file, and blame nothing else), and then runs the
+# repair that failure names (must leave the copy identical and validate.sh green).
 #
 # Usage: bash scripts/test-setup-drift.sh
 # Exit codes:
-#   0  validate.sh passes undrifted and fails naming each drifted copy
+#   0  validate.sh catches each drifted copy and the named repair fixes it
 #   1  any run behaved differently
 set -euo pipefail
 
@@ -82,6 +83,23 @@ check_drift() {
     fi
   done
   echo "PASS: undrifted copies are not blamed ($name)"
+
+  # The failure names sync-skill-setup.sh as the repair. Without this, a sync
+  # script that has stopped covering one of the two shared sources reports
+  # PASSED, changes nothing, and leaves validate.sh failing on the next run.
+  if ! out="$(bash "$copy/scripts/sync-skill-setup.sh" 2>&1)"; then
+    printf '%s\n' "$out" | sed 's/^/    /'
+    fail "sync-skill-setup.sh exited non-zero on a copy with $drifted drifted"
+  fi
+  if ! cmp -s "$copy/$source" "$copy/$drifted"; then
+    printf '%s\n' "$out" | sed 's/^/    /'
+    fail "sync-skill-setup.sh reported success but left $drifted differing from $source"
+  fi
+  if ! out="$(bash "$copy/scripts/validate.sh" 2>&1)"; then
+    printf '%s\n' "$out" | sed 's/^/    /'
+    fail "validate.sh still fails after the repair it told you to run"
+  fi
+  echo "PASS: sync-skill-setup.sh repairs $drifted"
 }
 
 check_drift setup attach-session/scripts/setup.sh scripts/setup.sh \

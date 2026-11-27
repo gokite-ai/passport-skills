@@ -21,11 +21,15 @@ COPIES=(
   kite-discovery/scripts/setup-ksearch.sh
 )
 
+# A sibling subdomain is here because the other four all fail a regex widened
+# to any *.gokite.ai host, which is the shape a takeover of one DNS record
+# would need. The allowlist names two hosts, not a domain.
 REFUSED_BASES=(
   "https://evil.example"
   "http://cli.gokite.ai"
   "https://cli.gokite.ai.evil.example"
   "https://cli.gokite.ai/x"
+  "https://attacker.gokite.ai"
 )
 
 if command -v ksearch &>/dev/null; then

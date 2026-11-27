@@ -31,8 +31,10 @@ case "${1:-}" in
   *) echo "usage: bash scripts/sync-skill-setup.sh [--check]" >&2; exit 2 ;;
 esac
 
-# Same enumeration as scripts/validate.sh Checks 7, 8 and 9, so a newly added
+# The same copies scripts/validate.sh Checks 7, 8 and 9 read, so a newly added
 # copy is synced by the command the validation failure tells you to run.
+# scripts/test-setup-drift.sh drifts one copy per source and runs this script on
+# it, so a source dropped from the list above cannot report PASSED and do nothing.
 copies() {
   local source="$1"
   find "$REPO_ROOT" -maxdepth 3 -name "$(basename "$source")" -path "*/scripts/*" \
