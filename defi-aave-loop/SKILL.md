@@ -48,7 +48,7 @@ The user's **mandate** is what makes the loop possible: principal, maximum lever
 
 The user must be logged in. If a command exits **3** with "Not logged in", use **`authenticate-user`** first, then retry.
 
-**Availability: staging only.** Where the loop is switched off, every command answers `error_code: "aave_loop_disabled"` with "DeFi loop is not available in this environment." (exit **4**). Tell the user it is not available here and stop. **Never pass or change `--base-url`**: use the agent's configured Passport, and do not retry against another environment.
+**Availability: wherever the loop is switched on (staging and production).** Where the loop is switched off, every command answers `error_code: "aave_loop_disabled"` with "DeFi loop is not available in this environment." (exit **4**). Tell the user it is not available here and stop. **Never pass or change `--base-url`**: use the agent's configured Passport, and do not retry against another environment.
 
 If `kpass defi loop market` fails with an **unknown-command** error, the installed `kpass` is too old for the loop. Tell the user to run `kpass upgrade` (see **`upgrade-passport`**) and stop.
 
@@ -187,6 +187,8 @@ target leverage. I'll check it with `kpass defi loop status`.
 
 `loop_run_in_progress` comes back as `status: "success"` (exit **0**) with `run_status: "running"`. That means **a run is already going**, not a failure. Show the same card and check `status`. Do not open again.
 
+`loop_gas_unavailable` from `open` means the loop could not be started for lack of gas funding. Tell the user the loop can't start right now, that **nothing was sent onchain**, and that they can try again later. Do not retry in a loop; open again only when the user asks.
+
 ### Step 6: `loop status` → position and events
 
 `health_factor` is `null` when the position has no debt. With no mandate the command still succeeds, with `mandate: null`.
@@ -277,6 +279,7 @@ back to me on my next refused action, and I'll pass it straight on.
 | 3 | `loop_mandate_closed`, `loop_mandate_revoked` | The mandate is finished | `preview`, then a new `mandate create` |
 | 4 | `mandate_not_found` | That id is not the current mandate | Run `status` and read the current mandate from it |
 | 4 | `aave_loop_disabled` | "DeFi loop is not available in this environment." | Tell the user. Do **not** change `--base-url` or retry elsewhere |
+| n/a | `loop_gas_unavailable` | `open` could not start the loop because gas funding is unavailable. Nothing went onchain | Tell the user the loop can't start right now and to try again later. Do not retry in a loop |
 | n/a | `mandate_already_open` | HTTP 409 from `mandate create`. A mandate is already open, including an expired one | No exit code is documented for it, so branch on the `error_code`. Read the mandate with `status`; renew an expired one instead of creating a second |
 
 ## Commands That DO NOT Exist
