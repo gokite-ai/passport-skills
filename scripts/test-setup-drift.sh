@@ -1,73 +1,95 @@
 #!/usr/bin/env bash
-# Proves scripts/validate.sh Check 8 catches a drifted skill setup.sh copy.
+# Proves scripts/validate.sh Checks 8 and 9 catch a drifted skill setup copy.
 #
 # The hardening of scripts/setup.sh once landed without reaching the three
-# skill-bundled copies, and nothing failed. Check 8 is the guard against a
-# repeat; this test is the guard against Check 8 silently ceasing to work.
-# It runs validate.sh on an untouched copy of the repo (must pass), appends one
-# line to one skill copy, and runs it again (must fail and name that file).
+# skill-bundled copies, and nothing failed. The hardening of
+# scripts/setup-ksearch.sh then did the same to kite-discovery's copy. Those
+# checks are the guard against a repeat; this test is the guard against them
+# silently ceasing to work. Each case takes an untouched copy of the repo, runs
+# validate.sh on it (must pass), appends one line to one skill copy, and runs it
+# again (must fail, name that file, and blame nothing else).
 #
 # Usage: bash scripts/test-setup-drift.sh
 # Exit codes:
-#   0  validate.sh passes undrifted and fails naming the drifted copy
-#   1  either run behaved differently
+#   0  validate.sh passes undrifted and fails naming each drifted copy
+#   1  any run behaved differently
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-DRIFTED="attach-session/scripts/setup.sh"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 
 fail() { echo "FAIL: $*" >&2; exit 1; }
 
-# A worktree's .git is a file pointing outside the copy, and node_modules is
-# large but read-only here, so skip the former and symlink the latter.
-COPY="$WORK/repo"
-mkdir -p "$COPY"
-shopt -s dotglob nullglob
-for entry in "$REPO_ROOT"/*; do
-  case "$(basename "$entry")" in
-    .git|node_modules) continue ;;
-  esac
-  cp -R "$entry" "$COPY/"
-done
-shopt -u dotglob nullglob
-# validate.sh Check 5 needs js-yaml, and a dangling symlink here would surface
-# as the undrifted copy failing to validate, which reads like the wrong bug.
+# validate.sh Check 5 needs js-yaml, and a dangling symlink would surface as the
+# undrifted copy failing to validate, which reads like the wrong bug.
 [[ -d "$REPO_ROOT/node_modules" ]] || fail "node_modules is missing; run npm ci first"
-ln -s "$REPO_ROOT/node_modules" "$COPY/node_modules"
-[[ -f "$COPY/$DRIFTED" ]] || fail "copy is missing $DRIFTED"
 
-if ! out="$(bash "$COPY/scripts/validate.sh" 2>&1)"; then
-  printf '%s\n' "$out" | sed 's/^/    /'
-  fail "validate.sh exited non-zero on an undrifted copy"
-fi
-echo "PASS: undrifted copy validates"
+# fresh_copy DEST mirrors the repo. A worktree's .git is a file pointing outside
+# the copy, and node_modules is large but read-only here, so skip the former and
+# symlink the latter.
+fresh_copy() {
+  local dest="$1" entry
+  mkdir -p "$dest"
+  shopt -s dotglob nullglob
+  for entry in "$REPO_ROOT"/*; do
+    case "$(basename "$entry")" in
+      .git|node_modules) continue ;;
+    esac
+    cp -R "$entry" "$dest/"
+  done
+  shopt -u dotglob nullglob
+  ln -s "$REPO_ROOT/node_modules" "$dest/node_modules"
+}
 
-echo '# drift' >> "$COPY/$DRIFTED"
+# check_drift NAME DRIFTED SOURCE OTHER... drifts one copy and reads the
+# failure. SOURCE is the shared script the message has to name, so the case
+# stays anchored on its own check even though Check 7 reports on the same paths
+# and Checks 8 and 9 word their failures alike.
+check_drift() {
+  local name="$1" drifted="$2" source="$3"
+  shift 3
+  local copy="$WORK/$name" status=0 out other
 
-status=0
-out="$(bash "$COPY/scripts/validate.sh" 2>&1)" || status=$?
-if [[ "$status" -ne 1 ]]; then
-  printf '%s\n' "$out" | sed 's/^/    /'
-  fail "validate.sh exited $status on a drifted copy, want 1"
-fi
-echo "PASS: drifted copy fails validation"
+  fresh_copy "$copy"
+  [[ -f "$copy/$drifted" ]] || fail "copy is missing $drifted"
 
-# Anchored on Check 8's own wording so this stays a Check 8 test even if
-# Check 7, which reports on the same paths, changes the shape of its message.
-if ! grep -qF "FAIL: $DRIFTED differs from scripts/setup.sh" <<< "$out"; then
-  printf '%s\n' "$out" | sed 's/^/    /'
-  fail "validate.sh failed but did not name $DRIFTED"
-fi
-echo "PASS: failure names $DRIFTED"
-
-for other in authenticate-user/scripts/setup.sh request-session/scripts/setup.sh; do
-  if grep -qF "FAIL: $other differs" <<< "$out"; then
+  if ! out="$(bash "$copy/scripts/validate.sh" 2>&1)"; then
     printf '%s\n' "$out" | sed 's/^/    /'
-    fail "validate.sh blamed undrifted $other"
+    fail "validate.sh exited non-zero on an undrifted copy"
   fi
-done
-echo "PASS: undrifted copies are not blamed"
+  echo "PASS: undrifted copy validates ($name)"
 
-echo "PASSED: validate.sh catches a drifted skill setup.sh copy and names it"
+  echo '# drift' >> "$copy/$drifted"
+
+  out="$(bash "$copy/scripts/validate.sh" 2>&1)" || status=$?
+  if [[ "$status" -ne 1 ]]; then
+    printf '%s\n' "$out" | sed 's/^/    /'
+    fail "validate.sh exited $status on a copy with $drifted drifted, want 1"
+  fi
+  echo "PASS: drifted copy fails validation ($drifted)"
+
+  if ! grep -qF "FAIL: $drifted differs from $source" <<< "$out"; then
+    printf '%s\n' "$out" | sed 's/^/    /'
+    fail "validate.sh failed but did not name $drifted"
+  fi
+  echo "PASS: failure names $drifted"
+
+  for other in "$@"; do
+    if grep -qF "FAIL: $other differs" <<< "$out"; then
+      printf '%s\n' "$out" | sed 's/^/    /'
+      fail "validate.sh blamed undrifted $other"
+    fi
+  done
+  echo "PASS: undrifted copies are not blamed ($name)"
+}
+
+check_drift setup attach-session/scripts/setup.sh scripts/setup.sh \
+  authenticate-user/scripts/setup.sh request-session/scripts/setup.sh \
+  kite-discovery/scripts/setup-ksearch.sh
+
+check_drift ksearch kite-discovery/scripts/setup-ksearch.sh scripts/setup-ksearch.sh \
+  attach-session/scripts/setup.sh authenticate-user/scripts/setup.sh \
+  request-session/scripts/setup.sh
+
+echo "PASSED: validate.sh catches a drifted skill setup copy and names it"

@@ -10,7 +10,8 @@
 #   6. Skill groups are consistent with the groups map
 #   7. setup.sh fallback version pins match skills.json
 #   8. Every skill-bundled setup.sh is byte-identical to scripts/setup.sh
-#   9. Every version_at_least copy passes the shared case table
+#   9. Every skill-bundled setup-ksearch.sh is byte-identical to scripts/setup-ksearch.sh
+#  10. Every version_at_least copy passes the shared case table
 #
 # Usage: bash scripts/validate.sh
 # Exit codes:
@@ -201,6 +202,23 @@ while IFS= read -r script; do
     ERRORS=$((ERRORS + 1))
   fi
 done < <(find "$REPO_ROOT" -maxdepth 3 -name "setup.sh" -path "*/scripts/*" -not -path "*/node_modules/*" | grep -v "setup-ksearch")
+
+# ---- Check 9: skill setup-ksearch.sh copies are byte-identical to the shared source ----
+# kite-discovery ships the only copy today. It kept piping an unvalidated URL
+# into bash after scripts/setup-ksearch.sh grew the host allowlist and the
+# download-to-file, because nothing compared the two.
+KSEARCH_SOURCE="$REPO_ROOT/scripts/setup-ksearch.sh"
+
+while IFS= read -r script; do
+  [[ "$script" == "$KSEARCH_SOURCE" ]] && continue
+  rel="${script#"$REPO_ROOT"/}"
+  if cmp -s "$KSEARCH_SOURCE" "$script"; then
+    echo "  [OK] $rel matches scripts/setup-ksearch.sh"
+  else
+    echo "  FAIL: $rel differs from scripts/setup-ksearch.sh (run bash scripts/sync-skill-setup.sh)"
+    ERRORS=$((ERRORS + 1))
+  fi
+done < <(find "$REPO_ROOT" -maxdepth 3 -name "setup-ksearch.sh" -path "*/scripts/*" -not -path "*/node_modules/*")
 
 # ---- Summary ----
 echo ""
