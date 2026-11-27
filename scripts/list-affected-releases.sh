@@ -1,14 +1,15 @@
 #!/usr/bin/env bash
 # Lists the tagged releases that shipped a vulnerable skill setup copy.
 #
-# Three skill-bundled copies of setup.sh ran an installer from any
-# KPASS_BASE_URL. This script asks each tag what the copies looked like then,
-# so the list of affected releases comes from the tags and never from memory.
+# Three skill-bundled copies of setup.sh, and kite-discovery's copy of
+# setup-ksearch.sh, ran an installer from any KPASS_BASE_URL. This script asks
+# each tag what the copies looked like then, so the list of affected releases
+# comes from the tags and never from memory.
 # The advisory is docs/security/2026-11-24-skill-setup-installer.md.
 #
-# A ref is classified from the three copy paths at that ref:
+# A ref is classified from the copy paths at that ref:
 #   affected     any copy that exists is vulnerable (matches a rule in VULN_RULES)
-#   not-shipped  none of the three paths exists
+#   not-shipped  none of the paths exists
 #   fixed        otherwise
 #
 # Usage: bash scripts/list-affected-releases.sh [-C <dir>] [--ref <ref> | --check]
@@ -28,6 +29,7 @@ COPY_PATHS=(
   attach-session/scripts/setup.sh
   authenticate-user/scripts/setup.sh
   request-session/scripts/setup.sh
+  kite-discovery/scripts/setup-ksearch.sh
 )
 readonly ADVISORY_PATH=docs/security/2026-11-24-skill-setup-installer.md
 readonly START_MARKER='<!-- affected-releases:start -->'
